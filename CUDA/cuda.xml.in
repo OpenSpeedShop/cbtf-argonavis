@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+Copyright (c) 2012 Argo Navis Technologies. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA  02111-1307  USA
+-->
+
+<MRNet xmlns="http://www.krellinst.org/CBTF/MRNet.xsd">
+
+  <Type>cuda</Type>
+  <Version>1.0.0</Version>
+  
+  <!--
+     List of the network's outputs.
+     
+     These outputs are connected to similarly named frontend outputs. They
+     should be bound within the tool (e.g. Open|SpeedShop) to handlers for
+     the various types of data.
+    -->
+  
+  <Output>
+    <Name>addressbuffer_output</Name>
+    <From><Output>OutgoingAddressBuffer</Output></From>
+  </Output>
+
+  <Output>
+    <Name>attached_to_threads_xdr_output</Name>
+    <From><Output>OutgoingAttachedToThreads</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>created_process_xdr_output</Name>
+    <From><Output>OutgoingCreatedProcess</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>loaded_linkedobject_xdr_output</Name>
+    <From><Output>OutgoingLoadedLinkedObject</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>linkedobjectentryvec_output</Name>
+    <From><Output>OutgoingLinkedObjectEntryVec</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>linkedobjectgroup_xdr_output</Name>
+    <From><Output>OutgoingLinkedObjectGroup</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>output</Name>
+    <From><Output>OutgoingAllTerminated</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>perfdata_xdr_output</Name>
+    <From><Output>OutgoingIOData</Output></From>
+  </Output>
+
+  <Output>
+    <Name>symboltable_xdr_output</Name>
+    <From><Output>OutgoingSymbolTable</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>threads_state_changed_xdr_output</Name>
+    <From><Output>OutgoingThreadsStateChanged</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>unloaded_linkedobject_xdr_output</Name>
+    <From><Output>OutgoingUnloadedLinkedObject</Output></From>
+  </Output>
+  
+  <!--
+     List of the network's stream declarations.
+     
+     The CUDA collector utilizes lightweight MRNet to feed packets upward into
+     the CBTF/MRNet distributed component network. And since lightweight MRNet
+     cannot easily contain an event loop accepting downward travelling packets
+     from the network, it isn't notified of any stream tags that were selected
+     dynamically. Instead, stream tags must be hard-coded in the collector and
+     explicitly bound to named streams within the network here.
+    -->
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS</Name>
+    <Tag>1101</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_CREATED_PROCESS</Name>
+    <Tag>1104</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_LOADED_LINKED_OBJECT</Name>
+    <Tag>1116</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED</Name>
+    <Tag>1124</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_UNLOADED_LINKED_OBJECT</Name>
+    <Tag>1126</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP</Name>
+    <Tag>1128</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
+    <Tag>10000</Tag>
+  </Stream>
+  
+  <!--
+     Frontend of the network.
+
+     Ideally the CUDAToIO component in this network would be pushed down into
+     the filters instead. The only thing that is preventing this currently is
+     that CUDAToIO dynamically generates symbol tables and these will need to
+     be reduced into a single symbol table as they travel up the tree. Pseudo
+     I/O performance data blobs will also have be remapped to the new symbols.
+     Doing that is a little more work than we have time for right now...
+    -->
+  
+  <Frontend>
+    
+    <!-- Component network for the frontend -->
+    
+    <Network xmlns="http://www.krellinst.org/CBTF/Network">
+      
+      <Type>cuda_frontend</Type>
+      <Version>1.0.0</Version>
+      
+      <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
+      
+      <Plugin>CollectionPlugin.so</Plugin>
+      <Plugin>CUDA.so</Plugin>
+      
+      <!-- List of the frontend network's component instances -->
+      
+      <Component>
+        <Name>AttachedToThreads</Name>
+        <Type>AttachedToThreads</Type>
+      </Component>
+      
+      <Component>
+        <Name>CreatedProcess</Name>
+        <Type>CreatedProcess</Type>
+      </Component>
+      
+      <Component>
+        <Name>CUDAToIO</Name>
+        <Type>CUDAToIO</Type>
+      </Component>
+      
+      <Component>
+        <Name>LinkedObject</Name>
+        <Type>LinkedObject</Type>
+      </Component>
+      
+      <Component>
+        <Name>ThreadsStateChanged</Name>
+        <Type>ThreadsStateChanged</Type>
+      </Component>
+      
+      <!-- List of the frontend network's inputs -->
+      
+      <Input>
+        <Name>IncomingAttachedToThreads</Name>
+        <To><Name>CUDAToIO</Name><Input>AttachedToThreads</Input></To>
+      </Input>
+      
+      <Input>
+        <Name>IncomingCreatedProcess</Name>
+        <To><Name>CreatedProcess</Name><Input>in</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingCUDAData</Name>
+        <To><Name>CUDAToIO</Name><Input>Data</Input></To>
+      </Input>
+      
+      <Input>
+        <Name>IncomingLoadedLinkedObject</Name>
+        <To><Name>LinkedObject</Name><Input>loaded</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingLinkedObjectGroup</Name>
+        <To><Name>CUDAToIO</Name><Input>InitialLinkedObjects</Input></To>
+      </Input>
+      
+      <Input>
+        <Name>IncomingThreadsStateChanged</Name>
+        <To><Name>CUDAToIO</Name><Input>ThreadsStateChanged</Input></To>
+      </Input>
+      
+      <!-- List of the frontend network's connections -->
+
+      <Connection>        
+        <From><Name>CUDAToIO</Name><Output>AttachedToThreads</Output></From>
+        <To><Name>AttachedToThreads</Name><Input>in</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>AttachedToThreads</Name><Output>out</Output></From>
+        <To><Name>LinkedObject</Name><Input>threadnames</Input></To>
+      </Connection>
+
+      <Connection>        
+        <From><Name>CUDAToIO</Name><Output>ThreadsStateChanged</Output></From>
+        <To><Name>ThreadsStateChanged</Name><Input>in</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>CUDAToIO</Name><Output>InitialLinkedObjects</Output></From>
+        <To><Name>LinkedObject</Name><Input>group</Input></To>
+      </Connection>
+      
+      <!-- List of the frontend network's outputs -->
+
+      <Output>
+        <Name>OutgoingAddressBuffer</Name>
+        <From><Name>CUDAToIO</Name><Output>AddressBuffer</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingAllTerminated</Name>
+        <From><Name>ThreadsStateChanged</Name><Output>out1</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingAttachedToThreads</Name>
+        <From><Name>AttachedToThreads</Name><Output>xdr_out</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingCreatedProcess</Name>
+        <From><Name>CreatedProcess</Name><Output>xdr_out</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingIOData</Name>
+        <From><Name>CUDAToIO</Name><Output>Data</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingLinkedObjectEntryVec</Name>
+        <From>
+          <Name>LinkedObject</Name><Output>linkedobjectvec_out</Output>
+        </From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingLinkedObjectGroup</Name>
+        <From><Name>LinkedObject</Name><Output>group_xdr_out</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingLoadedLinkedObject</Name>
+        <From><Name>LinkedObject</Name><Output>loaded_xdr_out</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingSymbolTable</Name>
+        <From><Name>CUDAToIO</Name><Output>SymbolTable</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingThreadsStateChanged</Name>
+        <From><Name>ThreadsStateChanged</Name><Output>xdr_out</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingUnloadedLinkedObject</Name>
+        <From><Name>LinkedObject</Name><Output>unloaded_xdr_out</Output></From>
+      </Output>
+
+    </Network>
+
+    <!-- List of the frontend's incoming upstreams -->
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS</Name>
+      <To><Input>IncomingAttachedToThreads</Input></To>
+    </IncomingUpstream>
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_CREATED_PROCESS</Name>
+      <To><Input>IncomingCreatedProcess</Input></To>
+    </IncomingUpstream>
+
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP</Name>
+      <To><Input>IncomingLinkedObjectGroup</Input></To>
+    </IncomingUpstream>
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_LOADED_LINKED_OBJECT</Name>
+      <To><Input>IncomingLoadedLinkedObject</Input></To>
+    </IncomingUpstream>
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
+      <To><Input>IncomingCUDAData</Input></To>
+    </IncomingUpstream>
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED</Name>
+      <To><Input>IncomingThreadsStateChanged</Input></To>
+    </IncomingUpstream>
+    
+  </Frontend>
+  
+</MRNet>

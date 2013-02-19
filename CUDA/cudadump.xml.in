@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA  02111-1307  USA
+-->
+
+<MRNet xmlns="http://www.krellinst.org/CBTF/MRNet.xsd">
+
+  <Type>cudadump</Type>
+  <Version>1.0.0</Version>
+
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED</Name>
+    <Tag>1124</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
+    <Tag>10000</Tag>
+  </Stream>
+
+  <Output>
+    <Name>output</Name>
+    <From><Output>OutgoingAllTerminated</Output></From>
+  </Output>
+  
+  <Frontend>
+    
+    <Network xmlns="http://www.krellinst.org/CBTF/Network">
+      
+      <Type>cudadump_frontend</Type>
+      <Version>1.0.0</Version>
+      
+      <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
+
+      <Plugin>CollectionPlugin.so</Plugin>      
+      <Plugin>CUDA.so</Plugin>
+      
+      <Component>
+        <Name>CUDADebug</Name>
+        <Type>CUDADebug</Type>
+      </Component>
+
+      <Component>
+        <Name>ThreadsStateChanged</Name>
+        <Type>ThreadsStateChanged</Type>
+      </Component>
+      
+      <Input>
+        <Name>IncomingCUDAData</Name>
+        <To><Name>CUDADebug</Name><Input>Data</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingThreadsStateChanged</Name>
+        <To><Name>ThreadsStateChanged</Name><Input>in</Input></To>
+      </Input>
+
+      <Output>
+        <Name>OutgoingAllTerminated</Name>
+        <From><Name>ThreadsStateChanged</Name><Output>out1</Output></From>
+      </Output>
+      
+    </Network>
+
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
+      <To><Input>IncomingCUDAData</Input></To>
+    </IncomingUpstream>
+
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED</Name>
+      <To><Input>IncomingThreadsStateChanged</Input></To>
+    </IncomingUpstream>
+    
+  </Frontend>
+  
+</MRNet>
