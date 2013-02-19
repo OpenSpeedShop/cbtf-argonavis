@@ -203,7 +203,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       
       <Input>
         <Name>IncomingLoadedLinkedObject</Name>
-        <To><Name>LinkedObject</Name><Input>loaded</Input></To>
+        <To><Name>CUDAToIO</Name><Input>LoadedLinkedObject</Input></To>
       </Input>
 
       <Input>
@@ -214,6 +214,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <Input>
         <Name>IncomingThreadsStateChanged</Name>
         <To><Name>CUDAToIO</Name><Input>ThreadsStateChanged</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingUnloadedLinkedObject</Name>
+        <To><Name>CUDAToIO</Name><Input>UnloadedLinkedObject</Input></To>
       </Input>
       
       <!-- List of the frontend network's connections -->
@@ -236,6 +241,16 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <Connection>
         <From><Name>CUDAToIO</Name><Output>InitialLinkedObjects</Output></From>
         <To><Name>LinkedObject</Name><Input>group</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>CUDAToIO</Name><Output>LoadedLinkedObject</Output></From>
+        <To><Name>LinkedObject</Name><Input>loaded</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>CUDAToIO</Name><Output>UnloadedLinkedObject</Output></From>
+        <To><Name>LinkedObject</Name><Input>unloaded</Input></To>
       </Connection>
       
       <!-- List of the frontend network's outputs -->

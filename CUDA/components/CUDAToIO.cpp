@@ -543,11 +543,17 @@ CUDAToIO::CUDAToIO() :
     declareOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
         "InitialLinkedObjects"
         );
+    declareOutput<boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject> >(
+        "LoadedLinkedObject"
+        );
     declareOutput<boost::shared_ptr<CBTF_Protocol_SymbolTable> >(
         "SymbolTable"
         );
     declareOutput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
         "ThreadsStateChanged"
+        );
+    declareOutput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
+        "UnloadedLinkedObject"
         );
 }
 
@@ -992,6 +998,11 @@ void CUDAToIO::handleLoadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
     )
 {
+    // Re-emit the original message unchanged
+    emitOutput<boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject> >(
+        "LoadedLinkedObject", message
+        );
+
     //
     // There is no need to update anything if this linked
     // object is one of the linked objects being excluded.
@@ -1184,6 +1195,11 @@ void CUDAToIO::handleUnloadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
     )
 {
+    // Re-emit the original message unchanged
+    emitOutput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
+        "UnloadedLinkedObject", message
+        );
+
     //
     // There is no need to update anything if this linked
     // object is one of the linked objects being excluded.
