@@ -85,11 +85,12 @@ namespace {
 
     /**
      * Constant specifying the regular expression that identifies the linked
-     * objects that are parat of the CUDA collector or CUDA implementation.
+     * objects that are a part of the CUDA collector or CUDA implementation.
      * Used to filter any frames belonging to those entities from stack traces.
      */
     boost::regex kExcludedLinkedObjects(
-        "lib(cudart|cublas|cufft|cuinj|curand|cusparse)\\..*\\.so"
+        "(cuda-collector-.*\\.so.*)|"
+        "(lib(cuda|cudart|cublas|cufft|cuinj|cupti|curand|cusparse)\\.so.*)|"
         );
     
     /**
@@ -588,6 +589,11 @@ void CUDAToIO::complete(ThreadSpecificData& tsd,
             // part of the CUDA collector or CUDA implementation. Trim the
             // stack trace from there all the way to the final call site.
             //
+            // One extra frame is trimmed for kernel launches because CUDA
+            // generates a "device stub" function inside of the executable
+            // for these. Since they are inside the executable, we can't
+            // easily separate them out using the extent test.
+            //
             
             for (int j = i->call_site.size() - 1; j > 0; --j)
             {
@@ -599,13 +605,17 @@ void CUDAToIO::complete(ThreadSpecificData& tsd,
                 if (tsd.extents.getIntersectionWith(extent).empty())
                 {
                     std::vector<CBTF_Protocol_Address> new_call_site;
-                    
-                    for (int k = j + 1; k < i->call_site.size(); ++k)
+
+                    for (int k = j + 1 + ((type == LaunchKernel) ? 1 : 0); 
+                         k < i->call_site.size(); ++k
+                        )
                     {
                         new_call_site.push_back(i->call_site[k]);
                     }
                     
                     i->call_site = new_call_site;
+
+                    break;
                 }
             }
             
@@ -912,7 +922,7 @@ void CUDAToIO::handleInitialLinkedObjects(
             message->linkedobjects.linkedobjects_val[i];
         
         boost::filesystem::path path(entry.linked_object.path);
-        
+
         if (!boost::regex_match(path.filename(), kExcludedLinkedObjects))
         {
             tsd.extents.push_back(
