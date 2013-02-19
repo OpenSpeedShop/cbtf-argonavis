@@ -25,7 +25,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${PROJECT_SOURCE_DIR}/../../../framework
     )
 
-find_package(Boost 1.39.0 REQUIRED)
+find_package(Boost 1.39.0 REQUIRED COMPONENTS filesystem regex)
 find_package(CBTF REQUIRED)
 find_package(CBTF-Core REQUIRED)
 find_package(CBTF-Messages REQUIRED)
