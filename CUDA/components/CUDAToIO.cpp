@@ -20,7 +20,10 @@
 
 #include <algorithm>
 #include <boost/bind.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/format.hpp>
+#include <boost/operators.hpp>
+#include <boost/regex.hpp>
 #include <boost/shared_ptr.hpp>
 #include <cmath>
 #include <cxxabi.h>
@@ -34,8 +37,8 @@
 #include <KrellInstitute/CBTF/Version.hpp>
 
 #include <KrellInstitute/Core/AddressBuffer.hpp>
+#include <KrellInstitute/Core/ExtentGroup.hpp>
 #include <KrellInstitute/Core/Path.hpp>
-#include <KrellInstitute/Core/ThreadName.hpp>
 
 #include <KrellInstitute/Messages/Address.h>
 #include <KrellInstitute/Messages/Blob.h>
@@ -79,6 +82,15 @@ namespace {
      * containing the dynamically generated symbol table of CUDA operations.
      */
     const uint64_t kChecksum = 0x00000BADC00DAFAD;
+
+    /**
+     * Constant specifying the regular expression that identifies the linked
+     * objects that are parat of the CUDA collector or CUDA implementation.
+     * Used to filter any frames belonging to those entities from stack traces.
+     */
+    boost::regex kExcludedLinkedObjects(
+        "lib(cudart|cublas|cufft|cuinj|curand|cusparse)\\..*\\.so"
+        );
     
     /**
      * Constant specifying the (fake) file name of the pseudo linked object
@@ -156,39 +168,6 @@ namespace {
         return i - call_site.size();
     }
 
-    /**
-     * Test the equality of the two specified thread names. Two thread names
-     * are considered to be equal if they have the same host name, pid, and
-     * posix thread identifier.
-     *
-     * @param x, y    Thread names to test for equality.
-     * @return        Boolean "true" if the thread names
-     *                are equal, or "false" otherwise.
-     */
-    bool equal(const ThreadName& x, const ThreadName& y)
-    {
-        if (x.getHost() != y.getHost())
-        {
-            return false;
-        }
-        
-        if ((x.getPid().first != y.getPid().first) ||
-            ((x.getPid().first == true) &&
-             (x.getPid().second != y.getPid().second)))
-        {
-            return false;
-        }
-
-        if ((x.getPosixThreadId().first != y.getPosixThreadId().first) ||
-            ((x.getPosixThreadId().first == true) &&
-             (x.getPosixThreadId().second != y.getPosixThreadId().second)))
-        {
-            return false;
-        }
-        
-        return true;
-    }
-    
     /**
      * Formats the specified byte count as a string with accompanying units.
      * E.g. an input of 1,614,807 returns "1.5 MB".
@@ -365,15 +344,108 @@ private:
         /** Expanded call site of the request. */
         std::vector<CBTF_Protocol_Address> call_site;
     };
-    
+
+    /**
+     * Simplification of the ThreadName class, limited to the host
+     * name, process identifier, and POSIX thread identifier only.
+     */
+    class SimpleThreadName :
+        private boost::equivalent<SimpleThreadName>,
+        private boost::totally_ordered<SimpleThreadName>
+    {
+        
+    public:
+        
+        /** Constructor from individual fields. */
+        SimpleThreadName(const std::string& host,
+                         const int64_t& pid,
+                         const int64_t& tid) :
+            dm_host(host),
+            dm_pid(pid),
+            dm_tid(tid)
+        {            
+        }
+        
+        /** Constructor from a CBTF_Protocol_ThreadName. */
+        SimpleThreadName(const CBTF_Protocol_ThreadName& name) :
+            dm_host(name.host),
+            dm_pid(name.pid),
+            dm_tid(name.has_posix_tid ? name.posix_tid : 0)
+        {
+        }
+        
+        /** Is this simple thread name less than another one? */
+        bool operator<(const SimpleThreadName& other) const
+        {
+            if(dm_host < other.dm_host)
+                return true;
+            if(dm_host > other.dm_host)
+                return false;
+            if(dm_pid < other.dm_pid)
+                return true;
+            if(dm_pid > other.dm_pid)
+                return false;
+            return dm_tid < other.dm_tid;
+        }
+        
+    private:
+        
+        /** Name of the host on which this thread is located. */
+        std::string dm_host;
+        
+        /** Identifier of the process containing this thread. */
+        int64_t dm_pid;
+        
+        /** POSIX identifier of the thread. */
+        int64_t dm_tid;
+        
+    }; // class SimpleThreadName
+
+    /**
+     * Plain old data (POD) structure holding thread-specific data.
+     *
+     * @sa http://en.wikipedia.org/wiki/Plain_old_data_structure
+     */
+    struct ThreadSpecificData
+    {
+        /** Table of pending requests. */
+        std::list<Request> requests;
+
+        /** Table of I/O events for completed CUDA operations. */
+        std::vector<CBTF_io_event> events;
+
+        /** Table of I/O stack traces for completed CUDA operations. */
+        std::vector<CBTF_Protocol_Address> stack_traces;
+
+        /**
+         * Group of extents for all linked objects that are not part of the
+         * CUDA implementation or CUDA collector. Used to filter any frames
+         * belonging to those entities from stack traces.
+         */
+        ExtentGroup extents;
+        
+        /**
+         * Map of linked object paths to their corresponding (most recent)
+         * entry in the table above. Needed in order to find the entry to
+         * update when linked objects are unloaded.
+         */
+        std::vector<boost::filesystem::path> extents_paths;
+    };
+
+    /**
+     * Type of associative container used to map simple thread names to
+     * their thread-specific data.
+     */
+    typedef std::map<SimpleThreadName, ThreadSpecificData> ThreadTable;
+
     /** Default constructor. */
     CUDAToIO();
     
     /** Complete the specified CUDA operation. */
     template <typename T> void complete(
-        const CUDA_RequestTypes& type, const T& message
+        ThreadSpecificData& tsd, const CUDA_RequestTypes& type, const T& message
         );
-
+    
     /** Handler for the "AttachedToThreads" input. */
     void handleAttachedToThreads(
         const boost::shared_ptr<CBTF_Protocol_AttachedToThreads>& message
@@ -389,16 +461,23 @@ private:
         const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
         );
     
+    /** Handler for the "LoadedLinkedObject" input. */
+    void handleLoadedLinkedObject(
+        const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
+        );
+    
     /** Handler for the "ThreadsStateChanged" input. */
     void handleThreadsStateChanged(
         const boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged>& message
         );
 
-    /**
-     * List of active (non-terminated) threads. Our dynamically generated
-     * symbol table of CUDA operations is emitted once this list empties.
-     */
-    ThreadNameVec dm_active_threads;
+    /** Handler for the "UnloadedLinkedObject" input. */
+    void handleUnloadedLinkedObject(
+        const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
+        );
+    
+    /** Address buffer containing all addresses seen within stack traces. */
+    AddressBuffer dm_addresses;
     
     /**
      * Next available (unused) address within the dynamically generated
@@ -408,19 +487,10 @@ private:
 
     /** Table of individual CUDA operations. */
     OperationTable dm_operations;
-    
-    /** Table of pending requests. */
-    std::list<Request> dm_requests;
-    
-    /** Table of I/O events for completed CUDA operations. */
-    std::vector<CBTF_io_event> dm_events;
 
-    /** Table of I/O stack traces for completed CUDA operations. */
-    std::vector<CBTF_Protocol_Address> dm_stack_traces;
-
-    /** Address buffer containing all addresses seen within stack traces. */
-    AddressBuffer dm_addresses;
-        
+    /** Thread-specific data for all active (non-terminated) threads. */
+    ThreadTable dm_threads;
+    
 }; // class CUDAToIO
 
 KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(CUDAToIO)
@@ -431,13 +501,10 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(CUDAToIO)
 //------------------------------------------------------------------------------
 CUDAToIO::CUDAToIO() :
     Component(Type(typeid(CUDAToIO)), Version(0, 0, 0)),
-    dm_active_threads(),
+    dm_addresses(),
     dm_next_address(kAddressRange.begin),
     dm_operations(),
-    dm_requests(),
-    dm_events(),
-    dm_stack_traces(),
-    dm_addresses()
+    dm_threads()
 {
     declareInput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
         "AttachedToThreads",
@@ -451,9 +518,17 @@ CUDAToIO::CUDAToIO() :
         "InitialLinkedObjects",
         boost::bind(&CUDAToIO::handleInitialLinkedObjects, this, _1)
         );
+    declareInput<boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject> >(
+        "LoadedLinkedObject",
+        boost::bind(&CUDAToIO::handleLoadedLinkedObject, this, _1)
+        );
     declareInput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
         "ThreadsStateChanged",
         boost::bind(&CUDAToIO::handleThreadsStateChanged, this, _1)
+        );
+    declareInput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
+        "UnloadedLinkedObject",
+        boost::bind(&CUDAToIO::handleUnloadedLinkedObject, this, _1)
         );
 
     declareOutput<AddressBuffer>(
@@ -484,21 +559,50 @@ CUDAToIO::CUDAToIO() :
 // appending that event to our tables.
 //------------------------------------------------------------------------------
 template <typename T>
-void CUDAToIO::complete(const CUDA_RequestTypes& type, const T& message)
+void CUDAToIO::complete(ThreadSpecificData& tsd,
+                        const CUDA_RequestTypes& type, const T& message)
 {
     //
     // Locate the next queued request of the same request type, CUDA context,
     // and CUDA stream as the completed CUDA operation.
     //
     
-    for (std::list<Request>::iterator i = dm_requests.begin();
-         i != dm_requests.end();
+    for (std::list<Request>::iterator i = tsd.requests.begin();
+         i != tsd.requests.end();
          ++i)
     {
         if ((i->message.type == type) &&
             (i->message.context == message.context) &&
             (i->message.stream == message.stream))
         {
+            //
+            // Iterate over the frames in the stack trace of the call site,
+            // working from main() torwards the final call site, looking for
+            // the first frame that is contained in a linked object that is
+            // part of the CUDA collector or CUDA implementation. Trim the
+            // stack trace from there all the way to the final call site.
+            //
+            
+            for (int j = i->call_site.size() - 1; j > 0; --j)
+            {
+                Extent extent(
+                    TimeInterval(i->message.time, i->message.time + 1),
+                    AddressRange(i->call_site[j], i->call_site[j] + 1)
+                    );
+                
+                if (tsd.extents.getIntersectionWith(extent).empty())
+                {
+                    std::vector<CBTF_Protocol_Address> new_call_site;
+                    
+                    for (int k = j + 1; k < i->call_site.size(); ++k)
+                    {
+                        new_call_site.push_back(i->call_site[k]);
+                    }
+                    
+                    i->call_site = new_call_site;
+                }
+            }
+            
             // Create the operation string for this completed CUDA operation
             std::string operation = toOperation(message);
             
@@ -519,7 +623,7 @@ void CUDAToIO::complete(const CUDA_RequestTypes& type, const T& message)
             }
 
             i->call_site.insert(i->call_site.begin(), j->second);
-
+            
             //
             // Construct a CBTF_io_event entry for this completed CUDA operation
             // and then push it onto our table of I/O events. The modified call
@@ -532,20 +636,20 @@ void CUDAToIO::complete(const CUDA_RequestTypes& type, const T& message)
             
             event.start_time = message.time_begin;
             event.stop_time = message.time_end;
-            event.stacktrace = addCallSite(i->call_site, dm_stack_traces);
+            event.stacktrace = addCallSite(i->call_site, tsd.stack_traces);
 
             for (std::vector<CBTF_Protocol_Address>::size_type
                      x = event.stacktrace;
-                 dm_stack_traces[x] != 0;
+                 tsd.stack_traces[x] != 0;
                  ++x)
             {
-                dm_addresses.updateAddressCounts(dm_stack_traces[x], 1);
+                dm_addresses.updateAddressCounts(tsd.stack_traces[x], 1);
             }
 
-            dm_events.push_back(event);
+            tsd.events.push_back(event);
             
             // Remove this request from the queue of pending requests
-            dm_requests.erase(i);
+            tsd.requests.erase(i);
             
             // And now exit the search...
             break;
@@ -566,29 +670,14 @@ void CUDAToIO::handleAttachedToThreads(
     emitOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
         "AttachedToThreads", message
         );
-
+    
     // Update the list of active threads appropriately
     for (u_int i = 0; i < message->threads.names.names_len; ++i)
     {
-        ThreadName thread_name(message->threads.names.names_val[i]);
-        
-        bool was_found = false;
-
-        for (ThreadNameVec::iterator j = dm_active_threads.begin();
-             j != dm_active_threads.end();
-             ++j)
-        {
-            if (equal(*j, thread_name))
-            {
-                was_found = true;
-                break;
-            }
-        }
-        
-        if (!was_found)
-        {
-            dm_active_threads.push_back(thread_name);
-        }
+        dm_threads.insert(std::make_pair(
+            SimpleThreadName(message->threads.names.names_val[i]),
+            ThreadSpecificData()
+            ));
     }
 }
 
@@ -610,7 +699,23 @@ void CUDAToIO::handleData(
 
     const CBTF_DataHeader& cuda_data_header = *unpacked_message.first;
     const CBTF_cuda_data& cuda_data = *unpacked_message.second;
- 
+
+    //
+    // Locate the thread-specific data belonging to the thread for which
+    // this data was gathered. Ignore the data if no such thread exists.
+    //
+
+    ThreadTable::iterator t = dm_threads.find(SimpleThreadName(
+        cuda_data_header.host, cuda_data_header.pid, cuda_data_header.posix_tid
+        ));
+
+    if (t == dm_threads.end())
+    {
+        return;
+    }
+
+    ThreadSpecificData& tsd = t->second;
+     
     //
     // Iterate over each of the individual CUDA messages "packed" into this
     // performance data blob. Queued requests are pushed onto our own queue
@@ -631,7 +736,7 @@ void CUDAToIO::handleData(
                 const CUDA_CopiedMemory& msg =
                     cuda_message.CBTF_cuda_message_u.copied_memory;
                 
-                complete(MemoryCopy, msg);
+                complete(tsd, MemoryCopy, msg);
             }
             break;
             
@@ -653,7 +758,7 @@ void CUDAToIO::handleData(
                         );
                 }
                 
-                dm_requests.push_back(request);
+                tsd.requests.push_back(request);
             }
             break;
             
@@ -662,7 +767,7 @@ void CUDAToIO::handleData(
                 const CUDA_ExecutedKernel& msg =
                     cuda_message.CBTF_cuda_message_u.executed_kernel;
                 
-                complete(LaunchKernel, msg);
+                complete(tsd, LaunchKernel, msg);
             }
             break;
             
@@ -671,7 +776,7 @@ void CUDAToIO::handleData(
                 const CUDA_SetMemory& msg =
                     cuda_message.CBTF_cuda_message_u.set_memory;
                 
-                complete(MemorySet, msg);
+                complete(tsd, MemorySet, msg);
             }
             break;
             
@@ -712,7 +817,7 @@ void CUDAToIO::handleData(
     io_data_header.addr_end = 0;
 
     for (std::vector<CBTF_Protocol_Address>::const_iterator
-             i = dm_stack_traces.begin(); i != dm_stack_traces.end(); ++i)
+             i = tsd.stack_traces.begin(); i != tsd.stack_traces.end(); ++i)
     {
         if (*i != 0)
         {
@@ -725,7 +830,7 @@ void CUDAToIO::handleData(
         }
     }
     
-    io_data.stacktraces.stacktraces_len = dm_stack_traces.size();
+    io_data.stacktraces.stacktraces_len = tsd.stack_traces.size();
     
     io_data.stacktraces.stacktraces_val =
         reinterpret_cast<CBTF_Protocol_Address*>(
@@ -733,27 +838,27 @@ void CUDAToIO::handleData(
                    sizeof(CBTF_Protocol_Address))
             );
     
-    if (!dm_stack_traces.empty())
+    if (!tsd.stack_traces.empty())
     {
-        memcpy(io_data.stacktraces.stacktraces_val, &dm_stack_traces[0],
-               dm_stack_traces.size() * sizeof(CBTF_Protocol_Address));        
+        memcpy(io_data.stacktraces.stacktraces_val, &tsd.stack_traces[0],
+               tsd.stack_traces.size() * sizeof(CBTF_Protocol_Address));        
     }
     
-    io_data.events.events_len = dm_events.size();
+    io_data.events.events_len = tsd.events.size();
     
     io_data.events.events_val = reinterpret_cast<CBTF_io_event*>(
         malloc(std::max(1U, io_data.events.events_len) * sizeof(CBTF_io_event))
         );
     
-    if (!dm_events.empty())
+    if (!tsd.events.empty())
     {
-        memcpy(io_data.events.events_val, &dm_events[0],
-               dm_events.size() * sizeof(CBTF_io_event));        
+        memcpy(io_data.events.events_val, &tsd.events[0],
+               tsd.events.size() * sizeof(CBTF_io_event));        
     }
     
     // Empty the two tables of completed CUDA operations
-    dm_events.clear();
-    dm_stack_traces.clear();
+    tsd.events.clear();
+    tsd.stack_traces.clear();
     
     // Emit the CBTF_io_trace_data on our appropriate output
     emitOutput<boost::shared_ptr<CBTF_Protocol_Blob> >(
@@ -774,6 +879,45 @@ void CUDAToIO::handleInitialLinkedObjects(
     const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
     )
 {
+    //
+    // Locate the thread-specific data belonging to the thread for which this
+    // message was generated. Ignore the message if no such thread exists.
+    //
+
+    ThreadTable::iterator t = dm_threads.find(
+        SimpleThreadName(message->thread)
+        );
+    
+    if (t == dm_threads.end())
+    {
+        return;
+    }
+    
+    ThreadSpecificData& tsd = t->second;
+    
+    //
+    // Build the initial group of extents for all linked objects that are
+    // not part of the CUDA collector or CUDA implementation.
+    // 
+    
+    for (int i = 0; i < message->linkedobjects.linkedobjects_len; ++i)
+    {
+        const CBTF_Protocol_LinkedObject& entry =
+            message->linkedobjects.linkedobjects_val[i];
+        
+        boost::filesystem::path path(entry.linked_object.path);
+        
+        if (!boost::regex_match(path.filename(), kExcludedLinkedObjects))
+        {
+            tsd.extents.push_back(
+                Extent(TimeInterval(Time::TheBeginning(), Time::TheEnd()),
+                       AddressRange(entry.range.begin, entry.range.end))
+                );
+            
+            tsd.extents_paths.push_back(path);
+        }
+    }
+    
     //
     // Create a deep copy of the incoming CBTF_Protocol_LinkedObjectGroup
     // message, allocating an extra linked object entry in the table that
@@ -841,6 +985,60 @@ void CUDAToIO::handleInitialLinkedObjects(
 
 
 //------------------------------------------------------------------------------
+// Update the group of extents for all linked objects that are not part of the
+// CUDA implementation or CUDA collector.
+//------------------------------------------------------------------------------
+void CUDAToIO::handleLoadedLinkedObject(
+    const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
+    )
+{
+    //
+    // There is no need to update anything if this linked
+    // object is one of the linked objects being excluded.
+    //
+    
+    boost::filesystem::path path(message->linked_object.path);
+    
+    if (boost::regex_match(path.filename(), kExcludedLinkedObjects))
+    {
+        return;
+    }
+
+    // Iterate over each thread for which this linked object is unloaded
+    for (u_int i = 0; i < message->threads.names.names_len; ++i)
+    {
+        // 
+        // Locate the thread-specific data belonging to this
+        // thread. Ignore this thread if it cannot be located.
+        //
+        
+        ThreadTable::iterator t = dm_threads.find(
+            SimpleThreadName(message->threads.names.names_val[i])
+            );
+        
+        if (t == dm_threads.end())
+        {
+            continue;
+        }
+        
+        ThreadSpecificData& tsd = t->second;
+
+        //
+        // Add this linked object to the group of extents
+        // 
+        
+        tsd.extents.push_back(
+            Extent(TimeInterval(message->time, Time::TheEnd()),
+                   AddressRange(message->range.begin, message->range.end))
+            );
+        
+        tsd.extents_paths.push_back(path);
+    }
+}
+
+
+
+//------------------------------------------------------------------------------
 // Update the list of active threads and emit our dynamically generated symbol
 // table of CUDA operations if the last thread has been terminated.
 //
@@ -868,28 +1066,17 @@ void CUDAToIO::handleThreadsStateChanged(
     // Update the list of active threads appropriately
     for (u_int i = 0; i < message->threads.names.names_len; ++i)
     {
-        ThreadName thread_name(message->threads.names.names_val[i]);
-        
-        for (ThreadNameVec::iterator j = dm_active_threads.begin();
-             j != dm_active_threads.end();
-             ++j)
-        {
-            if (equal(*j, thread_name))
-            {
-                dm_active_threads.erase(j);
-                break;
-            }
-        }
+        dm_threads.erase(SimpleThreadName(message->threads.names.names_val[i]));
     }
     
     // Do not proceed further unless the last thread has now been terminated
-    if (!dm_active_threads.empty())
+    if (!dm_threads.empty())
     {
         // Re-emit the original message unchanged
         emitOutput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
             "ThreadsStateChanged", message
             );
-
+        
         return;
     }
     
@@ -985,4 +1172,78 @@ void CUDAToIO::handleThreadsStateChanged(
     emitOutput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
         "ThreadsStateChanged", message
         );
+}
+
+
+
+//------------------------------------------------------------------------------
+// Update the group of extents for all linked objects that are not part of the
+// CUDA implementation or CUDA collector.
+//------------------------------------------------------------------------------
+void CUDAToIO::handleUnloadedLinkedObject(
+    const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
+    )
+{
+    //
+    // There is no need to update anything if this linked
+    // object is one of the linked objects being excluded.
+    //
+    
+    boost::filesystem::path path(message->linked_object.path);
+    
+    if (boost::regex_match(path.filename(), kExcludedLinkedObjects))
+    {
+        return;
+    }
+
+    // Iterate over each thread for which this linked object is unloaded
+    for (u_int i = 0; i < message->threads.names.names_len; ++i)
+    {
+        // 
+        // Locate the thread-specific data belonging to this
+        // thread. Ignore this thread if it cannot be located.
+        //
+        
+        ThreadTable::iterator t = dm_threads.find(
+            SimpleThreadName(message->threads.names.names_val[i])
+            );
+        
+        if (t == dm_threads.end())
+        {
+            continue;
+        }
+        
+        ThreadSpecificData& tsd = t->second;
+        
+        //
+        // Remove this linked object from the group of extents
+        // 
+
+        for (ExtentGroup::size_type i = 0; i < tsd.extents.size(); ++i)
+        {
+            if (tsd.extents_paths[i] == path)
+            {
+                tsd.extents[i] = Extent(
+                    TimeInterval(tsd.extents[i].getTimeInterval().getBegin(),
+                                 message->time),
+                    tsd.extents[i].getAddressRange()
+                    );
+                
+                tsd.extents_paths[i].clear();
+
+                break;
+            }
+        }
+        
+        //
+        // The above is all that SHOULD be needed. Unfortunately, however,
+        // the group of extents won't rebuild its internal kD-tree because
+        // the number of entries in the group hasn't changed. So we recopy
+        // the group here to force the update.
+        //
+
+        ExtentGroup new_extents;
+        std::copy(new_extents.begin(), tsd.extents.begin(), tsd.extents.end());
+        tsd.extents = new_extents;        
+    }
 }
