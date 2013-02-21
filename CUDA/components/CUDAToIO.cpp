@@ -594,6 +594,11 @@ void CUDAToIO::complete(ThreadSpecificData& tsd,
             // for these. Since they are inside the executable, we can't
             // easily separate them out using the extent test.
             //
+            // Finally, if the total number of frames after the trimming
+            // above is greater than 4, also trim off the last 4 frames.
+            // This eliminates the 4 frames that preceed the actual entry
+            // into main().
+            //
             
             for (int j = i->call_site.size() - 1; j > 0; --j)
             {
@@ -604,11 +609,16 @@ void CUDAToIO::complete(ThreadSpecificData& tsd,
                 
                 if (tsd.extents.getIntersectionWith(extent).empty())
                 {
+
                     std::vector<CBTF_Protocol_Address> new_call_site;
 
-                    for (int k = j + 1 + ((type == LaunchKernel) ? 1 : 0); 
-                         k < i->call_site.size(); ++k
-                        )
+                    const int kBegin = j + 1 + 
+                        ((type == LaunchKernel) ? 1 : 0);
+
+                    const int kEnd = i->call_site.size() - 
+                        (((i->call_site.size() - kBegin) > 4) ? 4 : 0);
+
+                    for (int k = kBegin; k < kEnd; ++k)
                     {
                         new_call_site.push_back(i->call_site[k]);
                     }
