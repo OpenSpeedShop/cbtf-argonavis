@@ -30,6 +30,7 @@
 #include "KrellInstitute/Services/Assert.h"
 #include "KrellInstitute/Services/Collector.h"
 #include "KrellInstitute/Services/Data.h"
+#include "KrellInstitute/Services/PapiAPI.h"
 #include "KrellInstitute/Services/Time.h"
 #include "KrellInstitute/Services/TLS.h"
 #include "KrellInstitute/Services/Unwind.h"

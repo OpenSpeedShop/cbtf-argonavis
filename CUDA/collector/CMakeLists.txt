@@ -16,28 +16,18 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-if(PAPI_FOUND)
-    set(PAPI_DEFINITIONS "-DHAVE_PAPI")
-else()
-    set(PAPI_DEFINITIONS "")
-    set(PAPI_INCLUDE_DIRS "")
-    set(PAPI_LIBRARIES "")
-endif()
-
 set(SOURCES collector.c)
 
 add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
 add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
-
-add_definitions(${PAPI_DEFINITIONS})
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${PROJECT_BINARY_DIR}/messages
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_MESSAGES_INCLUDE_DIRS}
+    ${CBTF_SERVICES_INCLUDE_DIRS}
     ${CUPTI_INCLUDE_DIRS}
-    ${PAPI_INCLUDE_DIRS}
     )
 
 target_link_libraries(cuda-collector-monitor-mrnet
@@ -46,11 +36,11 @@ target_link_libraries(cuda-collector-monitor-mrnet
     ${CBTF_SERVICES_COLLECTOR_MONITOR_MRNET_SHARED_LIBRARY}
     ${CBTF_SERVICES_MONITOR_SHARED_LIBRARY}
     ${CBTF_SERVICES_OFFLINE_SHARED_LIBRARY}
+    ${CBTF_SERVICES_PAPI_SHARED_LIBRARY}
     ${CBTF_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUPTI_LIBRARIES}
-    ${PAPI_LIBRARIES}
     )
 
 target_link_libraries(cuda-collector-monitor-mrnet-mpi
@@ -59,11 +49,11 @@ target_link_libraries(cuda-collector-monitor-mrnet-mpi
     ${CBTF_SERVICES_COLLECTOR_MONITOR_MRNET_MPI_SHARED_LIBRARY}
     ${CBTF_SERVICES_MONITOR_SHARED_LIBRARY}
     ${CBTF_SERVICES_OFFLINE_SHARED_LIBRARY}
+    ${CBTF_SERVICES_PAPI_SHARED_LIBRARY}
     ${CBTF_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUPTI_LIBRARIES}
-    ${PAPI_LIBRARIES}
     )
 
 set_target_properties(
