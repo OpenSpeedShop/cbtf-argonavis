@@ -36,7 +36,6 @@ target_link_libraries(cuda-collector-monitor-mrnet
     ${CBTF_SERVICES_COLLECTOR_MONITOR_MRNET_SHARED_LIBRARY}
     ${CBTF_SERVICES_MONITOR_SHARED_LIBRARY}
     ${CBTF_SERVICES_OFFLINE_SHARED_LIBRARY}
-    ${CBTF_SERVICES_PAPI_SHARED_LIBRARY}
     ${CBTF_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -49,12 +48,22 @@ target_link_libraries(cuda-collector-monitor-mrnet-mpi
     ${CBTF_SERVICES_COLLECTOR_MONITOR_MRNET_MPI_SHARED_LIBRARY}
     ${CBTF_SERVICES_MONITOR_SHARED_LIBRARY}
     ${CBTF_SERVICES_OFFLINE_SHARED_LIBRARY}
-    ${CBTF_SERVICES_PAPI_SHARED_LIBRARY}
     ${CBTF_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUPTI_LIBRARIES}
     )
+
+if(PAPI_FOUND)
+    add_definitions(-DPAPI_FOUND)
+    include_directories(${PAPI_INCLUDE_DIRS})
+    target_link_libraries(cuda-collector-monitor-mrnet
+        ${PAPI_SHARED_LIBRARIES}
+        )
+    target_link_libraries(cuda-collector-monitor-mrnet-mpi
+        ${PAPI_SHARED_LIBRARIES}
+        )  
+endif()
 
 set_target_properties(
     cuda-collector-monitor-mrnet

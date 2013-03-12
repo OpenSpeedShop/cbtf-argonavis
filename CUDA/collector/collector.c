@@ -21,6 +21,9 @@
 #include <cupti.h>
 #include <inttypes.h>
 #include <malloc.h>
+#if defined(PAPI_FOUND)
+#include <papi.h>
+#endif
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -30,7 +33,6 @@
 #include "KrellInstitute/Services/Assert.h"
 #include "KrellInstitute/Services/Collector.h"
 #include "KrellInstitute/Services/Data.h"
-#include "KrellInstitute/Services/PapiAPI.h"
 #include "KrellInstitute/Services/Time.h"
 #include "KrellInstitute/Services/TLS.h"
 #include "KrellInstitute/Services/Unwind.h"
@@ -111,7 +113,35 @@
         }                                                           \
     } while (0)
 
-
+#if defined(PAPI_FOUND)
+/**
+ * Checks that the given PAPI function call returns the value "PAPI_OK". If the
+ * call was unsuccessful, the returned error is reported on the standard error
+ * stream and the application is aborted.
+ *
+ * @param x    PAPI function call to be checked.
+ */
+#define PAPI_CHECK(x)                                               \
+    do {                                                            \
+        int RETVAL = x;                                             \
+        if (RETVAL != PAPI_OK)                                      \
+        {                                                           \
+            const char* description = PAPI_strerror(RETVAL);        \
+            if (description != NULL)                                \
+            {                                                       \
+                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d (%s)\n", \
+                        __func__, #x, RETVAL, description);         \
+            }                                                       \
+            else                                                    \
+            {                                                       \
+                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d\n",      \
+                        __func__, #x, RETVAL);                      \
+            }                                                       \
+            fflush(stderr);                                         \
+            abort();                                                \
+        }                                                           \
+    } while (0)
+#endif
 
 /**
  * Checks that the given pthread function call returns the value "0". If the
@@ -182,6 +212,11 @@ struct {
     } values[MAX_CUDA_CONTEXTS];
     pthread_mutex_t mutex;
 } context_id_to_ptr;
+
+#if defined(PAPI_FOUND)
+/** PAPI event set for this collector. */
+int papi_event_set = PAPI_NULL;
+#endif
 
 
     
@@ -1675,6 +1710,45 @@ static void cupti_callback(void* userdata,
 
 
 
+#if defined(PAPI_FOUND)
+/**
+ * Callback invoked by PAPI every time an event counter overflows. I.e. reaches
+ * the threshold value previously specified in parse_configuration().
+ *
+ * @param event_set          Event set of the overflowing event. This should
+ *                           always be papi_event_set since that is the only
+ *                           event set being used by this collector.
+ * @param address            Program counter address when the overflow occurred.
+ * @param overflow_vector    Vector indicating the particular event(s) that have
+ *                           overflowed. Call PAPI_get_overflow_event_index() to
+ *                           decompose this vector into the individual events.
+ * @param context            Thread context when the overflow occurred.
+ */
+static void papi_callback(int event_set, void* address,
+                          long_long overflow_vector, void* context)
+{
+    /* Access our thread-local storage */
+#ifdef USE_EXPLICIT_TLS
+    TLS* tls = CBTF_GetTLS(TLSKey);
+#else
+    TLS* tls = &the_tls;
+#endif
+    Assert(tls != NULL);
+
+    /* Do nothing if data collection is paused for this thread */
+    if (tls->paused)
+    {
+        return;
+    }
+
+    // ...
+
+}
+#endif
+
+
+
+#if defined(PAPI_FOUND)
 /**
  * Parse the configuration string that was passed into this collector.
  *
@@ -1682,6 +1756,8 @@ static void cupti_callback(void* userdata,
  */
 static void parse_configuration(const char* const configuration)
 {
+    static const char* const kEventNamePrefix = "PAPI_";
+
 #if !defined(NDEBUG)
     if (debug)
     {
@@ -1689,8 +1765,80 @@ static void parse_configuration(const char* const configuration)
     }
 #endif
 
-    /* ... parse options for CPU/GPU hardware counter sampling ... */
+    /* Copy the configuration string for parsing */
+    
+    static char copy[4 * 1024 /* 4 KB */];
+    
+    if (strlen(configuration) >= sizeof(copy))
+    {
+        printf("[CBTF/CUDA] parse_configuration(): "
+               "ignored configuration string \"%s\" that "
+               "exceeds the maximum supported length (%llu).\n",
+               configuration, (unsigned long long)(sizeof(copy) - 1));
+        return;
+    }
+
+    strcpy(copy, configuration);
+
+    /* Split the configuration string into tokens at each comma */
+    char* ptr = NULL;
+    for (ptr = strtok(copy, ","); ptr != NULL; ptr = strtok(NULL, ","))
+    {
+        /*
+         * Parse this token into either an event name, or an event name and
+         * threshold value, depending on whether the token contains a colon
+         * character.
+         */
+        
+        static char event_name[sizeof(copy) + sizeof(kEventNamePrefix)];
+        int threshold = 0;
+        
+        strcpy(event_name, kEventNamePrefix);
+        
+        char* colon = strchr(ptr, ':');
+        if (colon == NULL)
+        {
+            strcat(event_name, ptr);
+            
+#if !defined(NDEBUG)
+            if (debug)
+            {
+                printf("[CBTF/CUDA] parse_configuration(): "
+                       "event_name = \"%s\"\n",
+                       event_name);
+            }
+#endif
+        }
+        else
+        {
+            strncat(event_name, ptr, colon - ptr);
+            threshold = atoi(colon + 1);
+            
+#if !defined(NDEBUG)
+            if (debug)
+            {
+                printf("[CBTF/CUDA] parse_configuration(): "
+                       "event_name = \"%s\", threshold = %d\n",
+                       event_name, threshold);
+            }
+#endif
+        }
+        
+        /* Add this event to our PAPI event set */
+        int event_code = PAPI_NULL;
+        PAPI_CHECK(PAPI_event_name_to_code(event_name, &event_code));
+        PAPI_CHECK(PAPI_add_event(papi_event_set, event_code));
+        
+        /* Setup overflow for this event if a threshold was specified */
+        if (threshold > 0)
+        {
+            PAPI_CHECK(PAPI_overflow(papi_event_set, event_code,
+                                     threshold, PAPI_OVERFLOW_FORCE_SW,
+                                     papi_callback));
+        }
+    }
 }
+#endif
 
 
 
@@ -1734,12 +1882,20 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
         }
 #endif
 
+#if defined(PAPI_FOUND)
+        /* Initialize PAPI and create our PAPI event set */
+        PAPI_CHECK(PAPI_library_init(PAPI_VER_CURRENT));
+        PAPI_CHECK(PAPI_thread_init((unsigned long (*)())(pthread_self)));
+        PAPI_CHECK(PAPI_multiplex_init());
+        PAPI_CHECK(PAPI_create_eventset(&papi_event_set));
+
         /** Obtain our configuration string from the environment and parse it */
         const char* const configuration = getenv("CBTF_CUDA_CONFIG");
         if (configuration != NULL)
         {
             parse_configuration(configuration);
         }
+#endif
 
         /* Enqueue a buffer for CUPTI global activities */
         CUPTI_CHECK(cuptiActivityEnqueueBuffer(
@@ -1940,6 +2096,12 @@ void cbtf_collector_stop()
         
         /* Unsubscribe from all CUPTI callbacks */
         CUPTI_CHECK(cuptiUnsubscribe(cupti_subscriber_handle));
+
+#if defined(PAPI_FOUND)
+        /* Destroy our PAPI event set and shutdown PAPI */
+        PAPI_CHECK(PAPI_destroy_eventset(&papi_event_set));
+        PAPI_shutdown();
+#endif
     }
     
     PTHREAD_CHECK(pthread_mutex_unlock(&thread_count.mutex));

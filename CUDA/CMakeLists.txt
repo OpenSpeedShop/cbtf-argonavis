@@ -32,6 +32,8 @@ find_package(CBTF-Messages REQUIRED)
 find_package(CBTF-Services REQUIRED)
 find_package(CUPTI 2 REQUIRED)
 find_package(MRNet 4.0.0 REQUIRED)
+find_package(PAPI 5.1.0)
+
 find_package(Threads REQUIRED)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64*")
