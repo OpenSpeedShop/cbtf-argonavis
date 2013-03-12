@@ -933,7 +933,8 @@ void CUDAToIO::handleInitialLinkedObjects(
         
         boost::filesystem::path path(entry.linked_object.path);
 
-        if (!boost::regex_match(path.filename(), kExcludedLinkedObjects))
+        if (!boost::regex_match(path.filename().string(),
+                                kExcludedLinkedObjects))
         {
             tsd.extents.push_back(
                 Extent(TimeInterval(Time::TheBeginning(), Time::TheEnd()),
@@ -1030,7 +1031,7 @@ void CUDAToIO::handleLoadedLinkedObject(
     
     boost::filesystem::path path(message->linked_object.path);
     
-    if (boost::regex_match(path.filename(), kExcludedLinkedObjects))
+    if (boost::regex_match(path.filename().string(), kExcludedLinkedObjects))
     {
         return;
     }
@@ -1227,7 +1228,7 @@ void CUDAToIO::handleUnloadedLinkedObject(
     
     boost::filesystem::path path(message->linked_object.path);
     
-    if (boost::regex_match(path.filename(), kExcludedLinkedObjects))
+    if (boost::regex_match(path.filename().string(), kExcludedLinkedObjects))
     {
         return;
     }
