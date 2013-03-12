@@ -719,9 +719,11 @@ static void add_activities(TLS* tls, CUcontext context,
                     message->compute_api = "CUDA";
                     break;
 
+#if CUPTI_API_VERSION == 2
                 case CUPTI_ACTIVITY_COMPUTE_API_OPENCL:
                     message->compute_api = "OpenCL";
                     break;
+#endif
 
                 default:
                     message->compute_api = "Invalid!";
