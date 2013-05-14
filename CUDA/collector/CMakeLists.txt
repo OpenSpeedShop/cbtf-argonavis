@@ -58,9 +58,11 @@ if(PAPI_FOUND)
     add_definitions(-DPAPI_FOUND)
     include_directories(${PAPI_INCLUDE_DIRS})
     target_link_libraries(cuda-collector-monitor-mrnet
+        ${CBTF_SERVICES_TIMER_SHARED_LIBRARY}
         ${PAPI_SHARED_LIBRARIES}
         )
     target_link_libraries(cuda-collector-monitor-mrnet-mpi
+        ${CBTF_SERVICES_TIMER_SHARED_LIBRARY}
         ${PAPI_SHARED_LIBRARIES}
         )  
 endif()

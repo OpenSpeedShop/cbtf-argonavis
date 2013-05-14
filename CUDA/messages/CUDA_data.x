@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012,2013 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -26,21 +26,16 @@
 
 
 /**
- * Message containing information about a CUDA context.
+ * Enumeration of the different cache preferences.
  */
-struct CUDA_ContextInfo
+enum CUDA_CachePreference
 {
-    /** CUDA context for which this is information. */
-    CBTF_Protocol_Address context;
-
-    /** CUDA device for this context. */
-    uint32_t device;
-
-    /** Compute API (CUDA or OpenCL) being used in this context. */
-    string compute_api<>;
+    InvalidCachePreference = 0,
+    NoPreference = 1,
+    PreferShared = 2,
+    PreferCache = 3,
+    PreferEqual = 4
 };
-
-
 
 /**
  * Enumeration of the different memory copy kinds.
@@ -61,6 +56,26 @@ enum CUDA_CopyKind
 };
 
 /**
+ * Enumeration of the different types of messages that are encapsulated within
+ * this collector's blobs. See the note on CBTF_cuda_data for more information.
+ */
+enum CUDA_MessageTypes
+{
+    ContextInfo = 0,
+    CopiedMemory = 1,
+    DeviceInfo = 2,
+    EnqueueRequest = 3,
+    ExecutedKernel = 4,
+    LoadedModule = 5,
+    OverflowSamples = 6,
+    PeriodicSamples = 7,
+    ResolvedFunction = 8,
+    SamplingConfig = 9,
+    SetMemory = 10,
+    UnloadedModule = 11
+};
+
+/**
  * Enumeration of the different memory kinds.
  */
 enum CUDA_MemoryKind
@@ -72,6 +87,57 @@ enum CUDA_MemoryKind
     Device = 4,
     Array = 5
 };
+
+/**
+ * Enumeration of the different request types enqueue by the CUDA driver.
+ */
+enum CUDA_RequestTypes
+{
+    LaunchKernel = 0,
+    MemoryCopy = 1,
+    MemorySet = 2
+};
+
+
+
+/**
+ * Description of a single sampled event.
+ */
+struct CUDA_EventDescription
+{
+    /**
+     * Name of the event. This is PAPI's name for the event with the typical
+     * "PAPI_" prefix.
+     *
+     * @sa http://icl.cs.utk.edu/papi/
+     */
+    string name<>;
+
+    /**
+     * Threshold for the event. This the number of events between consecutive
+     * overflow samples. Zero if only periodic (in time) sampling was used.
+     */
+    int threshold;
+};
+
+
+
+/**
+ * Message containing information about a CUDA context.
+ */
+struct CUDA_ContextInfo
+{
+    /** CUDA context for which this is information. */
+    CBTF_Protocol_Address context;
+
+    /** CUDA device for this context. */
+    uint32_t device;
+
+    /** Compute API (CUDA or OpenCL) being used in this context. */
+    string compute_api<>;
+};
+
+
 
 /**
  * Message emitted when the CUDA driver copied memory.
@@ -174,16 +240,6 @@ struct CUDA_DeviceInfo
 
 
 /**
- * Enumeration of the different request types enqueue by the CUDA driver.
- */
-enum CUDA_RequestTypes
-{
-    LaunchKernel = 0,
-    MemoryCopy = 1,
-    MemorySet = 2
-};
-
-/**
  * Message emitted when the CUDA driver enqueues a request.
  */
 struct CUDA_EnqueueRequest
@@ -208,18 +264,6 @@ struct CUDA_EnqueueRequest
 };
 
 
-
-/**
- * Enumeration of the different cache preferences.
- */
-enum CUDA_CachePreference
-{
-    InvalidCachePreference = 0,
-    NoPreference = 1,
-    PreferShared = 2,
-    PreferCache = 3,
-    PreferEqual = 4
-};
 
 /**
  * Message emitted when the CUDA driver executed a kernel.
@@ -283,6 +327,150 @@ struct CUDA_LoadedModule
 
 
 /**
+ * Message containing event overflow samples.
+ */
+struct CUDA_OverflowSamples
+{
+    /** Time at which the first overflow sample was taken. */
+    CBTF_Protocol_Time time_begin;
+    
+    /** Time at which the last overflow sample was taken. */
+    CBTF_Protocol_Time time_end;
+    
+    /** Program counter (PC) addresses. */
+    CBTF_Protocol_Address pcs<>;
+    
+    /** 
+     * Event overflow counts at those addresses. Given the definitions:
+     *
+     *     N: Length of the "pcs" array above.
+     *
+     *     n: Index [0, N) of some PC within the "pcs" array above.
+     *
+     *     E: Number of events in this thread's CUDA_SamplingConfig.events
+     *        array with a non-zero threshold. I.e. the number of events for
+     *        which overflow sampling is enabled.
+     *
+     *     e: Index [0, E) of a event for which overflow sampling is enabled.
+     *
+     * The length of this counts array is (N * E) and the index of a particular
+     * count is ((n * E) + e).
+     */
+    uint64_t counts<>;
+};
+
+
+
+/**
+ * Message containing periodic (in time) event samples.
+ */
+struct CUDA_PeriodicSamples
+{
+    /**
+     * Time and event count deltas for each sample. Each sample consists of one
+     * time delta followed by an array of count deltas whose length equals the
+     * length of this thread's CUDA_SamplingConfig.events array. All deltas are
+     * relative to the corresponding value within the previous sample, except
+     * for the first sample, which is relative to zero for both time and counts.
+     *
+     * Every delta is represented using a variable-length byte sequence encoding
+     * a 64-bit unsigned (assumed positive) integer. Four possible encodings are
+     * defined:
+     *
+     *
+     * +--------+
+     * |00aaaaaa| -->
+     * +--------+
+     *
+     * +--------+--------+--------+--------+--------+--------+--------+--------+
+     * |00000000|00000000|00000000|00000000|00000000|00000000|00000000|00aaaaaa|
+     * +--------+--------+--------+--------+--------+--------+--------+--------+
+     *
+     *
+     * +--------+--------+--------+
+     * |01aaaaaa|bbbbbbbb|cccccccc| -->
+     * +--------+--------+--------+
+     *
+     * +--------+--------+--------+--------+--------+--------+--------+--------+
+     * |00000000|00000000|00000000|00000000|00000000|00aaaaaa|bbbbbbbb|cccccccc|
+     * +--------+--------+--------+--------+--------+--------+--------+--------+
+     *
+     *
+     * +--------+--------+--------+--------+
+     * |10aaaaaa|bbbbbbbb|cccccccc|dddddddd| -->
+     * +--------+--------+--------+--------+
+     *
+     * +--------+--------+--------+--------+--------+--------+--------+--------+
+     * |00000000|00000000|00000000|00000000|00aaaaaa|bbbbbbbb|cccccccc|dddddddd|
+     * +--------+--------+--------+--------+--------+--------+--------+--------+
+     *
+     *
+     * +--------+--------+--------+--------+
+     * |11000000|aaaaaaaa|bbbbbbbb|cccccccc|
+     * +--------+--------+--------+--------+--------+
+     * |dddddddd|eeeeeeee|ffffffff|gggggggg|hhhhhhhh| -->
+     * +--------+--------+--------+--------+--------+
+     *
+     * +--------+--------+--------+--------+--------+--------+--------+--------+
+     * |aaaaaaaa|bbbbbbbb|cccccccc|dddddddd|eeeeeeee|ffffffff|gggggggg|hhhhhhhh|
+     * +--------+--------+--------+--------+--------+--------+--------+--------+
+     *
+     *
+     * This encoding scheme was selected as follows... First, it must be able to
+     * represent <em>all</em> possible deltas. It was also desireable to be able
+     * to represent a zero delta efficiently as 1 byte. That dicated at least 2
+     * encodings, but of course that alone doesn't give much compression. Adding
+     * a second bit for selecting the encoding allows more flexibilty by giving
+     * two additional encoding options.
+     *
+     * To select those, additional assumptions were made:
+     *
+     *     1) Modern processors operate with clock rates lower than 4 GHz.
+     *
+     *     2) Clock ticks are the highest frequency events to be counted.
+     *
+     *     3) Sampling less than 100 samples/second is likely too coarsed
+     *        grained to be truly useful.
+     *
+     * Thus deltas can be expected to be less than 40,000,000 (26 bits) most of
+     * the time, requiring 3 additional bytes, assumning 6 bits of delta in the
+     * first byte. This gave only two choices for the final encoding - either 1
+     * or 2 additional bytes. Using 1 byte would allow deltas up to 16,384 which
+     * didn't seem as useful as using 2 bytes giving deltas up to 4,194,304.
+     *
+     * As an example of the overall scheme, assume the following samples are to
+     * be encoded within a single message:
+     *
+     *     Time                Event A            Event B
+     *
+     *     0x1234567800000000  0x0000000001000000  0x0004000000000000
+     *     0x1234567800100000  0x0000000001021000  0x000400000000034A
+     *     0x1234567800200000  0x00000000010213FE  0x000400000000034C
+     *
+     * This would be encoded as the following byte sequence:
+     *
+     *     C0 12 34 56 78 00 00 00 00    Sample #0: Time
+     *     81 00 00 00                              Event A
+     *     C0 00 04 00 00 00 00 00 00               Event B
+     *     80 10 00 00                   Sample #1: Time
+     *     42 10 00                                 Event A
+     *     40 03 4A                                 Event B
+     *     80 10 00 00                   Sample #2: Time
+     *     40 03 FE                                 Event A
+     *     02                                       Event B
+     *
+     * This encoding requires 40 bytes instead of the 72 bytes required for the
+     * unencoded original. In this case the saving is only about 50%, but keep
+     * in mind that the first sample typically requires a larger number of bytes
+     * because it is zero-relative, and in the above example this cost is under
+     * amortized because a small number of samples is encoded.
+     */
+    uint8_t deltas<>;
+};
+
+
+
+/**
  * Message emitted when the CUDA driver resolves a function.
  */
 struct CUDA_ResolvedFunction
@@ -298,6 +486,23 @@ struct CUDA_ResolvedFunction
     
     /** Handle within the CUDA driver of the resolved function. */
     CBTF_Protocol_Address handle;    
+};
+
+
+
+/**
+ * Message containing the event sampling configuration.
+ */
+struct CUDA_SamplingConfig
+{
+    /**
+     * Sampling interval in nanoseconds. This is the time between consecutive
+     * periodic (in time) samples.
+     */
+    uint64_t interval;
+    
+    /** Descriptions of the sampled events. */
+    CUDA_EventDescription events<>;
 };
 
 
@@ -340,25 +545,6 @@ struct CUDA_UnloadedModule
 
 
 /**
- * Enumeration of the different types of messages that are encapsulated within
- * this collector's blobs. See the note on CBTF_cuda_data for more information.
- */
-enum CUDA_MessageTypes
-{
-    ContextInfo = 0,
-    CopiedMemory = 1,
-    DeviceInfo = 2,
-    EnqueueRequest = 3,
-    ExecutedKernel = 4,
-    LoadedModule = 5,
-    ResolvedFunction = 6,
-    SetMemory = 7,
-    UnloadedModule = 8
-};
-
-
-
-/**
  * Union of the different types of messages that are encapsulated within this
  * collector's blobs. See the note on CBTF_cuda_data for more information.
  */
@@ -368,8 +554,11 @@ union CBTF_cuda_message switch (unsigned type)
     case     CopiedMemory:     CUDA_CopiedMemory copied_memory;
     case       DeviceInfo:       CUDA_DeviceInfo device_info;
     case   EnqueueRequest:   CUDA_EnqueueRequest enqueue_request;
+    case   SamplingConfig:   CUDA_SamplingConfig sampling_config;
     case   ExecutedKernel:   CUDA_ExecutedKernel executed_kernel;
     case     LoadedModule:     CUDA_LoadedModule loaded_module;
+    case  OverflowSamples:  CUDA_OverflowSamples overflow_samples;
+    case  PeriodicSamples:  CUDA_PeriodicSamples periodic_samples;
     case ResolvedFunction: CUDA_ResolvedFunction resolved_function;
     case        SetMemory:        CUDA_SetMemory set_memory;
     case   UnloadedModule:   CUDA_UnloadedModule unloaded_module;
