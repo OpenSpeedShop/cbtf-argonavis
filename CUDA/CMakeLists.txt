@@ -32,7 +32,13 @@ find_package(CBTF-Messages REQUIRED)
 find_package(CBTF-Services REQUIRED)
 find_package(CUPTI 2 REQUIRED)
 find_package(MRNet 4.0.0 REQUIRED)
-find_package(PAPI 5.1.0)
+#
+# The find_package() call for PAPI is currently disabled until the collection
+# of CPU/GPU HWPC data has been more throughly tested and conversion routines
+# have been added from the raw overflow/periodic sampling data to a form that
+# is understood by Open|SpeedShop.  WDH 2013-May-13
+#
+#find_package(PAPI 5.1.0)
 
 find_package(Threads REQUIRED)
 
