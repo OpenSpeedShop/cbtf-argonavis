@@ -66,3 +66,8 @@ install(
     DESTINATION
         share/KrellInstitute/xml
     )
+
+install(
+    FILES FindCUPTI.cmake FindPAPI.cmake
+    DESTINATION share/KrellInstitute/cmake
+    )
