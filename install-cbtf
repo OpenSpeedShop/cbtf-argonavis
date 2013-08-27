@@ -1,0 +1,886 @@
+#!/bin/bash
+# This is the program users should invoke to build and install
+# cbtf and the subdirectories under cbtf.
+die()
+{
+    echo "$0: error: $*" 1>&2
+    exit 1
+}
+
+usage() {
+    cat << EOF
+usage: $0 [option]
+
+-h, --help
+This help text.
+
+--install-prefix <directory>
+
+Where directory is the location to install CBTF
+and it's supporting tools and libraries. The default
+is /opt/cbtf. It is not recommended to use /usr.
+NOTE: This option will override any setting for
+the environment variable CBTF_PREFIX.
+
+--with-cbtf-root <directory>
+This is where the cbtf_root tarball is built into and referenced 
+for most packages not available on the system.  Default is /opt/cbtf
+
+--with-binutils-root <directory>
+This is an alternative location for binutils, the default is /usr
+
+--with-boost-root <directory>
+This is an alternative location for boost, the default is /usr
+
+--with-cbtf-root <directory>
+This is an alternative location for cbtf, the default is /usr
+
+--with-dyninst-root <directory>
+This is an alternative location for dyninst, the default is /usr
+
+--with-libdwarf-root)
+This is an alternative location for libdwarf, the default is the default for CBTF_ROOT
+
+--with-libelf-root)
+This is an alternative location for libelf, the default is the default for CBTF_ROOT
+
+--with-libmonitor-root)
+This is an alternative location for libmonitor, the default is the default for CBTF_ROOT
+
+--with-libunwind-root)
+This is an alternative location for libunwind, the default is the default for CBTF_ROOT
+
+--with-mrnet-root <directory>
+This is an alternative location for mrnet, the default is the default for CBTF_ROOT
+
+--with-papi-root <directory>
+This is an alternative location for papi, the default is the default for CBTF_ROOT
+
+--with-xercesc-root <directory>
+This is an alternative location for xercesc, the default is /usr
+
+These are the outgoing environment variables - by default.
+export CBTF_PREFIX="/opt/cbtf"
+export CBTF_BINUTILS_ROOT="/usr"
+export CBTF_ROOT="/opt/cbtf"
+export CBTF_BOOST_ROOT="/usr"
+export CBTF_XERCESC_ROOT="/usr"
+export CBTF_MRNET_ROOT="/opt/cbtf"
+
+
+EOF
+}
+
+if [ `uname -m` = "x86_64" -o `uname -m` = " x86-64" ]; then
+    LIBDIR="lib64"
+    ALTLIBDIR="lib"
+#    echo "UNAME IS X86_64 FAMILY: LIBDIR=$LIBDIR"
+    export LIBDIR="lib64"
+elif [ `uname -m` = "ppc64" ]; then
+   if [ $CBTF_PPC64_BITMODE_32 ]; then
+    LIBDIR="lib"
+    ALTLIBDIR="lib64"
+    echo "UNAME IS PPC64 FAMILY, 32 bit: LIBDIR=$LIBDIR"
+    export LIBDIR="lib"
+   else
+    LIBDIR="lib64"
+    ALTLIBDIR="lib"
+    echo "UNAME IS PPC (64) FAMILY, 64: LIBDIR=$LIBDIR"
+    export LIBDIR="lib64"
+    export CFLAGS=" -m64 $CFLAGS "
+    export CXXFLAGS=" -m64 $CXXFLAGS "
+    export CPPFLAGS=" -m64 $CPPFLAGS "
+   fi
+elif [ `uname -m` = "ppc" ]; then
+    LIBDIR="lib"
+    ALTLIBDIR="lib64"
+    echo "UNAME IS PPC FAMILY: LIBDIR=$LIBDIR"
+    export LIBDIR="lib"
+else
+    LIBDIR="lib"
+    ALTLIBDIR="lib64"
+    export LIBDIR="lib"
+    echo "UNAME IS X86 FAMILY: LIBDIR=$LIBDIR"
+fi
+
+
+
+exclude_cbtf=""
+
+export CBTF_BINUTILS_ROOT="/usr"
+export CBTF_LIBDWARF_ROOT="/usr"
+export CBTF_LIBELF_ROOT="/usr"
+export CBTF_BOOST_ROOT="/usr"
+export CBTF_XERCESC_ROOT="/usr"
+
+if [ "$CBTF_TARGET_ARCH" == "cray-xk" ] || [ "$CBTF_TARGET_ARCH" == "cray-xe" ]; then
+  if [ -z $SYSROOT_DIR ]; then
+    if [ -d /opt/cray/xe-sysroot/default/usr ]; then
+       export CBTF_ALPS_ROOT=/opt/cray/xe-sysroot/default/usr
+    else
+       export CBTF_ALPS_ROOT=/usr
+    fi
+  else
+    export CBTF_ALPS_ROOT=$SYSROOT_DIR/usr
+  fi
+fi
+
+while test "x$1" != x
+do
+
+    if [ $CBTF_DEBUG_BUILD ]; then
+      echo "[install-cbtf: In argument processing while loop, argument 1=$1"
+      echo "[install-cbtf: In argument processing while loop, argument 2=$2"
+    fi
+
+    case "$1" in
+       -h | --help)
+            usage
+            exit
+	    ;;
+
+      --with-binutils-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_BINUTILS_ROOT="${dir}"
+            #export BINUTILS_ROOT="${dir}"
+            export CBTF_BINUTILS_ROOT_LIB="${dir}/lib"
+            shift ; shift
+            ;;
+
+
+      --with-target-binutils-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_BINUTILS_ROOT="${dir}"
+            #export BINUTILS_ROOT="${dir}"
+            export CBTF_TARGET_BINUTILS_ROOT_LIB="${dir}/lib"
+            shift ; shift
+            ;;
+
+      --with-boost-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+
+            export CBTF_BOOST_ROOT="${dir}"
+            export BOOST_ROOT="${dir}"
+            export Boost_DIR="${dir}"
+            export Boost_NO_SYSTEM_PATH=TRUE
+
+            if [ -z $BOOST_INCLUDEDIR ]; then
+               export BOOST_INCLUDEDIR=${dir}/include/boost
+            fi
+            if [ -z $BOOST_LIBRARYDIR ]; then
+              if [ -f $BOOST_ROOT/$LIBDIR/libboost_serialization.so -o -f $BOOST_ROOT/$LIBDIR/libboost_serialization-mt.so ]; then
+                 export BOOST_LIBRARYDIR=${dir}/$LIBDIR
+              elif [ -f $BOOST_ROOT/$ALTLIBDIR/libboost_serialization.so -o -f $BOOST_ROOT/$ALTLIBDIR/libboost_serialization-mt.so ]; then
+                export BOOST_LIBRARYDIR=${dir}/$ALTLIBDIR
+              else
+                 export BOOST_LIBRARYDIR=${dir}/lib
+              fi
+            fi
+
+            #echo "BOOST_ROOT="$BOOST_ROOT"
+            #echo "Boost_DIR="$Boost_DIR"
+            shift ; shift
+            ;;
+
+      --with-target-boost-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_BOOST_ROOT="${dir}"
+            export BOOST_ROOT="${dir}"
+            export Boost_NO_SYSTEM_PATH=1
+            echo "BOOST_INCLUDEDIR=$BOOST_INCLUDEDIR" 
+            if [ -z $BOOST_INCLUDEDIR ]; then
+               export BOOST_INCLUDEDIR=${dir}/include/boost
+            fi
+            if [ -z $BOOST_LIBRARYDIR ]; then
+              if [ -d $BOOST_ROOT/$LIBDIR ]; then
+                export BOOST_LIBRARYDIR=${dir}/$LIBDIR
+              else
+                export BOOST_LIBRARYDIR=${dir}/lib
+              fi
+            fi
+            shift ; shift
+            ;;
+
+      --with-cbtf-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_ROOT="${dir}"
+            echo "CBTF_ROOT=$CBTF_ROOT"
+            shift ; shift
+            ;;
+
+
+      --with-target-cbtf-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-dyninst-vers)
+            test "x$2" != x || die "missing argument: $*; shift; break"
+            target="$2"
+            export CBTF_DYNINST_VERS="${target}"
+            shift ; shift
+            ;;
+
+      --with-dyninst-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_DYNINST_ROOT="${dir}"
+            export DYNINST_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-dyninst-libdir)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_DYNINST_ROOT_LIB="${dir}"
+            export DYNINST_ROOT_LIB="${dir}"
+            shift ; shift
+            ;;
+
+      --with-target-dyninst-vers)
+            test "x$2" != x || die "missing argument: $*; shift; break"
+            target="$2"
+            export CBTF_TARGET_DYNINST_VERS="${target}"
+            shift ; shift
+            ;;
+
+      --with-target-dyninst-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_DYNINST_ROOT="${dir}"
+            export DYNINST_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-libdwarf-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_LIBDWARF_ROOT="${dir}"
+            export LIBDWARF_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-libdwarf-libdir)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_LIBDWARF_ROOT_LIB="${dir}"
+            export LIBDWARF_ROOT_LIB="${dir}"
+            shift ; shift
+            ;;
+
+      --with-target-libdwarf-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_LIBDWARF_ROOT="${dir}"
+            export LIBDWARF_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-libelf-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_LIBELF_ROOT="${dir}"
+            export LIBELF_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+
+      --with-target-libelf-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_LIBELF_ROOT="${dir}"
+            export LIBELF_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-libmonitor-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_LIBMONITOR_ROOT="${dir}"
+            export LIBMONITOR_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+
+      --with-target-libmonitor-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_LIBMONITOR_ROOT="${dir}"
+            export LIBMONITOR_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-libunwind-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_LIBUNWIND_ROOT="${dir}"
+            export LIBUNWIND_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+
+      --with-target-libunwind-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_LIBUNWIND_ROOT="${dir}"
+            export LIBUNWIND_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-alps-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_ALPS_ROOT="${dir}"
+            export ALPS_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-mrnet-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_MRNET_ROOT="${dir}"
+            export MRNET_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-target-mrnet-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_MRNET_ROOT="${dir}"
+            export MRNET_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-papi-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_PAPI_ROOT="${dir}"
+            export PAPI_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+
+      --with-target-papi-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_PAPI_ROOT="${dir}"
+            export PAPI_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-mpich2)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_MPI_MPICH2="${dir}"
+            shift ; shift
+            ;;
+
+      --with-openmpi)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_MPI_OPENMPI="${dir}"
+            shift ; shift
+            ;;
+
+      --with-mvapich)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_MPI_MVAPICH="${dir}"
+            shift ; shift
+            ;;
+
+      --with-mvapich2)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_MPI_MVAPICH2="${dir}"
+            shift ; shift
+            ;;
+
+      --with-mpt)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_MPI_MPT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-xercesc-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_XERCESC_ROOT="${dir}"
+            export XERCESC_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+
+      --with-target-xercesc-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_TARGET_XERCESC_ROOT="${dir}"
+            export XERCESC_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+      --with-cuda)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CUDA_INSTALL_PATH="${dir}"
+            shift ; shift
+            ;;
+
+      --with-cupti)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac
+            test -d "$dir" || die "unable to find: $dir"
+            export CUPTI_ROOT="${dir}"
+            shift ; shift
+            ;;
+
+       --target-arch)
+            test "x$2" != x || die "missing argument: $*"
+            target="$2"
+            export CBTF_TARGET_ARCH="${target}"
+            export CBTF_TARGET_SHARED=1
+            echo "CBTF_TARGET_ARCH=" $CBTF_TARGET_ARCH
+            shift ; shift
+            ;;
+
+       --install-prefix)
+	    test "x$2" != x || die "missing argument: $*"
+	    case "$2" in
+		/* )  dir="$2" ;;
+		* )   dir="`pwd`/$2" ;;
+	    esac
+	    test -d "$dir" || die "unable to find: $dir"
+	    export CBTF_PREFIX="${dir}"
+            shift ; shift
+	    ;;
+
+        -- )
+            shift
+            break
+            ;;
+
+        -* )
+            die "unknown option: $1"
+            ;;
+
+        * )
+            break
+            ;;
+    esac
+done
+
+
+   echo "[install-cbtf: TOP OF FINAL CHECKS START GCC --print-search-dirs"
+   gcc -print-search-dirs
+   echo "[install-cbtf: TOP OF FINAL CHECKS END GCC --print-search-dirs"
+
+if [ -z $CBTF_TARGET_ARCH ] || [ "$CBTF_TARGET_ARCH" == "cray-xk" ] || [ "$CBTF_TARGET_ARCH" == "cray-xe" ] || [ "$CBTF_TARGET_ARCH" == "cray-xt5" ]] ; then
+
+   if [ -z $CBTF_PREFIX ]; then
+      export CBTF_PREFIX=/opt/cbtf
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_PREFIX was not set defaulting to /opt/cbtf"
+      fi
+   fi
+
+   if [ -z $CBTF_ROOT ]; then
+      export CBTF_ROOT=/opt/cbtf
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_ROOT was not set defaulting to /opt/cbtf"
+      fi
+   fi
+
+   if [ -z $CBTF_MRNET_ROOT ]; then
+      export CBTF_MRNET_ROOT=$CBTF_ROOT
+      export MRNET_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_MRNET_ROOT was not set, setting CBTF_MRNET_ROOT=$CBTF_MRNET_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_XERCESC_ROOT ]; then
+      export CBTF_XERCESC_ROOT=$CBTF_ROOT
+      export XERCESC_ROOT=$CBTF_XERCES_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_XERCESC_ROOT was not set, setting CBTF_XERCESC_ROOT=$CBTF_XERCESC_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_PAPI_ROOT ]; then
+      export CBTF_PAPI_ROOT=$CBTF_ROOT
+      export PAPI_ROOT=$CBTF_PAPI_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_PAPI_ROOT was not set, setting CBTF_PAPI_ROOT=$CBTF_PAPI_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_LIBUNWIND_ROOT ]; then
+      export CBTF_LIBUNWIND_ROOT=$CBTF_ROOT
+      export LIBUNWIND_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_LIBUNWIND_ROOT was not set, setting CBTF_LIBUNWIND_ROOT=$CBTF_LIBUNWIND_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_LIBMONITOR_ROOT ]; then
+      export CBTF_LIBMONITOR_ROOT=$CBTF_ROOT
+      export LIBMONITOR_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_LIBMONITOR_ROOT was not set, setting CBTF_LIBMONITOR_ROOT=$CBTF_LIBMONITOR_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_LIBELF_ROOT ]; then
+      export CBTF_LIBELF_ROOT=$CBTF_ROOT
+      export LIBELF_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_LIBELF_ROOT was not set, setting CBTF_LIBELF_ROOT=$CBTF_LIBELF_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_LIBDWARF_ROOT ]; then
+      export CBTF_LIBDWARF_ROOT=$CBTF_ROOT
+      export LIBDWARF_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_LIBDWARF_ROOT was not set, setting CBTF_LIBDWARF_ROOT=$CBTF_LIBDWARF_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_DYNINST_ROOT ]; then
+      export CBTF_DYNINST_ROOT=$CBTF_ROOT
+      export DYNINST_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_DYNINST_ROOT was not set, setting CBTF_DYNINST_ROOT=$CBTF_DYNINST_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_DYNINST_VERS ]; then
+      export CBTF_DYNINST_VERS=8.1
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_DYNINST_VERS was not set, setting CBTF_DYNINST_VERS=$CBTF_DYNINST_VERS"
+      fi
+   fi
+
+   if [ -z $CBTF_BINUTILS_ROOT ]; then
+      export CBTF_BINUTILS_ROOT=$CBTF_ROOT
+      #export CBTF_BINUTILS_ROOT_LIB=$CBTF_ROOT/lib
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_BINUTILS_ROOT was not set, using CBTF_BINUTILS_ROOT=$CBTF_BINUTILS_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_BOOST_ROOT ]; then
+      export CBTF_BOOST_ROOT=$CBTF_ROOT
+      export BOOST_ROOT=$CBTF_BOOST_ROOT
+      export Boost_NO_SYSTEM_PATH=1
+      if [ -z $BOOST_INCLUDEDIR ]; then
+        export BOOST_INCLUDEDIR=${dir}/include/boost
+      fi
+
+      if [ -z $BOOST_LIBRARYDIR ]; then
+        if [ -d $BOOST_ROOT/$LIBDIR ]; then
+          export BOOST_LIBRARYDIR=$BOOST_ROOT/$LIBDIR
+        else
+          export BOOST_LIBRARYDIR=$BOOST_ROOT/lib
+        fi
+      fi
+
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_BOOST_ROOT was not set, using CBTF_BOOST_ROOT=$CBTF_BOOST_ROOT"
+      fi
+   fi
+
+   if [ $CBTF_DEBUG_BUILD ]; then
+      echo "[install-cbtf: calling support_for_install CBTF_PREFIX=$CBTF_PREFIX"
+      echo "[install-cbtf: calling support_for_install CBTF_ROOT=$CBTF_ROOT"
+      echo "[install-cbtf: calling support_for_install CBTF_BOOST_ROOT=$CBTF_BOOST_ROOT"
+      echo "[install-cbtf: calling support for_install CBTF_XERCESC_ROOT=$CBTF_XERCESC_ROOT"
+      echo "[install-cbtf: calling support_for_install CBTF_BINUTILS_ROOT=$CBTF_BINUTILS_ROOT"
+      echo "[install-cbtf: calling support for_install CBTF_DYNINST_ROOT=$CBTF_DYNINST_ROOT"
+      echo "[install-cbtf: calling support for_install CBTF_LIBDWARF_ROOT=$CBTF_LIBDWARF_ROOT"
+      echo "[install-cbtf: calling support for_install CBTF_LIBELF_ROOT=$CBTF_LIBELF_ROOT"
+      echo "[install-cbtf: calling support for_install CBTF_LIBMONITOR_ROOT=$CBTF_LIBMONITOR_ROOT"
+      echo "[install-cbtf: calling support for_install CBTF_LIBUNWIND_ROOT=$CBTF_LIBUNWIND_ROOT"
+      echo "[install-cbtf: calling support for_install CBTF_MRNET_ROOT=$CBTF_MRNET_ROOT"
+      echo "[install-cbtf: calling support for_install CBTF_PAPI_ROOT=$CBTF_PAPI_ROOT"
+   fi
+
+   echo "[install-cbtf: START GCC --print-search-dirs"
+   gcc -print-search-dirs
+   echo "[install-cbtf: END GCC --print-search-dirs"
+   echo "[install-cbtf: END GCC and call support_for_install.sh"
+   bash ./.support_for_install.sh 
+
+else
+
+   if [ -z $CBTF_PREFIX ]; then
+      export CBTF_PREFIX=/opt/cbtf/$CBTF_TARGET_ARCH
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_PREFIX was not set defaulting to /opt/cbtf/$TARGET_ARCH"
+      fi
+   fi
+
+   if [ -z $CBTF_ROOT ]; then
+      export CBTF_ROOT=/opt/cbtf/$CBTF_TARGET_ARCH
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_ROOT was not set defaulting to /opt/cbtf"/$CBTF_TARGET_ARCH
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_MRNET_ROOT ]; then
+      export CBTF_TARGET_MRNET_ROOT=$CBTF_ROOT
+      export MRNET_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_MRNET_ROOT was not set, setting CBTF_TARGET_MRNET_ROOT=$CBTF_TARGET_MRNET_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_XERCESC_ROOT ]; then
+      export CBTF_TARGET_XERCESC_ROOT=$CBTF_ROOT
+      export XERCESC_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_XERCESC_ROOT was not set, setting CBTF_TARGET_XERCESC_ROOT=$CBTF_TARGET_XERCESC_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_PAPI_ROOT ]; then
+      export CBTF_TARGET_PAPI_ROOT=$CBTF_ROOT
+      export PAPI_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_PAPI_ROOT was not set, setting CBTF_TARGET_PAPI_ROOT=$CBTF_TARGET_PAPI_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_LIBUNWIND_ROOT ]; then
+      export CBTF_TARGET_LIBUNWIND_ROOT=$CBTF_ROOT
+      export LIBUNWIND_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_LIBUNWIND_ROOT was not set, setting CBTF_TARGET_LIBUNWIND_ROOT=$CBTF_TARGET_LIBUNWIND_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_LIBMONITOR_ROOT ]; then
+      export CBTF_TARGET_LIBMONITOR_ROOT=$CBTF_ROOT
+      export LIBMONITOR_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_LIBMONITOR_ROOT was not set, setting CBTF_TARGET_LIBMONITOR_ROOT=$CBTF_TARGET_LIBMONITOR_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_LIBELF_ROOT ]; then
+      export CBTF_TARGET_LIBELF_ROOT=$CBTF_ROOT
+      export LIBELF_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_LIBELF_ROOT was not set, setting CBTF_TARGET_LIBELF_ROOT=$CBTF_TARGET_LIBELF_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_LIBDWARF_ROOT ]; then
+      export CBTF_TARGET_LIBDWARF_ROOT=$CBTF_ROOT
+      export LIBDWARF_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_LIBDWARF_ROOT was not set, setting CBTF_TARGET_LIBDWARF_ROOT=$CBTF_TARGET_LIBDWARF_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_DYNINST_ROOT ]; then
+      export CBTF_TARGET_DYNINST_ROOT=$CBTF_ROOT
+      export DYNINST_ROOT=$CBTF_ROOT
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_DYNINST_ROOT was not set, setting CBTF_TARGET_DYNINST_ROOT=$CBTF_TARGET_DYNINST_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_DYNINST_VERS ]; then
+      export CBTF_TARGET_DYNINST_VERS=8.1
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_DYNINST_VERS was not set, setting CBTF_DYNINST_VERS=$CBTF_TARGET_DYNINST_VERS"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_BINUTILS_ROOT ]; then
+      export CBTF_TARGET_BINUTILS_ROOT=$CBTF_ROOT
+      #export BINUTILS_ROOT=$CBTF_ROOT
+      export CBTF_TARGET_BINUTILS_ROOT_LIB=$CBTF_ROOT/lib
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_BINUTILS_ROOT was not set, setting CBTF_TARGET_BINUTILS_ROOT=$CBTF_TARGET_BINUTILS_ROOT"
+      fi
+   fi
+
+   if [ -z $CBTF_TARGET_BOOST_ROOT ]; then
+
+      export CBTF_TARGET_BOOST_ROOT=$CBTF_ROOT
+      export BOOST_ROOT=$CBTF_ROOT
+      export BOOST_INCLUDEDIR=$BOOST_ROOT/include/boost
+
+      if [ -d $BOOST_ROOT/$LIBDIR ]; then
+        export BOOST_LIBRARYDIR=$BOOST_ROOT/$LIBDIR
+      else
+        export BOOST_LIBRARYDIR=$BOOST_ROOT/lib
+      fi
+
+      export Boost_NO_SYSTEM_PATH=1
+      if [ $CBTF_DEBUG_BUILD ]; then
+        echo "[install-cbtf: CBTF_TARGET_BOOST_ROOT was not set, setting CBTF_TARGET_BOOST_ROOT=$CBTF_TARGET_BOOST_ROOT"
+      fi
+   fi
+
+   if [ $CBTF_DEBUG_BUILD ]; then
+      echo "[install-cbtf: calling support_for_target_install CBTF_PREFIX=$CBTF_PREFIX"
+      echo "[install-cbtf: calling support_for_target_install CBTF_ROOT=$CBTF_ROOT"
+      echo "[install-cbtf: calling support_for_target_install CBTF_TARGET_BOOST_ROOT=$CBTF_TARGET_BOOST_ROOT"
+      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_XERCESC_ROOT=$CBTF_TARGET_XERCESC_ROOT"
+      echo "[install-cbtf: calling support_for_target_install CBTF_TARGET_BINUTILS_ROOT=$CBTF_TARGET_BINUTILS_ROOT"
+      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_DYNINST_ROOT=$CBTF_TARGET_DYNINST_ROOT"
+      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_LIBDWARF_ROOT=$CBTF_TARGET_LIBDWARF_ROOT"
+      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_LIBELF_ROOT=$CBTF_TARGET_LIBELF_ROOT"
+      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_LIBMONITOR_ROOT=$CBTF_TARGET_LIBMONITOR_ROOT"
+      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_LIBUNWIND_ROOT=$CBTF_TARGET_LIBUNWIND_ROOT"
+      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_BOOST_ROOT=$CBTF_TARGET_BOOST_ROOT"
+      echo "[install-cbtf: calling support for_target_install BOOST_ROOT=$BOOST_ROOT"
+      echo "[install-cbtf: calling support for_target_install BOOST_INCLUDEDIR=$BOOST_INCLUDEDIR"
+      echo "[install-cbtf: calling support for_target_install BOOST_LIBRARYDIR=$BOOST_LIBRARYDIR"
+      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_MRNET_ROOT=$CBTF_TARGET_MRNET_ROOT"
+      echo "[install-cbtf: calling support for_target_install MRNET_ROOT=$MRNET_ROOT"
+      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_PAPI_ROOT=$CBTF_TARGET_PAPI_ROOT"
+   fi
+
+   bash ./.support_for_target_install.sh 
+
+fi
+
