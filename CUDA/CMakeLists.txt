@@ -20,10 +20,7 @@ cmake_minimum_required(VERSION 2.8.0)
 
 project(CBTF_CUDA_Collector)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
-    ${PROJECT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}/../../../framework
-    )
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR})
 
 find_package(Boost 1.39.0 REQUIRED COMPONENTS filesystem regex)
 find_package(CBTF REQUIRED)
