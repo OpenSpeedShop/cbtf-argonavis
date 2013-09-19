@@ -28,7 +28,10 @@ find_library(PAPI_STATIC_LIBRARY libpapi.a
     PATH_SUFFIXES lib lib64
     )
 
-find_path(PAPI_INCLUDE_DIR papi.h)
+find_path(PAPI_INCLUDE_DIR papi.h
+    HINTS $ENV{PAPI_ROOT}
+    PATH_SUFFIXES include    
+    )
 
 find_package_handle_standard_args(
     PAPI DEFAULT_MSG
