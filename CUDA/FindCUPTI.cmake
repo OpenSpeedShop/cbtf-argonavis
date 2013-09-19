@@ -1,5 +1,6 @@
 ################################################################################
 # Copyright (c) 2012 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2013 Krell Institute. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -44,10 +45,7 @@ mark_as_advanced(CUPTI_LIBRARY CUDA_INCLUDE_DIR CUPTI_INCLUDE_DIR)
 
 if(CUPTI_FOUND AND DEFINED CUPTI_INCLUDE_DIR)
   
-    file(READ
-        ${CUPTI_INCLUDE_DIR}/cupti_version.h
-        CUPTI_VERSION_FILE
-        )
+    file(READ ${CUPTI_INCLUDE_DIR}/cupti_version.h CUPTI_VERSION_FILE)
   
     string(REGEX REPLACE
         ".*#define CUPTI_API_VERSION[ \t]+([0-9]+)\n.*" "\\1"

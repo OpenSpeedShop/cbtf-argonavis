@@ -1,5 +1,6 @@
 ################################################################################
 # Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2013 Krell Institute. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -34,26 +35,18 @@ find_path(PAPI_INCLUDE_DIR papi.h
     )
 
 find_package_handle_standard_args(
-    PAPI DEFAULT_MSG
-    PAPI_SHARED_LIBRARY PAPI_STATIC_LIBRARY
-    PAPI_INCLUDE_DIR
+    PAPI DEFAULT_MSG PAPI_SHARED_LIBRARY PAPI_STATIC_LIBRARY PAPI_INCLUDE_DIR
     )
 
 set(PAPI_SHARED_LIBRARIES ${PAPI_SHARED_LIBRARY})
 set(PAPI_STATIC_LIBRARIES ${PAPI_STATIC_LIBRARY})
 set(PAPI_INCLUDE_DIRS ${PAPI_INCLUDE_DIR})
 
-mark_as_advanced(
-    PAPI_SHARED_LIBRARY PAPI_STATIC_LIBRARY
-    PAPI_INCLUDE_DIR
-    )
+mark_as_advanced(PAPI_SHARED_LIBRARY PAPI_STATIC_LIBRARY PAPI_INCLUDE_DIR)
 
 if(PAPI_FOUND AND DEFINED PAPI_INCLUDE_DIR)
   
-    file(READ
-        ${PAPI_INCLUDE_DIR}/papi.h
-        PAPI_VERSION_FILE
-        )
+    file(READ ${PAPI_INCLUDE_DIR}/papi.h PAPI_VERSION_FILE)
 
     string(REGEX REPLACE
         ".*#define PAPI_VERSION[ \t]+PAPI_VERSION_NUMBER[(]([0-9]+),.*"
