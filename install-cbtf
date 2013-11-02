@@ -182,13 +182,17 @@ do
             if [ -z $BOOST_INCLUDEDIR ]; then
                export BOOST_INCLUDEDIR=${dir}/include/boost
             fi
+
             if [ -z $BOOST_LIBRARYDIR ]; then
               if [ -f $BOOST_ROOT/$LIBDIR/libboost_serialization.so -o -f $BOOST_ROOT/$LIBDIR/libboost_serialization-mt.so ]; then
                  export BOOST_LIBRARYDIR=${dir}/$LIBDIR
+                 export CBTF_BOOST_ROOT_LIB=${dir}/$LIBDIR
               elif [ -f $BOOST_ROOT/$ALTLIBDIR/libboost_serialization.so -o -f $BOOST_ROOT/$ALTLIBDIR/libboost_serialization-mt.so ]; then
-                export BOOST_LIBRARYDIR=${dir}/$ALTLIBDIR
+                 export BOOST_LIBRARYDIR=${dir}/$ALTLIBDIR
+                 export CBTF_BOOST_ROOT_LIB=${dir}/$ALTLIBDIR
               else
                  export BOOST_LIBRARYDIR=${dir}/lib
+                 export CBTF_BOOST_ROOT_LIB=${dir}/lib
               fi
             fi
 
@@ -229,7 +233,6 @@ do
             esac
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_ROOT="${dir}"
-            echo "CBTF_ROOT=$CBTF_ROOT"
             shift ; shift
             ;;
 
