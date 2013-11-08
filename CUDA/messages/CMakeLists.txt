@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -37,7 +37,7 @@ include_directories(
 
 target_link_libraries(cbtf-messages-cuda ${CBTF_MESSAGES_BASE_SHARED_LIBRARY})
 
-set_target_properties(cbtf-messages-cuda PROPERTIES VERSION 0.0.0)
+set_target_properties(cbtf-messages-cuda PROPERTIES VERSION 1.1.0)
 
 install(
     FILES ${PROJECT_BINARY_DIR}/messages/CUDA_data.h 

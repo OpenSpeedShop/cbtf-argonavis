@@ -70,7 +70,7 @@ endif()
 set_target_properties(
     cuda-collector-monitor-mrnet
     cuda-collector-monitor-mrnet-mpi
-    PROPERTIES PREFIX "" VERSION 0.0.0
+    PROPERTIES PREFIX "" VERSION 1.1.0
     )
 
 install(
