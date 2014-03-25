@@ -103,8 +103,6 @@ else
     echo "UNAME IS X86 FAMILY: LIBDIR=$LIBDIR"
 fi
 
-
-
 exclude_cbtf=""
 
 export CBTF_BINUTILS_ROOT="/usr"
@@ -608,282 +606,143 @@ do
 done
 
 
-   echo "[install-cbtf: TOP OF FINAL CHECKS START GCC --print-search-dirs"
-   gcc -print-search-dirs
-   echo "[install-cbtf: TOP OF FINAL CHECKS END GCC --print-search-dirs"
+echo "[install-cbtf: TOP OF FINAL CHECKS START GCC --print-search-dirs"
+gcc -print-search-dirs
+echo "[install-cbtf: TOP OF FINAL CHECKS END GCC --print-search-dirs"
 
-if [ -z $CBTF_TARGET_ARCH ] || [ "$CBTF_TARGET_ARCH" == "cray-xk" ] || [ "$CBTF_TARGET_ARCH" == "cray-xe" ] || [ "$CBTF_TARGET_ARCH" == "cray-xt5" ]] ; then
 
-   if [ -z $CBTF_PREFIX ]; then
-      export CBTF_PREFIX=/opt/cbtf
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_PREFIX was not set defaulting to /opt/cbtf"
-      fi
-   fi
-
-   if [ -z $CBTF_ROOT ]; then
-      export CBTF_ROOT=/opt/cbtf
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_ROOT was not set defaulting to /opt/cbtf"
-      fi
-   fi
-
-   if [ -z $CBTF_MRNET_ROOT ]; then
-      export CBTF_MRNET_ROOT=$CBTF_ROOT
-      export MRNET_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_MRNET_ROOT was not set, setting CBTF_MRNET_ROOT=$CBTF_MRNET_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_XERCESC_ROOT ]; then
-      export CBTF_XERCESC_ROOT=$CBTF_ROOT
-      export XERCESC_ROOT=$CBTF_XERCES_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_XERCESC_ROOT was not set, setting CBTF_XERCESC_ROOT=$CBTF_XERCESC_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_PAPI_ROOT ]; then
-      export CBTF_PAPI_ROOT=$CBTF_ROOT
-      export PAPI_ROOT=$CBTF_PAPI_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_PAPI_ROOT was not set, setting CBTF_PAPI_ROOT=$CBTF_PAPI_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_LIBUNWIND_ROOT ]; then
-      export CBTF_LIBUNWIND_ROOT=$CBTF_ROOT
-      export LIBUNWIND_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_LIBUNWIND_ROOT was not set, setting CBTF_LIBUNWIND_ROOT=$CBTF_LIBUNWIND_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_LIBMONITOR_ROOT ]; then
-      export CBTF_LIBMONITOR_ROOT=$CBTF_ROOT
-      export LIBMONITOR_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_LIBMONITOR_ROOT was not set, setting CBTF_LIBMONITOR_ROOT=$CBTF_LIBMONITOR_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_LIBELF_ROOT ]; then
-      export CBTF_LIBELF_ROOT=$CBTF_ROOT
-      export LIBELF_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_LIBELF_ROOT was not set, setting CBTF_LIBELF_ROOT=$CBTF_LIBELF_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_LIBDWARF_ROOT ]; then
-      export CBTF_LIBDWARF_ROOT=$CBTF_ROOT
-      export LIBDWARF_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_LIBDWARF_ROOT was not set, setting CBTF_LIBDWARF_ROOT=$CBTF_LIBDWARF_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_DYNINST_ROOT ]; then
-      export CBTF_DYNINST_ROOT=$CBTF_ROOT
-      export DYNINST_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_DYNINST_ROOT was not set, setting CBTF_DYNINST_ROOT=$CBTF_DYNINST_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_DYNINST_VERS ]; then
-      export CBTF_DYNINST_VERS=8.1
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_DYNINST_VERS was not set, setting CBTF_DYNINST_VERS=$CBTF_DYNINST_VERS"
-      fi
-   fi
-
-   if [ -z $CBTF_BINUTILS_ROOT ]; then
-      export CBTF_BINUTILS_ROOT=$CBTF_ROOT
-      #export CBTF_BINUTILS_ROOT_LIB=$CBTF_ROOT/lib
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_BINUTILS_ROOT was not set, using CBTF_BINUTILS_ROOT=$CBTF_BINUTILS_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_BOOST_ROOT ]; then
-      export CBTF_BOOST_ROOT=$CBTF_ROOT
-      export BOOST_ROOT=$CBTF_BOOST_ROOT
-      export Boost_NO_SYSTEM_PATH=1
-      if [ -z $BOOST_INCLUDEDIR ]; then
-        export BOOST_INCLUDEDIR=${dir}/include/boost
-      fi
-
-      if [ -z $BOOST_LIBRARYDIR ]; then
-        if [ -d $BOOST_ROOT/$LIBDIR ]; then
-          export BOOST_LIBRARYDIR=$BOOST_ROOT/$LIBDIR
-        else
-          export BOOST_LIBRARYDIR=$BOOST_ROOT/lib
-        fi
-      fi
-
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_BOOST_ROOT was not set, using CBTF_BOOST_ROOT=$CBTF_BOOST_ROOT"
-      fi
-   fi
-
+if [ -z $CBTF_PREFIX ]; then
+   export CBTF_PREFIX=/opt/cbtf
    if [ $CBTF_DEBUG_BUILD ]; then
-      echo "[install-cbtf: calling support_for_install CBTF_PREFIX=$CBTF_PREFIX"
-      echo "[install-cbtf: calling support_for_install CBTF_ROOT=$CBTF_ROOT"
-      echo "[install-cbtf: calling support_for_install CBTF_BOOST_ROOT=$CBTF_BOOST_ROOT"
-      echo "[install-cbtf: calling support for_install CBTF_XERCESC_ROOT=$CBTF_XERCESC_ROOT"
-      echo "[install-cbtf: calling support_for_install CBTF_BINUTILS_ROOT=$CBTF_BINUTILS_ROOT"
-      echo "[install-cbtf: calling support for_install CBTF_DYNINST_ROOT=$CBTF_DYNINST_ROOT"
-      echo "[install-cbtf: calling support for_install CBTF_LIBDWARF_ROOT=$CBTF_LIBDWARF_ROOT"
-      echo "[install-cbtf: calling support for_install CBTF_LIBELF_ROOT=$CBTF_LIBELF_ROOT"
-      echo "[install-cbtf: calling support for_install CBTF_LIBMONITOR_ROOT=$CBTF_LIBMONITOR_ROOT"
-      echo "[install-cbtf: calling support for_install CBTF_LIBUNWIND_ROOT=$CBTF_LIBUNWIND_ROOT"
-      echo "[install-cbtf: calling support for_install CBTF_MRNET_ROOT=$CBTF_MRNET_ROOT"
-      echo "[install-cbtf: calling support for_install CBTF_PAPI_ROOT=$CBTF_PAPI_ROOT"
+     echo "[install-cbtf: CBTF_PREFIX was not set defaulting to /opt/cbtf"
    fi
-
-   echo "[install-cbtf: START GCC --print-search-dirs"
-   gcc -print-search-dirs
-   echo "[install-cbtf: END GCC --print-search-dirs"
-   echo "[install-cbtf: END GCC and call support_for_install.sh"
-   bash ./.support_for_install.sh 
-
-else
-
-   if [ -z $CBTF_PREFIX ]; then
-      export CBTF_PREFIX=/opt/cbtf/$CBTF_TARGET_ARCH
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_PREFIX was not set defaulting to /opt/cbtf/$TARGET_ARCH"
-      fi
-   fi
-
-   if [ -z $CBTF_ROOT ]; then
-      export CBTF_ROOT=/opt/cbtf/$CBTF_TARGET_ARCH
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_ROOT was not set defaulting to /opt/cbtf"/$CBTF_TARGET_ARCH
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_MRNET_ROOT ]; then
-      export CBTF_TARGET_MRNET_ROOT=$CBTF_ROOT
-      export MRNET_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_MRNET_ROOT was not set, setting CBTF_TARGET_MRNET_ROOT=$CBTF_TARGET_MRNET_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_XERCESC_ROOT ]; then
-      export CBTF_TARGET_XERCESC_ROOT=$CBTF_ROOT
-      export XERCESC_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_XERCESC_ROOT was not set, setting CBTF_TARGET_XERCESC_ROOT=$CBTF_TARGET_XERCESC_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_PAPI_ROOT ]; then
-      export CBTF_TARGET_PAPI_ROOT=$CBTF_ROOT
-      export PAPI_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_PAPI_ROOT was not set, setting CBTF_TARGET_PAPI_ROOT=$CBTF_TARGET_PAPI_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_LIBUNWIND_ROOT ]; then
-      export CBTF_TARGET_LIBUNWIND_ROOT=$CBTF_ROOT
-      export LIBUNWIND_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_LIBUNWIND_ROOT was not set, setting CBTF_TARGET_LIBUNWIND_ROOT=$CBTF_TARGET_LIBUNWIND_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_LIBMONITOR_ROOT ]; then
-      export CBTF_TARGET_LIBMONITOR_ROOT=$CBTF_ROOT
-      export LIBMONITOR_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_LIBMONITOR_ROOT was not set, setting CBTF_TARGET_LIBMONITOR_ROOT=$CBTF_TARGET_LIBMONITOR_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_LIBELF_ROOT ]; then
-      export CBTF_TARGET_LIBELF_ROOT=$CBTF_ROOT
-      export LIBELF_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_LIBELF_ROOT was not set, setting CBTF_TARGET_LIBELF_ROOT=$CBTF_TARGET_LIBELF_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_LIBDWARF_ROOT ]; then
-      export CBTF_TARGET_LIBDWARF_ROOT=$CBTF_ROOT
-      export LIBDWARF_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_LIBDWARF_ROOT was not set, setting CBTF_TARGET_LIBDWARF_ROOT=$CBTF_TARGET_LIBDWARF_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_DYNINST_ROOT ]; then
-      export CBTF_TARGET_DYNINST_ROOT=$CBTF_ROOT
-      export DYNINST_ROOT=$CBTF_ROOT
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_DYNINST_ROOT was not set, setting CBTF_TARGET_DYNINST_ROOT=$CBTF_TARGET_DYNINST_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_DYNINST_VERS ]; then
-      export CBTF_TARGET_DYNINST_VERS=8.1
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_DYNINST_VERS was not set, setting CBTF_DYNINST_VERS=$CBTF_TARGET_DYNINST_VERS"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_BINUTILS_ROOT ]; then
-      export CBTF_TARGET_BINUTILS_ROOT=$CBTF_ROOT
-      #export BINUTILS_ROOT=$CBTF_ROOT
-      export CBTF_TARGET_BINUTILS_ROOT_LIB=$CBTF_ROOT/lib
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_BINUTILS_ROOT was not set, setting CBTF_TARGET_BINUTILS_ROOT=$CBTF_TARGET_BINUTILS_ROOT"
-      fi
-   fi
-
-   if [ -z $CBTF_TARGET_BOOST_ROOT ]; then
-
-      export CBTF_TARGET_BOOST_ROOT=$CBTF_ROOT
-      export BOOST_ROOT=$CBTF_ROOT
-      export BOOST_INCLUDEDIR=$BOOST_ROOT/include/boost
-
-      if [ -d $BOOST_ROOT/$LIBDIR ]; then
-        export BOOST_LIBRARYDIR=$BOOST_ROOT/$LIBDIR
-      else
-        export BOOST_LIBRARYDIR=$BOOST_ROOT/lib
-      fi
-
-      export Boost_NO_SYSTEM_PATH=1
-      if [ $CBTF_DEBUG_BUILD ]; then
-        echo "[install-cbtf: CBTF_TARGET_BOOST_ROOT was not set, setting CBTF_TARGET_BOOST_ROOT=$CBTF_TARGET_BOOST_ROOT"
-      fi
-   fi
-
-   if [ $CBTF_DEBUG_BUILD ]; then
-      echo "[install-cbtf: calling support_for_target_install CBTF_PREFIX=$CBTF_PREFIX"
-      echo "[install-cbtf: calling support_for_target_install CBTF_ROOT=$CBTF_ROOT"
-      echo "[install-cbtf: calling support_for_target_install CBTF_TARGET_BOOST_ROOT=$CBTF_TARGET_BOOST_ROOT"
-      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_XERCESC_ROOT=$CBTF_TARGET_XERCESC_ROOT"
-      echo "[install-cbtf: calling support_for_target_install CBTF_TARGET_BINUTILS_ROOT=$CBTF_TARGET_BINUTILS_ROOT"
-      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_DYNINST_ROOT=$CBTF_TARGET_DYNINST_ROOT"
-      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_LIBDWARF_ROOT=$CBTF_TARGET_LIBDWARF_ROOT"
-      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_LIBELF_ROOT=$CBTF_TARGET_LIBELF_ROOT"
-      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_LIBMONITOR_ROOT=$CBTF_TARGET_LIBMONITOR_ROOT"
-      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_LIBUNWIND_ROOT=$CBTF_TARGET_LIBUNWIND_ROOT"
-      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_BOOST_ROOT=$CBTF_TARGET_BOOST_ROOT"
-      echo "[install-cbtf: calling support for_target_install BOOST_ROOT=$BOOST_ROOT"
-      echo "[install-cbtf: calling support for_target_install BOOST_INCLUDEDIR=$BOOST_INCLUDEDIR"
-      echo "[install-cbtf: calling support for_target_install BOOST_LIBRARYDIR=$BOOST_LIBRARYDIR"
-      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_MRNET_ROOT=$CBTF_TARGET_MRNET_ROOT"
-      echo "[install-cbtf: calling support for_target_install MRNET_ROOT=$MRNET_ROOT"
-      echo "[install-cbtf: calling support for_target_install CBTF_TARGET_PAPI_ROOT=$CBTF_TARGET_PAPI_ROOT"
-   fi
-
-   bash ./.support_for_target_install.sh 
-
 fi
+
+if [ -z $CBTF_ROOT ]; then
+   export CBTF_ROOT=/opt/cbtf
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_ROOT was not set defaulting to /opt/cbtf"
+   fi
+fi
+
+if [ -z $CBTF_MRNET_ROOT ]; then
+   export CBTF_MRNET_ROOT=$CBTF_ROOT
+   export MRNET_ROOT=$CBTF_ROOT
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_MRNET_ROOT was not set, setting CBTF_MRNET_ROOT=$CBTF_MRNET_ROOT"
+   fi
+fi
+
+if [ -z $CBTF_XERCESC_ROOT ]; then
+   export CBTF_XERCESC_ROOT=$CBTF_ROOT
+   export XERCESC_ROOT=$CBTF_XERCES_ROOT
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_XERCESC_ROOT was not set, setting CBTF_XERCESC_ROOT=$CBTF_XERCESC_ROOT"
+   fi
+fi
+
+if [ -z $CBTF_PAPI_ROOT ]; then
+   export CBTF_PAPI_ROOT=$CBTF_ROOT
+   export PAPI_ROOT=$CBTF_PAPI_ROOT
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_PAPI_ROOT was not set, setting CBTF_PAPI_ROOT=$CBTF_PAPI_ROOT"
+   fi
+fi
+
+if [ -z $CBTF_LIBUNWIND_ROOT ]; then
+   export CBTF_LIBUNWIND_ROOT=$CBTF_ROOT
+   export LIBUNWIND_ROOT=$CBTF_ROOT
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_LIBUNWIND_ROOT was not set, setting CBTF_LIBUNWIND_ROOT=$CBTF_LIBUNWIND_ROOT"
+   fi
+fi
+
+if [ -z $CBTF_LIBMONITOR_ROOT ]; then
+   export CBTF_LIBMONITOR_ROOT=$CBTF_ROOT
+   export LIBMONITOR_ROOT=$CBTF_ROOT
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_LIBMONITOR_ROOT was not set, setting CBTF_LIBMONITOR_ROOT=$CBTF_LIBMONITOR_ROOT"
+   fi
+fi
+
+if [ -z $CBTF_LIBELF_ROOT ]; then
+   export CBTF_LIBELF_ROOT=$CBTF_ROOT
+   export LIBELF_ROOT=$CBTF_ROOT
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_LIBELF_ROOT was not set, setting CBTF_LIBELF_ROOT=$CBTF_LIBELF_ROOT"
+   fi
+fi
+
+if [ -z $CBTF_LIBDWARF_ROOT ]; then
+   export CBTF_LIBDWARF_ROOT=$CBTF_ROOT
+   export LIBDWARF_ROOT=$CBTF_ROOT
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_LIBDWARF_ROOT was not set, setting CBTF_LIBDWARF_ROOT=$CBTF_LIBDWARF_ROOT"
+   fi
+fi
+
+if [ -z $CBTF_DYNINST_ROOT ]; then
+   export CBTF_DYNINST_ROOT=$CBTF_ROOT
+   export DYNINST_ROOT=$CBTF_ROOT
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_DYNINST_ROOT was not set, setting CBTF_DYNINST_ROOT=$CBTF_DYNINST_ROOT"
+   fi
+fi
+
+if [ -z $CBTF_DYNINST_VERS ]; then
+   export CBTF_DYNINST_VERS=8.1
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_DYNINST_VERS was not set, setting CBTF_DYNINST_VERS=$CBTF_DYNINST_VERS"
+   fi
+fi
+
+if [ -z $CBTF_BINUTILS_ROOT ]; then
+   export CBTF_BINUTILS_ROOT=$CBTF_ROOT
+   #export CBTF_BINUTILS_ROOT_LIB=$CBTF_ROOT/lib
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_BINUTILS_ROOT was not set, using CBTF_BINUTILS_ROOT=$CBTF_BINUTILS_ROOT"
+   fi
+fi
+
+if [ -z $CBTF_BOOST_ROOT ]; then
+   export CBTF_BOOST_ROOT=$CBTF_ROOT
+   export BOOST_ROOT=$CBTF_BOOST_ROOT
+   export Boost_NO_SYSTEM_PATH=1
+   if [ -z $BOOST_INCLUDEDIR ]; then
+     export BOOST_INCLUDEDIR=${dir}/include/boost
+   fi
+
+   if [ -z $BOOST_LIBRARYDIR ]; then
+     if [ -d $BOOST_ROOT/$LIBDIR ]; then
+       export BOOST_LIBRARYDIR=$BOOST_ROOT/$LIBDIR
+     else
+       export BOOST_LIBRARYDIR=$BOOST_ROOT/lib
+     fi
+   fi
+
+   if [ $CBTF_DEBUG_BUILD ]; then
+     echo "[install-cbtf: CBTF_BOOST_ROOT was not set, using CBTF_BOOST_ROOT=$CBTF_BOOST_ROOT"
+   fi
+fi
+
+if [ $CBTF_DEBUG_BUILD ]; then
+   echo "[install-cbtf: calling support_for_install CBTF_PREFIX=$CBTF_PREFIX"
+   echo "[install-cbtf: calling support_for_install CBTF_ROOT=$CBTF_ROOT"
+   echo "[install-cbtf: calling support_for_install CBTF_BOOST_ROOT=$CBTF_BOOST_ROOT"
+   echo "[install-cbtf: calling support for_install CBTF_XERCESC_ROOT=$CBTF_XERCESC_ROOT"
+   echo "[install-cbtf: calling support_for_install CBTF_BINUTILS_ROOT=$CBTF_BINUTILS_ROOT"
+   echo "[install-cbtf: calling support for_install CBTF_DYNINST_ROOT=$CBTF_DYNINST_ROOT"
+   echo "[install-cbtf: calling support for_install CBTF_LIBDWARF_ROOT=$CBTF_LIBDWARF_ROOT"
+   echo "[install-cbtf: calling support for_install CBTF_LIBELF_ROOT=$CBTF_LIBELF_ROOT"
+   echo "[install-cbtf: calling support for_install CBTF_LIBMONITOR_ROOT=$CBTF_LIBMONITOR_ROOT"
+   echo "[install-cbtf: calling support for_install CBTF_LIBUNWIND_ROOT=$CBTF_LIBUNWIND_ROOT"
+   echo "[install-cbtf: calling support for_install CBTF_MRNET_ROOT=$CBTF_MRNET_ROOT"
+   echo "[install-cbtf: calling support for_install CBTF_PAPI_ROOT=$CBTF_PAPI_ROOT"
+fi
+
+echo "[install-cbtf: START GCC --print-search-dirs"
+gcc -print-search-dirs
+echo "[install-cbtf: END GCC --print-search-dirs"
+echo "[install-cbtf: END GCC and call support_for_install.sh"
+bash ./.support_for_install.sh 
 
