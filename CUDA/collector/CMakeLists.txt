@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2014 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,6 +18,7 @@
 
 set(SOURCES collector.c)
 
+add_library(cuda-collector-monitor-fileio SHARED ${SOURCES})
 add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
 add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
 
@@ -28,6 +29,18 @@ include_directories(
     ${CBTF_MESSAGES_INCLUDE_DIRS}
     ${CBTF_SERVICES_INCLUDE_DIRS}
     ${CUPTI_INCLUDE_DIRS}
+    )
+
+target_link_libraries(cuda-collector-monitor-fileio
+    cbtf-messages-cuda
+    ${CBTF_MESSAGES_EVENTS_SHARED_LIBRARY}
+    ${CBTF_SERVICES_COLLECTOR_MONITOR_FILEIO_SHARED_LIBRARY}
+    ${CBTF_SERVICES_MONITOR_SHARED_LIBRARY}
+    ${CBTF_SERVICES_OFFLINE_SHARED_LIBRARY}
+    ${CBTF_SERVICES_UNWIND_SHARED_LIBRARY}
+    ${CMAKE_DL_LIBS}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${CUPTI_LIBRARIES}
     )
 
 target_link_libraries(cuda-collector-monitor-mrnet
@@ -68,6 +81,7 @@ if(PAPI_FOUND)
 endif()
 
 set_target_properties(
+    cuda-collector-monitor-fileio
     cuda-collector-monitor-mrnet
     cuda-collector-monitor-mrnet-mpi
     PROPERTIES PREFIX "" VERSION 1.1.0
@@ -75,6 +89,7 @@ set_target_properties(
 
 install(
     TARGETS
+        cuda-collector-monitor-fileio
         cuda-collector-monitor-mrnet
         cuda-collector-monitor-mrnet-mpi
     RUNTIME DESTINATION bin
