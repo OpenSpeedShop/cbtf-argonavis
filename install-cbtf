@@ -56,6 +56,9 @@ This is an alternative location for mrnet, the default is the default for CBTF_R
 --with-papi-root <directory>
 This is an alternative location for papi, the default is the default for CBTF_ROOT
 
+--with-python-root <directory>
+This is an alternative location for python, the default is the default for CBTF_ROOT
+
 --with-xercesc-root <directory>
 This is an alternative location for xercesc, the default is /usr
 
@@ -455,6 +458,17 @@ do
             shift ; shift
             ;;
 
+      --with-python-root)
+            test "x$2" != x || die "missing argument: $*"
+            case "$2" in
+                /* )  dir="$2" ;;
+                * )   dir="`pwd`/$2" ;;
+            esac 
+            test -d "$dir" || die "unable to find: $dir"
+            export CBTF_PYTHON_ROOT="${dir}"
+            export PYTHON_ROOT="${dir}"
+            shift ; shift
+            ;;
 
       --with-target-papi-root)
             test "x$2" != x || die "missing argument: $*"
