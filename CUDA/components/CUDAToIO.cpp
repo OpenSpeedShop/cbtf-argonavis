@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2012-2014 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -36,7 +36,6 @@
 #include <KrellInstitute/CBTF/Type.hpp>
 #include <KrellInstitute/CBTF/Version.hpp>
 
-#include <KrellInstitute/Core/AddressBuffer.hpp>
 #include <KrellInstitute/Core/ExtentGroup.hpp>
 #include <KrellInstitute/Core/Path.hpp>
 
@@ -467,18 +466,13 @@ private:
         const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
         );
     
-    /** Handler for the "ThreadsStateChanged" input. */
-    void handleThreadsStateChanged(
-        const boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged>& message
-        );
-
+    /** Handler for the "ThreadsFinished" input. */
+    void handleThreadsFinished(const bool& value);
+    
     /** Handler for the "UnloadedLinkedObject" input. */
     void handleUnloadedLinkedObject(
         const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
         );
-    
-    /** Address buffer containing all addresses seen within stack traces. */
-    AddressBuffer dm_addresses;
     
     /**
      * Next available (unused) address within the dynamically generated
@@ -501,8 +495,7 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(CUDAToIO)
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 CUDAToIO::CUDAToIO() :
-    Component(Type(typeid(CUDAToIO)), Version(0, 0, 0)),
-    dm_addresses(),
+    Component(Type(typeid(CUDAToIO)), Version(1, 0, 0)),
     dm_next_address(kAddressRange.begin),
     dm_operations(),
     dm_threads()
@@ -523,18 +516,15 @@ CUDAToIO::CUDAToIO() :
         "LoadedLinkedObject",
         boost::bind(&CUDAToIO::handleLoadedLinkedObject, this, _1)
         );
-    declareInput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
-        "ThreadsStateChanged",
-        boost::bind(&CUDAToIO::handleThreadsStateChanged, this, _1)
+    declareInput<bool>(
+        "ThreadsFinished",
+        boost::bind(&CUDAToIO::handleThreadsFinished, this, _1)
         );
     declareInput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
         "UnloadedLinkedObject",
         boost::bind(&CUDAToIO::handleUnloadedLinkedObject, this, _1)
         );
 
-    declareOutput<AddressBuffer>(
-        "AddressBuffer"
-        );
     declareOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
         "AttachedToThreads"
         );
@@ -550,8 +540,8 @@ CUDAToIO::CUDAToIO() :
     declareOutput<boost::shared_ptr<CBTF_Protocol_SymbolTable> >(
         "SymbolTable"
         );
-    declareOutput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
-        "ThreadsStateChanged"
+    declareOutput<bool>(
+        "ThreadsFinished"
         );
     declareOutput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
         "UnloadedLinkedObject"
@@ -654,8 +644,6 @@ void CUDAToIO::complete(ThreadSpecificData& tsd,
             // Construct a CBTF_io_event entry for this completed CUDA operation
             // and then push it onto our table of I/O events. The modified call
             // site is added (when necessary) to our table of I/O stack traces.
-            // Finally, the address buffer is updated with the contents of the
-            // stack trace.
             //
             
             CBTF_io_event event;
@@ -663,14 +651,6 @@ void CUDAToIO::complete(ThreadSpecificData& tsd,
             event.start_time = message.time_begin;
             event.stop_time = message.time_end;
             event.stacktrace = addCallSite(i->call_site, tsd.stack_traces);
-
-            for (std::vector<CBTF_Protocol_Address>::size_type
-                     x = event.stacktrace;
-                 tsd.stack_traces[x] != 0;
-                 ++x)
-            {
-                dm_addresses.updateAddressCounts(tsd.stack_traces[x], 1);
-            }
 
             tsd.events.push_back(event);
             
@@ -1074,45 +1054,25 @@ void CUDAToIO::handleLoadedLinkedObject(
 
 //------------------------------------------------------------------------------
 // Update the list of active threads and emit our dynamically generated symbol
-// table of CUDA operations if the last thread has been terminated.
+// table of CUDA operations if the threads have actually finished.
 //
-// It is extremely important that the final thread termination message not be
-// re-emitted before the CBTF_Protocol_SymbolTable and AddressBuffer messages
-// are emitted. When it is, the frontend sees the final thread terminating and
-// immediately exits with predictably poor results. Hence the multiple copies
-// of the re-emit below to make sure they are done in the correct order...
+// It is extremely important that the ThreadsFinished message not be re-emitted
+// before the CBTF_Protocol_SymbolTable is emitted. If it is, the frontend sees
+// the ThreadsFinished and immediately exits with predictably poor results.
 //------------------------------------------------------------------------------
-void CUDAToIO::handleThreadsStateChanged(
-    const boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged>& message
-    )
+void CUDAToIO::handleThreadsFinished(const bool& value)
 {
-    // We only care when threads are terminated
-    if (message->state != Terminated)
+    // We only care if the threads have actually finished
+    if (!value)
     {
         // Re-emit the original message unchanged
-        emitOutput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
-            "ThreadsStateChanged", message
-            );
-
+        emitOutput<bool>("ThreadsFinished", value);
+        
         return;
     }
     
     // Update the list of active threads appropriately
-    for (u_int i = 0; i < message->threads.names.names_len; ++i)
-    {
-        dm_threads.erase(SimpleThreadName(message->threads.names.names_val[i]));
-    }
-    
-    // Do not proceed further unless the last thread has now been terminated
-    if (!dm_threads.empty())
-    {
-        // Re-emit the original message unchanged
-        emitOutput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
-            "ThreadsStateChanged", message
-            );
-        
-        return;
-    }
+    dm_threads.clear();
     
     //
     // Construct a new CBTF_Protocol_SymbolTable from the table of individual
@@ -1199,13 +1159,8 @@ void CUDAToIO::handleThreadsStateChanged(
         "SymbolTable", table
         );
     
-    // Emit the AddressBuffer for all addresses seen within stack traces
-    emitOutput<AddressBuffer>("AddressBuffer", dm_addresses);
-
     // Re-emit the original message unchanged
-    emitOutput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
-        "ThreadsStateChanged", message
-        );
+    emitOutput<bool>("ThreadsFinished", value);
 }
 
 

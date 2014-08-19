@@ -427,7 +427,7 @@ private:
         const boost::shared_ptr<CBTF_Protocol_Blob>& message
         );
     
-}; // class CUDAToIO
+}; // class CUDADebug
 
 KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(CUDADebug)
 

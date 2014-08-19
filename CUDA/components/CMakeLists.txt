@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2014 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -16,7 +16,12 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-add_library(CUDA SHARED CUDADebug.cpp CUDAToIO.cpp XDR.cpp)
+add_library(CUDA SHARED
+    AddressAggregatorForCUDA.cpp
+    CUDADebug.cpp
+    CUDAToIO.cpp
+    XDR.cpp
+    )
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}

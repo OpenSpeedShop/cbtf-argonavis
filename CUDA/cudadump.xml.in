@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
-Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
+Copyright (c) 2012-2014 Argo Navis Technologies. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,55 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 <MRNet xmlns="http://www.krellinst.org/CBTF/MRNet.xsd">
 
   <Type>cudadump</Type>
-  <Version>1.0.0</Version>
+  <Version>2.0.0</Version>
 
+  <!--
+     List of the network's inputs.
+
+     These inputs are connected to similarly named frontend inputs. They
+     should be beound within the tool (e.g. Open|SpeedShop) to providers
+     of the various types of data.
+  -->
+
+  <Input>
+    <Name>numBE</Name>
+    <To><Input>IncomingNumberOfBackends</Input></To>
+  </Input>
+
+  <!--
+     List of the network's outputs.
+     
+     These outputs are connected to similarly named frontend outputs. They
+     should be bound within the tool (e.g. Open|SpeedShop) to handlers for
+     the various types of data.
+  -->
+  
+  <Output>
+    <Name>threads_finished</Name>
+    <From><Output>OutgoingThreadsFinished</Output></From>
+  </Output>
+  
+  <!--
+     List of the network's stream declarations.
+     
+     The CUDA collector utilizes lightweight MRNet to feed packets upward into
+     the CBTF/MRNet distributed component network. And since lightweight MRNet
+     cannot easily contain an event loop accepting downward travelling packets
+     from the network, it isn't notified of any stream tags that were selected
+     dynamically. Instead, stream tags must be hard-coded in the collector and
+     explicitly bound to named streams within the network here.
+  -->
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS</Name>
+    <Tag>1101</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_CREATED_PROCESS</Name>
+    <Tag>1104</Tag>
+  </Stream>
+  
   <Stream>
     <Name>CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED</Name>
     <Tag>1124</Tag>
@@ -32,61 +79,93 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
     <Tag>10000</Tag>
   </Stream>
-
-  <Output>
-    <Name>output</Name>
-    <From><Output>OutgoingAllTerminated</Output></From>
-  </Output>
+  
+  <!-- Frontend of the network -->
   
   <Frontend>
+    
+    <!-- Component network for the frontend -->
     
     <Network xmlns="http://www.krellinst.org/CBTF/Network">
       
       <Type>cudadump_frontend</Type>
-      <Version>1.0.0</Version>
+      <Version>2.0.0</Version>
       
       <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
-
-      <Plugin>CollectionPlugin.so</Plugin>      
+      
+      <Plugin>CollectionPlugin.so</Plugin>
       <Plugin>CUDA.so</Plugin>
       
+      <!-- List of the frontend network's component instances -->
+
       <Component>
         <Name>CUDADebug</Name>
         <Type>CUDADebug</Type>
       </Component>
 
       <Component>
-        <Name>ThreadsStateChanged</Name>
-        <Type>ThreadsStateChanged</Type>
+        <Name>ThreadEvent</Name>
+        <Type>ThreadEventComponent</Type>
       </Component>
       
+      <!-- List of the frontend network's inputs -->
+      
       <Input>
-        <Name>IncomingCUDAData</Name>
+        <Name>IncomingAttachedToThreads</Name>
+        <To><Name>ThreadEvent</Name><Input>threads</Input></To>
+      </Input>
+      
+      <Input>
+        <Name>IncomingCreatedProcess</Name>
+        <To><Name>ThreadEvent</Name><Input>createdprocess</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingPerformanceData</Name>
         <To><Name>CUDADebug</Name><Input>Data</Input></To>
       </Input>
-
+      
+      <Input>
+        <Name>IncomingNumberOfBackends</Name>
+        <To><Name>ThreadEvent</Name><Input>numBE</Input></To>
+      </Input>
+      
       <Input>
         <Name>IncomingThreadsStateChanged</Name>
-        <To><Name>ThreadsStateChanged</Name><Input>in</Input></To>
+        <To><Name>ThreadEvent</Name><Input>threadstate</Input></To>
       </Input>
 
+      <!-- List of the frontend network's outputs -->
+
       <Output>
-        <Name>OutgoingAllTerminated</Name>
-        <From><Name>ThreadsStateChanged</Name><Output>out1</Output></From>
+        <Name>OutgoingThreadsFinished</Name>
+        <From><Name>Aggregator</Name><Output>ThreadsFinished</Output></From>
       </Output>
       
     </Network>
 
+    <!-- List of the frontend's incoming upstreams -->
+    
     <IncomingUpstream>
-      <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
-      <To><Input>IncomingCUDAData</Input></To>
+      <Name>CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS</Name>
+      <To><Input>IncomingAttachedToThreads</Input></To>
+    </IncomingUpstream>
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_CREATED_PROCESS</Name>
+      <To><Input>IncomingCreatedProcess</Input></To>
     </IncomingUpstream>
 
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
+      <To><Input>IncomingPerformanceData</Input></To>
+    </IncomingUpstream>
+    
     <IncomingUpstream>
       <Name>CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED</Name>
       <To><Input>IncomingThreadsStateChanged</Input></To>
     </IncomingUpstream>
-    
+
   </Frontend>
   
 </MRNet>

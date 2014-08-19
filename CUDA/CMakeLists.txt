@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2014 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,13 +29,7 @@ find_package(CBTF-Messages REQUIRED)
 find_package(CBTF-Services REQUIRED)
 find_package(CUPTI 2 REQUIRED)
 find_package(MRNet 4.0.0 REQUIRED)
-#
-# The find_package() call for PAPI is currently disabled until the collection
-# of CPU/GPU HWPC data has been more throughly tested and conversion routines
-# have been added from the raw overflow/periodic sampling data to a form that
-# is understood by Open|SpeedShop.  WDH 2013-May-13
-#
-#find_package(PAPI 5.1.0)
+find_package(PAPI 5.1.0)
 
 find_package(Threads REQUIRED)
 
@@ -55,11 +49,13 @@ add_subdirectory(messages)
 
 configure_file(cuda.xml.in cuda.xml)
 configure_file(cudadump.xml.in cudadump.xml)
+configure_file(cudaio.xml.in cudaio.xml)
 
 install(
     FILES
         ${PROJECT_BINARY_DIR}/cuda.xml
         ${PROJECT_BINARY_DIR}/cudadump.xml
+        ${PROJECT_BINARY_DIR}/cudaio.xml
     DESTINATION
         share/KrellInstitute/xml
     )

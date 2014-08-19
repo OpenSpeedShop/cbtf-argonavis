@@ -20,8 +20,8 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
 <MRNet xmlns="http://www.krellinst.org/CBTF/MRNet.xsd">
 
-  <Type>cuda</Type>
-  <Version>2.0.0</Version>
+  <Type>cudaio</Type>
+  <Version>1.0.0</Version>
 
   <!--
      List of the network's inputs.
@@ -79,6 +79,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <From><Output>OutgoingPerformanceData</Output></From>
   </Output>
   
+  <Output>
+    <Name>symboltable_xdr_output</Name>
+    <From><Output>OutgoingSymbolTable</Output></From>
+  </Output>
+
   <Output>
     <Name>threads_finished</Name>
     <From><Output>OutgoingThreadsFinished</Output></From>
@@ -140,7 +145,16 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <Tag>10000</Tag>
   </Stream>
   
-  <!-- Frontend of the network -->
+  <!--
+     Frontend of the network.
+
+     Ideally the CUDAToIO component in this network would be pushed down into
+     the filters instead. The only thing that is preventing this currently is
+     that CUDAToIO dynamically generates symbol tables and these will need to
+     be reduced into a single symbol table as they travel up the tree. Pseudo
+     I/O performance data blobs will also have be remapped to the new symbols.
+     Doing that is a little more work than we have time for right now...
+  -->
   
   <Frontend>
     
@@ -148,8 +162,8 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     
     <Network xmlns="http://www.krellinst.org/CBTF/Network">
       
-      <Type>cuda_frontend</Type>
-      <Version>2.0.0</Version>
+      <Type>cudaio_frontend</Type>
+      <Version>1.0.0</Version>
       
       <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
       
@@ -164,6 +178,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       </Component>
 
       <Component>
+        <Name>CUDAToIO</Name>
+        <Type>CUDAToIO</Type>
+      </Component>
+ 
+      <Component>
         <Name>LinkedObject</Name>
         <Type>LinkedObject</Type>
       </Component>
@@ -177,7 +196,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       
       <Input>
         <Name>IncomingAttachedToThreads</Name>
-        <To><Name>ThreadEvent</Name><Input>threads</Input></To>
+        <To><Name>CUDAToIO</Name><Input>AttachedToThreads</Input></To>
       </Input>
       
       <Input>
@@ -192,12 +211,12 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       
       <Input>
         <Name>IncomingLoadedLinkedObject</Name>
-        <To><Name>LinkedObject</Name><Input>loaded</Input></To>
+        <To><Name>CUDAToIO</Name><Input>LoadedLinkedObject</Input></To>
       </Input>
 
       <Input>
         <Name>IncomingLinkedObjectGroup</Name>
-        <To><Name>LinkedObject</Name><Input>group</Input></To>
+        <To><Name>CUDAToIO</Name><Input>InitialLinkedObjects</Input></To>
       </Input>
 
       <Input>
@@ -212,10 +231,40 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
       <Input>
         <Name>IncomingUnloadedLinkedObject</Name>
-        <To><Name>LinkedObject</Name><Input>unloaded</Input></To>
+        <To><Name>CUDAToIO</Name><Input>UnloadedLinkedObject</Input></To>
       </Input>
       
       <!-- List of the frontend network's connections -->
+
+      <Connection>
+        <From><Name>Aggregator</Name><Output>Data</Output></From>
+        <To><Name>CUDAToIO</Name><Input>Data</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>Aggregator</Name><Output>ThreadsFinished</Output></From>
+        <To><Name>CUDAToIO</Name><Input>ThreadsFinished</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>CUDAToIO</Name><Output>AttachedToThreads</Output></From>
+        <To><Name>ThreadEvent</Name><Input>threads</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>CUDAToIO</Name><Output>InitialLinkedObjects</Output></From>
+        <To><Name>LinkedObject</Name><Input>group</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>CUDAToIO</Name><Output>LoadedLinkedObject</Output></From>
+        <To><Name>LinkedObject</Name><Input>loaded</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>CUDAToIO</Name><Output>UnloadedLinkedObject</Output></From>
+        <To><Name>LinkedObject</Name><Input>unloaded</Input></To>
+      </Connection>
 
       <Connection>
         <From><Name>ThreadEvent</Name><Output>ThreadNameVecOut</Output></From>
@@ -269,12 +318,17 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
       <Output>
         <Name>OutgoingPerformanceData</Name>
-        <From><Name>Aggregator</Name><Output>Data</Output></From>
+        <From><Name>CUDAToIO</Name><Output>Data</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingSymbolTable</Name>
+        <From><Name>CUDAToIO</Name><Output>SymbolTable</Output></From>
       </Output>
       
       <Output>
         <Name>OutgoingThreadsFinished</Name>
-        <From><Name>Aggregator</Name><Output>ThreadsFinished</Output></From>
+        <From><Name>CUDAToIO</Name><Output>ThreadsFinished</Output></From>
       </Output>
       
       <Output>
