@@ -175,7 +175,7 @@
 #define PAPI_CHECK(x)                                               \
     do {                                                            \
         int RETVAL = x;                                             \
-        if (RETVAL != PAPI_OK)                                      \
+	if ((RETVAL != PAPI_OK) && (RETVAL != PAPI_VER_CURRENT))    \
         {                                                           \
             const char* description = PAPI_strerror(RETVAL);        \
             if (description != NULL)                                \
