@@ -218,11 +218,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       </Connection>
 
       <Connection>
-        <From><Name>Aggregator</Name><Output>ThreadsFinished</Output></From>
-        <To><Name>Converter</Name><Input>ThreadsFinished</Input></To>
-      </Connection>
-
-      <Connection>
         <From><Name>Converter</Name><Output>AttachedToThreads</Output></From>
         <To><Name>Management</Name><Input>AttachedToThreads</Input></To>
       </Connection>
@@ -238,15 +233,20 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       </Connection>
 
       <Connection>
+        <From><Name>Converter</Name><Output>ThreadsFinished</Output></From>
+        <To><Name>Aggregator</Name><Input>ThreadsFinished</Input></To>
+      </Connection>
+
+      <Connection>
         <From><Name>Converter</Name><Output>UnloadedLinkedObject</Output></From>
         <To><Name>Management</Name><Input>UnloadedLinkedObject</Input></To>
       </Connection>
 
       <Connection>
         <From><Name>Management</Name><Output>ThreadsFinished</Output></From>
-        <To><Name>Aggregator</Name><Input>ThreadsFinished</Input></To>
+        <To><Name>Converter</Name><Input>ThreadsFinished</Input></To>
       </Connection>
-      
+
       <!-- List of the frontend network's outputs -->
 
       <Output>
