@@ -485,12 +485,11 @@ CUDAToIO::CUDAToIO() :
     declareOutput<boost::shared_ptr<CBTF_Protocol_SymbolTable> >(
         "SymbolTable"
         );
-    declareOutput<bool>(
-        "ThreadsFinished"
-        );
     declareOutput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
         "UnloadedLinkedObject"
         );
+
+    declareOutput<bool>("ThreadsFinished");
 }
 
 
