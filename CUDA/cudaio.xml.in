@@ -202,7 +202,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       
       <Input>
         <Name>IncomingThreadsStateChanged</Name>
-        <To><Name>Converter</Name><Input>ThreadsStateChanged</Input></To>
+        <To><Name>Management</Name><Input>ThreadsStateChanged</Input></To>
       </Input>
 
       <Input>
