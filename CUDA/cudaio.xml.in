@@ -273,7 +273,9 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
       <Output>
         <Name>OutgoingLinkedObjectGroup</Name>
-        <From><Name>Management</Name><Output>LinkedObjectGroup</Output></From>
+        <From>
+	  <Name>Management</Name><Output>InitialLinkedObjects</Output>
+	</From>
       </Output>
       
       <Output>
