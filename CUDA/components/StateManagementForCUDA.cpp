@@ -213,7 +213,7 @@ void StateManagementForCUDA::handleInitialLinkedObjects(
     )
 {
     emitOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
-        "LinkedObjectGroup", message
+        "InitialLinkedObjects", message
         );
 
     ThreadName thread(message->thread);
