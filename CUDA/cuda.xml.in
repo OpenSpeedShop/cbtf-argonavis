@@ -21,20 +21,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 <MRNet xmlns="http://www.krellinst.org/CBTF/MRNet.xsd">
 
   <Type>cuda</Type>
-  <Version>2.0.0</Version>
-
-  <!--
-     List of the network's inputs.
-
-     These inputs are connected to similarly named frontend inputs. They
-     should be bound within the tool (e.g. Open|SpeedShop) to providers
-     of the various types of data.
-  -->
-
-  <Input>
-    <Name>numBE</Name>
-    <To><Input>IncomingNumberOfBackends</Input></To>
-  </Input>
+  <Version>3.0.0</Version>
 
   <!--
      List of the network's outputs.
@@ -149,11 +136,10 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <Network xmlns="http://www.krellinst.org/CBTF/Network">
       
       <Type>cuda_frontend</Type>
-      <Version>2.0.0</Version>
+      <Version>3.0.0</Version>
       
       <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
       
-      <Plugin>CollectionPlugin.so</Plugin>
       <Plugin>CUDA.so</Plugin>
       
       <!-- List of the frontend network's component instances -->
@@ -164,25 +150,30 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       </Component>
 
       <Component>
-        <Name>LinkedObject</Name>
-        <Type>LinkedObject</Type>
-      </Component>
-      
-      <Component>
-        <Name>ThreadEvent</Name>
-        <Type>ThreadEventComponent</Type>
+        <Name>Management</Name>
+        <Type>StateManagementForCUDA</Type>
       </Component>
       
       <!-- List of the frontend network's inputs -->
       
       <Input>
         <Name>IncomingAttachedToThreads</Name>
-        <To><Name>ThreadEvent</Name><Input>threads</Input></To>
+        <To><Name>Management</Name><Input>AttachedToThreads</Input></To>
       </Input>
       
       <Input>
         <Name>IncomingCreatedProcess</Name>
-        <To><Name>ThreadEvent</Name><Input>createdprocess</Input></To>
+        <To><Name>Management</Name><Input>CreatedProcess</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingLinkedObjectGroup</Name>
+        <To><Name>Management</Name><Input>InitialLinkedObjects</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingLoadedLinkedObject</Name>
+        <To><Name>Management</Name><Input>LoadedLinkedObject</Input></To>
       </Input>
 
       <Input>
@@ -191,39 +182,19 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       </Input>
       
       <Input>
-        <Name>IncomingLoadedLinkedObject</Name>
-        <To><Name>LinkedObject</Name><Input>loaded</Input></To>
-      </Input>
-
-      <Input>
-        <Name>IncomingLinkedObjectGroup</Name>
-        <To><Name>LinkedObject</Name><Input>group</Input></To>
-      </Input>
-
-      <Input>
-        <Name>IncomingNumberOfBackends</Name>
-        <To><Name>ThreadEvent</Name><Input>numBE</Input></To>
-      </Input>
-      
-      <Input>
         <Name>IncomingThreadsStateChanged</Name>
-        <To><Name>ThreadEvent</Name><Input>threadstate</Input></To>
+        <To><Name>Management</Name><Input>ThreadsStateChanged</Input></To>
       </Input>
 
       <Input>
         <Name>IncomingUnloadedLinkedObject</Name>
-        <To><Name>LinkedObject</Name><Input>unloaded</Input></To>
+        <To><Name>Management</Name><Input>UnloadedLinkedObject</Input></To>
       </Input>
       
       <!-- List of the frontend network's connections -->
 
       <Connection>
-        <From><Name>ThreadEvent</Name><Output>ThreadNameVecOut</Output></From>
-        <To><Name>LinkedObject</Name><Input>threadnames</Input></To>
-      </Connection>
-
-      <Connection>
-        <From><Name>ThreadEvent</Name><Output>Threads_finished</Output></From>
+        <From><Name>Management</Name><Output>ThreadsFinished</Output></From>
         <To><Name>Aggregator</Name><Input>ThreadsFinished</Input></To>
       </Connection>
       
@@ -236,35 +207,29 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
       <Output>
         <Name>OutgoingAttachedToThreads</Name>
-        <From>
-          <Name>ThreadEvent</Name>
-          <Output>AttachedToThreads_xdr_out</Output>
-        </From>
+        <From><Name>Management</Name><Output>AttachedToThreads</Output></From>
       </Output>
 
       <Output>
         <Name>OutgoingCreatedProcess</Name>
-        <From>
-          <Name>ThreadEvent</Name>
-          <Output>CreatedProcess_xdr_out</Output>
-        </From>
+        <From><Name>Management</Name><Output>CreatedProcess</Output></From>
       </Output>
 
       <Output>
         <Name>OutgoingLinkedObjectEntryVec</Name>
         <From>
-          <Name>LinkedObject</Name><Output>linkedobjectvec_out</Output>
+          <Name>Management</Name><Output>LinkedObjectEntryVec</Output>
         </From>
       </Output>
 
       <Output>
         <Name>OutgoingLinkedObjectGroup</Name>
-        <From><Name>LinkedObject</Name><Output>group_xdr_out</Output></From>
+        <From><Name>Management</Name><Output>LinkedObjectGroup</Output></From>
       </Output>
       
       <Output>
         <Name>OutgoingLoadedLinkedObject</Name>
-        <From><Name>LinkedObject</Name><Output>loaded_xdr_out</Output></From>
+        <From><Name>Management</Name><Output>LoadedLinkedObject</Output></From>
       </Output>
 
       <Output>
@@ -279,15 +244,14 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       
       <Output>
         <Name>OutgoingThreadsStateChanged</Name>
-        <From>
-          <Name>ThreadEvent</Name>
-          <Output>ThreadsStateChanged_xdr_out</Output>
-        </From>
+        <From><Name>Management</Name><Output>ThreadsStateChanged</Output></From>
       </Output>
       
       <Output>
         <Name>OutgoingUnloadedLinkedObject</Name>
-        <From><Name>LinkedObject</Name><Output>unloaded_xdr_out</Output></From>
+        <From>
+          <Name>Management</Name><Output>UnloadedLinkedObject</Output>
+        </From>
       </Output>
 
     </Network>

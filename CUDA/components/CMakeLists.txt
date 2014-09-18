@@ -20,6 +20,8 @@ add_library(CUDA SHARED
     AddressAggregatorForCUDA.cpp
     CUDADebug.cpp
     CUDAToIO.cpp
+    SimpleThreadName.hpp
+    StateManagementForCUDA.cpp
     XDR.cpp
     )
 

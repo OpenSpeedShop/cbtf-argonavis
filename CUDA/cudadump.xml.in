@@ -21,20 +21,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 <MRNet xmlns="http://www.krellinst.org/CBTF/MRNet.xsd">
 
   <Type>cudadump</Type>
-  <Version>2.0.0</Version>
-
-  <!--
-     List of the network's inputs.
-
-     These inputs are connected to similarly named frontend inputs. They
-     should be beound within the tool (e.g. Open|SpeedShop) to providers
-     of the various types of data.
-  -->
-
-  <Input>
-    <Name>numBE</Name>
-    <To><Input>IncomingNumberOfBackends</Input></To>
-  </Input>
+  <Version>3.0.0</Version>
 
   <!--
      List of the network's outputs.
@@ -89,57 +76,51 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <Network xmlns="http://www.krellinst.org/CBTF/Network">
       
       <Type>cudadump_frontend</Type>
-      <Version>2.0.0</Version>
+      <Version>3.0.0</Version>
       
       <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
       
-      <Plugin>CollectionPlugin.so</Plugin>
       <Plugin>CUDA.so</Plugin>
       
       <!-- List of the frontend network's component instances -->
 
       <Component>
-        <Name>CUDADebug</Name>
+        <Name>Debug</Name>
         <Type>CUDADebug</Type>
       </Component>
 
       <Component>
-        <Name>ThreadEvent</Name>
-        <Type>ThreadEventComponent</Type>
+        <Name>Management</Name>
+        <Type>StateManagementForCUDA</Type>
       </Component>
       
       <!-- List of the frontend network's inputs -->
       
       <Input>
         <Name>IncomingAttachedToThreads</Name>
-        <To><Name>ThreadEvent</Name><Input>threads</Input></To>
+        <To><Name>Management</Name><Input>AttachedToThreads</Input></To>
       </Input>
       
       <Input>
         <Name>IncomingCreatedProcess</Name>
-        <To><Name>ThreadEvent</Name><Input>createdprocess</Input></To>
+        <To><Name>Management</Name><Input>CreatedProcess</Input></To>
       </Input>
 
       <Input>
         <Name>IncomingPerformanceData</Name>
-        <To><Name>CUDADebug</Name><Input>Data</Input></To>
-      </Input>
-      
-      <Input>
-        <Name>IncomingNumberOfBackends</Name>
-        <To><Name>ThreadEvent</Name><Input>numBE</Input></To>
+        <To><Name>Debug</Name><Input>Data</Input></To>
       </Input>
       
       <Input>
         <Name>IncomingThreadsStateChanged</Name>
-        <To><Name>ThreadEvent</Name><Input>threadstate</Input></To>
+        <To><Name>Management</Name><Input>ThreadsStateChanged</Input></To>
       </Input>
-
+      
       <!-- List of the frontend network's outputs -->
 
       <Output>
         <Name>OutgoingThreadsFinished</Name>
-        <From><Name>Aggregator</Name><Output>ThreadsFinished</Output></From>
+        <From><Name>Management</Name><Output>ThreadsFinished</Output></From>
       </Output>
       
     </Network>

@@ -51,6 +51,7 @@
 #include <KrellInstitute/Messages/Time.h>
 
 #include "CUDA_data.h"
+#include "SimpleThreadName.hpp"
 
 using namespace KrellInstitute::CBTF;
 using namespace KrellInstitute::Core;
@@ -344,62 +345,6 @@ private:
         /** Expanded call site of the request. */
         std::vector<CBTF_Protocol_Address> call_site;
     };
-
-    /**
-     * Simplification of the ThreadName class, limited to the host
-     * name, process identifier, and POSIX thread identifier only.
-     */
-    class SimpleThreadName :
-        private boost::equivalent<SimpleThreadName>,
-        private boost::totally_ordered<SimpleThreadName>
-    {
-        
-    public:
-        
-        /** Constructor from individual fields. */
-        SimpleThreadName(const std::string& host,
-                         const int64_t& pid,
-                         const int64_t& tid) :
-            dm_host(host),
-            dm_pid(pid),
-            dm_tid(tid)
-        {            
-        }
-        
-        /** Constructor from a CBTF_Protocol_ThreadName. */
-        SimpleThreadName(const CBTF_Protocol_ThreadName& name) :
-            dm_host(name.host),
-            dm_pid(name.pid),
-            dm_tid(name.has_posix_tid ? name.posix_tid : 0)
-        {
-        }
-        
-        /** Is this simple thread name less than another one? */
-        bool operator<(const SimpleThreadName& other) const
-        {
-            if(dm_host < other.dm_host)
-                return true;
-            if(dm_host > other.dm_host)
-                return false;
-            if(dm_pid < other.dm_pid)
-                return true;
-            if(dm_pid > other.dm_pid)
-                return false;
-            return dm_tid < other.dm_tid;
-        }
-        
-    private:
-        
-        /** Name of the host on which this thread is located. */
-        std::string dm_host;
-        
-        /** Identifier of the process containing this thread. */
-        int64_t dm_pid;
-        
-        /** POSIX identifier of the thread. */
-        int64_t dm_tid;
-        
-    }; // class SimpleThreadName
 
     /**
      * Plain old data (POD) structure holding thread-specific data.
