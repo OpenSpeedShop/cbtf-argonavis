@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2014 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -175,7 +175,7 @@
 #define PAPI_CHECK(x)                                               \
     do {                                                            \
         int RETVAL = x;                                             \
-	if ((RETVAL != PAPI_OK) && (RETVAL != PAPI_VER_CURRENT))    \
+        if ((RETVAL != PAPI_OK) && (RETVAL != PAPI_VER_CURRENT))    \
         {                                                           \
             const char* description = PAPI_strerror(RETVAL);        \
             if (description != NULL)                                \
@@ -277,9 +277,6 @@ static CUDA_SamplingConfig sampling_config;
  */
 static CUDA_EventDescription event_descriptions[MAX_EVENTS];
 
-/** PAPI event set for this collector. */
-static int papi_event_set = PAPI_NULL;
-
 /** Number of events for which overflow sampling is enabled. */
 static int overflow_sampling_count = 0;
 
@@ -334,6 +331,9 @@ typedef struct {
     CBTF_Protocol_Address stack_traces[MAX_ADDRESSES_PER_BLOB];
 
 #if defined(PAPI_FOUND)
+    /** PAPI event set for this thread. */
+    int papi_event_set;
+
     /** Current overflow samples for this thread. */
     struct {
 
@@ -1929,8 +1929,9 @@ static void papi_callback(int event_set, void* address,
     int events[MAX_EVENTS];
     memset(events, 0, sizeof(events));
     int num_events = sampling_config.events.events_len;
-    PAPI_CHECK(PAPI_get_overflow_event_index(papi_event_set, overflow_vector,
-                                             events, &num_events));
+    PAPI_CHECK(PAPI_get_overflow_event_index(tls->papi_event_set,
+                                             overflow_vector, events,
+                                             &num_events));
 
     /* Get a pointer to the overflow samples PCs for this thread */
     uint64_t* const pcs = tls->overflow_samples.pcs;
@@ -2043,7 +2044,7 @@ static void timer_callback(const ucontext_t* context)
     EventSample sample;
     memset(&sample, 0, sizeof(EventSample));
     sample.time = CBTF_GetTime();
-    PAPI_CHECK(PAPI_read(papi_event_set, (long long*)&sample.count));
+    PAPI_CHECK(PAPI_read(tls->papi_event_set, (long long*)&sample.count));
 
     /* Get a pointer to the periodic samples deltas for this thread */
     uint8_t* const deltas = tls->periodic_samples.deltas;
@@ -2287,19 +2288,12 @@ static void parse_configuration(const char* const configuration)
 #endif
             }
 
-            /* Add this event to our PAPI event set */
-            int event_code = PAPI_NULL;
-            PAPI_CHECK(PAPI_event_name_to_code(event->name, &event_code));
-            PAPI_CHECK(PAPI_add_event(papi_event_set, event_code));
-            periodic_sampling_count++;
+            /* Increment the number of periodically sampled events */
+            ++periodic_sampling_count;
             
             /* Setup overflow for this event if a threshold was specified */
             if (event->threshold > 0)
             {
-                PAPI_CHECK(PAPI_overflow(papi_event_set, event_code,
-                                         event->threshold,
-                                         PAPI_OVERFLOW_FORCE_SW,
-                                         papi_callback));
                 event_to_overflow_indicies[sampling_config.events.events_len] =
                     overflow_sampling_count++;
             }
@@ -2354,11 +2348,10 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #endif
         
 #if defined(PAPI_FOUND)
-        /* Initialize PAPI and create our PAPI event set */
+        /* Initialize PAPI */
         PAPI_CHECK(PAPI_library_init(PAPI_VER_CURRENT));
         PAPI_CHECK(PAPI_thread_init((unsigned long (*)())(pthread_self)));
         PAPI_CHECK(PAPI_multiplex_init());
-        PAPI_CHECK(PAPI_create_eventset(&papi_event_set));
         
         /* Obtain our configuration string from the environment and parse it */
         const char* const configuration = getenv("CBTF_CUDA_CONFIG");
@@ -2462,10 +2455,34 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     tls->paused = FALSE;
     
 #if defined(PAPI_FOUND)
+    /* Create our PAPI event set */
+    tls->papi_event_set = PAPI_NULL;
+    PAPI_CHECK(PAPI_create_eventset(&tls->papi_event_set));
+
+    /* Initialize our PAPI event set */
+    u_int i;
+    for (i = 0; i < sampling_config.events.events_len; ++i)
+    {
+        CUDA_EventDescription* event = &sampling_config.events.events_val[i];
+
+        /* Add this event to our PAPI event set */
+        int event_code = PAPI_NULL;
+        PAPI_CHECK(PAPI_event_name_to_code(event->name, &event_code));
+        PAPI_CHECK(PAPI_add_event(tls->papi_event_set, event_code));
+        
+        /* Setup overflow for this event if a threshold was specified */
+        if (event->threshold > 0)
+        {
+            PAPI_CHECK(PAPI_overflow(tls->papi_event_set, event_code,
+                                     event->threshold, PAPI_OVERFLOW_FORCE_SW,
+                                     papi_callback));
+        }
+    }
+
     /* Start the sampling of our PAPI event set */
     if (periodic_sampling_count > 0)
     {  
-        PAPI_CHECK(PAPI_start(papi_event_set));
+        PAPI_CHECK(PAPI_start(tls->papi_event_set));
         CBTF_Timer(sampling_config.interval, timer_callback);
     }
 #endif
@@ -2552,9 +2569,12 @@ void cbtf_collector_stop()
     /* Stop the sampling of our PAPI event set */
     if (periodic_sampling_count > 0)
     {
-        PAPI_CHECK(PAPI_stop(papi_event_set, NULL));
+        PAPI_CHECK(PAPI_stop(tls->papi_event_set, NULL));
         CBTF_Timer(0, NULL);
     }
+
+    /* Destroy our PAPI event set */
+    PAPI_CHECK(PAPI_destroy_eventset(&tls->papi_event_set));
 #endif
     
     /* Send any remaining performance data for this thread */
@@ -2594,8 +2614,7 @@ void cbtf_collector_stop()
         CUPTI_CHECK(cuptiUnsubscribe(cupti_subscriber_handle));
 
 #if defined(PAPI_FOUND)
-        /* Destroy our PAPI event set and shutdown PAPI */
-        PAPI_CHECK(PAPI_destroy_eventset(&papi_event_set));
+        /* Shutdown PAPI */
         PAPI_shutdown();
 #endif
     }
