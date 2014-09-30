@@ -2573,7 +2573,8 @@ void cbtf_collector_stop()
         CBTF_Timer(0, NULL);
     }
 
-    /* Destroy our PAPI event set */
+    /* Cleanup and destroy our PAPI event set */
+    PAPI_CHECK(PAPI_cleanup_eventset(tls->papi_event_set));
     PAPI_CHECK(PAPI_destroy_eventset(&tls->papi_event_set));
 #endif
     
