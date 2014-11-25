@@ -1520,44 +1520,6 @@ static void cupti_callback(void* userdata,
 
 
 
-#if defined(PAPI_FOUND)
-            case CUPTI_DRIVER_TRACE_CBID_cuInit :
-                if (cbdata->callbackSite == CUPTI_API_EXIT)
-                {
-#if !defined(NDEBUG)
-                    if (debug)
-                    {
-                        printf("[CBTF/CUDA] exit cuInit()\n");
-                    }
-#endif
-
-                    /* Atomically check if PAPI is initialized */
-
-                    PTHREAD_CHECK(pthread_mutex_lock(&papi_initialized.mutex));
-
-                    if (!papi_initialized.value)
-                    {
-                        papi_initialized.value = TRUE;
-
-                        /* Initialize PAPI */
-                        PAPI_CHECK(PAPI_library_init(PAPI_VER_CURRENT));
-                        PAPI_CHECK(PAPI_thread_init(
-                                       (unsigned long (*)())(pthread_self)
-                                       ));
-                        PAPI_CHECK(PAPI_multiplex_init());
-                    }
-                    
-                    PTHREAD_CHECK(
-                        pthread_mutex_unlock(&papi_initialized.mutex)
-                        );
-
-                    /* Start PAPI data collection for this thread */
-                    start_papi_data_collection(tls);
-                }
-#endif
-
-
-
             case CUPTI_DRIVER_TRACE_CBID_cuLaunchKernel :
                 if (cbdata->callbackSite == CUPTI_API_ENTER)
                 {
@@ -2098,6 +2060,31 @@ static void cupti_callback(void* userdata,
                                              CUPTI_ACTIVITY_BUFFER_SIZE),
                                     CUPTI_ACTIVITY_BUFFER_SIZE
                                     ));
+
+#if defined(PAPI_FOUND)
+                    /* Atomically check if PAPI is initialized */
+                    
+                    PTHREAD_CHECK(pthread_mutex_lock(&papi_initialized.mutex));
+                    
+                    if (!papi_initialized.value)
+                    {
+                        papi_initialized.value = TRUE;
+                        
+                        /* Initialize PAPI */
+                        PAPI_CHECK(PAPI_library_init(PAPI_VER_CURRENT));
+                        PAPI_CHECK(PAPI_thread_init(
+                                       (unsigned long (*)())(pthread_self)
+                                       ));
+                        PAPI_CHECK(PAPI_multiplex_init());
+                    }
+                    
+                    PTHREAD_CHECK(
+                        pthread_mutex_unlock(&papi_initialized.mutex)
+                        );
+                    
+                    /* Start PAPI data collection for this thread */
+                    start_papi_data_collection(tls);
+#endif
                 }
                 break;
 
