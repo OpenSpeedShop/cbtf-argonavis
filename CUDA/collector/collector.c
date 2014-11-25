@@ -2248,7 +2248,6 @@ static void cupti_callback(void* userdata,
  */
 static void parse_configuration(const char* const configuration)
 {
-    static const char* const kEventNamePrefix = "PAPI_";
     static const char* const kIntervalPrefix = "interval=";
 
 #if !defined(NDEBUG)
@@ -2289,12 +2288,12 @@ static void parse_configuration(const char* const configuration)
         /*
          * Parse this token into a sampling interval, an event name, or an
          * event name and threshold, depending on whether the token contains
-         * a colon character or starts with the string "interval=".
+         * an at ('@') character or starts with the string "interval=".
          */
         
         char* interval = strstr(ptr, kIntervalPrefix);
-        char* colon = strchr(ptr, ':');
-
+        char* at = strchr(ptr, '@');
+        
         /* Token is a sampling interval */
         if (interval != NULL)
         {
@@ -2337,14 +2336,13 @@ static void parse_configuration(const char* const configuration)
                 sampling_config.events.events_len
                 ];
             
-            event->name = malloc(sizeof(copy) + sizeof(kEventNamePrefix));
-            strcpy(event->name, kEventNamePrefix);
+            event->name = malloc(sizeof(copy));
             
             /* Token is an event name and threshold */
-            if (colon != NULL)
+            if (at != NULL)
             {
-                strncat(event->name, ptr, colon - ptr);
-                event->threshold = atoi(colon + 1);
+                strncat(event->name, ptr, at - ptr);
+                event->threshold = atoi(at + 1);
                 
 #if !defined(NDEBUG)
                 if (debug)

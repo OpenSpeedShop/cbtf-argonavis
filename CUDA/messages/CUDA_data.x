@@ -106,8 +106,7 @@ enum CUDA_RequestTypes
 struct CUDA_EventDescription
 {
     /**
-     * Name of the event. This is PAPI's name for the event with the typical
-     * "PAPI_" prefix.
+     * Name of the event. This is PAPI's ASCII name for the event.
      *
      * @sa http://icl.cs.utk.edu/papi/
      */
