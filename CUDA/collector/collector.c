@@ -2286,8 +2286,8 @@ static void parse_configuration(const char* const configuration)
     if (strlen(configuration) >= sizeof(copy))
     {
         fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
-                "ignored configuration string \"%s\" that "
-                "exceeds the maximum supported length (%llu).\n",
+                "Configuration string \"%s\" exceeds the maximum "
+                "support length (%llu)!\n",
                 configuration, (unsigned long long)(sizeof(copy) - 1));
         fflush(stderr);
         abort();
@@ -2527,6 +2527,9 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     initialize_data(tls);
 
 #if defined(PAPI_FOUND)
+    /* Initially PAPI data collection is not started */
+    tls->papi_event_set = PAPI_NULL;
+
     /* Append the event sampling configuration to our performance data blob */
     if (sampling_config.events.events_len > 0)
     {
@@ -2637,16 +2640,27 @@ void cbtf_collector_stop()
     tls->paused = TRUE;
 
 #if defined(PAPI_FOUND)
-    /* Stop the sampling of our PAPI event set */
-    if (periodic_sampling_count > 0)
-    {
-        PAPI_CHECK(PAPI_stop(tls->papi_event_set, NULL));
-        CBTF_Timer(0, NULL);
+    /* Was PAPI data collection ever started for this thread? */
+    if (tls->papi_event_set != PAPI_NULL)
+    {   
+        /* Stop the sampling of our PAPI event set */
+        if (periodic_sampling_count > 0)
+        {
+            PAPI_CHECK(PAPI_stop(tls->papi_event_set, NULL));
+            CBTF_Timer(0, NULL);
+        }
+        
+        /* Cleanup and destroy our PAPI event set */
+        PAPI_CHECK(PAPI_cleanup_eventset(tls->papi_event_set));
+        PAPI_CHECK(PAPI_destroy_eventset(&tls->papi_event_set));
     }
-
-    /* Cleanup and destroy our PAPI event set */
-    PAPI_CHECK(PAPI_cleanup_eventset(tls->papi_event_set));
-    PAPI_CHECK(PAPI_destroy_eventset(&tls->papi_event_set));
+    else
+    {
+        fprintf(stderr, "[CBTF/CUDA] cbtf_collector_stop(): "
+                "No PAPI performance data collected for threads "
+                "created before CUDA was initialized.\n");
+        fflush(stderr);
+    }
 #endif
     
     /* Send any remaining performance data for this thread */
