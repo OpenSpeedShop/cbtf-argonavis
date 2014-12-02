@@ -166,9 +166,9 @@
 
 #if defined(PAPI_FOUND)
 /**
- * Checks that the given PAPI function call returns the value "PAPI_OK". If the
- * call was unsuccessful, the returned error is reported on the standard error
- * stream and the application is aborted.
+ * Checks that the given PAPI function call returns the value "PAPI_OK" or
+ * "PAPI_VER_CURRENT". If the call was unsuccessful, the returned error is
+ * reported on the standard error stream and the application is aborted.
  *
  * @param x    PAPI function call to be checked.
  */
@@ -266,16 +266,20 @@ struct {
 
 #if defined(PAPI_FOUND)
 /**
- * Flag indicating if PAPI is initialized. Initializing the PAPI CUDA component
- * before the application has itself called cuInit() causes the process to hang
- * on a number of systems. Thus PAPI initialization must be deferred until after
- * the application calls cuInit(), and must be tracked separately from the usual
- * process-wide initialization tracking provided by thread_count.
+ * The number of active CUDA contexts in this process. This value is atomically
+ * incremented and decremented in cupti_callback(), and is used by that function
+ * to determine when to perform PAPI initialization and finalization.
+ *
+ * Initializing the PAPI CUDA component before the application has itself called
+ * cuInit() causes the process to hang on some systems. Thus PAPI initialization
+ * must be deferred until after the application calls cuInit(), and must also be
+ * tracked separately from the regular process-wide initialization controlled by
+ * thread_count.
  */
 static struct {
-    bool value;
+    int value;
     pthread_mutex_t mutex;
-} papi_initialized = { FALSE, PTHREAD_MUTEX_INITIALIZER };
+} context_count = { 0, PTHREAD_MUTEX_INITIALIZER };
 
 /**
  * Event sampling configuration. Initialized by the process-wide initialization
@@ -1181,7 +1185,7 @@ static void papi_callback(int event_set, void* address,
     Assert(overflow_sampling_count > 0);
 
     /* Access our thread-local storage */
-#ifdef USE_EXPLICIT_TLS
+#if defined(USE_EXPLICIT_TLS)
     TLS* tls = CBTF_GetTLS(TLSKey);
 #else
     TLS* tls = &the_tls;
@@ -1302,7 +1306,7 @@ static void timer_callback(const ucontext_t* context)
     Assert(periodic_sampling_count > 0);
 
     /* Access our thread-local storage */
-#ifdef USE_EXPLICIT_TLS
+#if defined(USE_EXPLICIT_TLS)
     TLS* tls = CBTF_GetTLS(TLSKey);
 #else
     TLS* tls = &the_tls;
@@ -1439,12 +1443,24 @@ static void timer_callback(const ucontext_t* context)
  *
  * @param tls    Thread-local storage for this thread.
  */
-static start_papi_data_collection(TLS* tls)
+static void start_papi_data_collection(TLS* tls)
 {
     Assert(tls != NULL);
 
+    /* Was PAPI data collection already started for this thread? */
+    if (tls->papi_event_set != PAPI_NULL)
+    {
+        return;
+    }
+
+#if !defined(NDEBUG)
+    if (debug)
+    {
+        printf("[CBTF/CUDA] start_papi_data_collection()\n");
+    }
+#endif
+    
     /* Create our PAPI event set */
-    tls->papi_event_set = PAPI_NULL;
     PAPI_CHECK(PAPI_create_eventset(&tls->papi_event_set));
     
     /* Initialize our PAPI event set */
@@ -1478,6 +1494,113 @@ static start_papi_data_collection(TLS* tls)
 
 
 
+#if defined(PAPI_FOUND)
+/**
+ * Stop PAPI data collection for this thread.
+ *
+ * @param tls    Thread-local storage for this thread.
+ */
+static void stop_papi_data_collection(TLS* tls)
+{
+    Assert(tls != NULL);
+
+    /* Was PAPI data collection not started for this thread? */
+    if (tls->papi_event_set == PAPI_NULL)
+    {
+        return;
+    }
+
+#if !defined(NDEBUG)
+    if (debug)
+    {
+        printf("[CBTF/CUDA] stop_papi_data_collection()\n");
+    }
+#endif
+        
+    /* Stop the sampling of our PAPI event set */
+    if (periodic_sampling_count > 0)
+    {
+        PAPI_CHECK(PAPI_stop(tls->papi_event_set, NULL));
+        CBTF_Timer(0, NULL);
+    }
+    
+    /* Cleanup and destroy our PAPI event set */
+    PAPI_CHECK(PAPI_cleanup_eventset(tls->papi_event_set));
+    PAPI_CHECK(PAPI_destroy_eventset(&tls->papi_event_set));
+    tls->papi_event_set = PAPI_NULL;
+}
+#endif
+
+
+
+#if defined(PAPI_FOUND)
+/**
+ * Called by cupti_callback() in order to start (initialize) PAPI.
+ */
+static void start_papi()
+{
+    /* Atomically increment the active CUDA context count */
+
+    PTHREAD_CHECK(pthread_mutex_lock(&context_count.mutex));
+    
+#if !defined(NDEBUG)
+    if (debug)
+    {
+        printf("[CBTF/CUDA] start_papi(): "
+               "context_count.value = %d --> %d\n",
+               context_count.value, context_count.value + 1);
+    }
+#endif
+    
+    if (context_count.value == 0)
+    {
+        /* Initialize PAPI */
+        PAPI_CHECK(PAPI_library_init(PAPI_VER_CURRENT));
+        PAPI_CHECK(PAPI_thread_init((unsigned long (*)())(pthread_self)));
+        PAPI_CHECK(PAPI_multiplex_init());
+    }
+    
+    context_count.value++;
+    
+    PTHREAD_CHECK(pthread_mutex_unlock(&context_count.mutex));
+}
+#endif
+
+
+
+#if defined(PAPI_FOUND)
+/**
+ * Called by cupti_callback() in order to stop (shutdown) PAPI.
+ */
+static void stop_papi()
+{
+    /* Atomically decrement the active CUDA context count */
+    
+    PTHREAD_CHECK(pthread_mutex_lock(&context_count.mutex));
+    
+#if !defined(NDEBUG)
+    if (debug)
+    {
+        printf("[CBTF/CUDA] stop_papi(): "
+               "context_count.value = %d --> %d\n",
+               context_count.value, context_count.value - 1);
+    }
+#endif
+    
+    context_count.value--;
+
+    if (context_count.value == 0)
+    {
+        /* Shutdown PAPI */
+        PAPI_shutdown();
+    }
+    
+    PTHREAD_CHECK(pthread_mutex_unlock(&context_count.mutex));
+}
+#endif
+
+
+
 /**
  * Callback invoked by CUPTI every time a CUDA event occurs for which we have
  * a subscription. Subscriptions are setup within cbtf_collector_start(), and
@@ -1494,12 +1617,33 @@ static void cupti_callback(void* userdata,
                            const void* data)
 {
     /* Access our thread-local storage */
-#ifdef USE_EXPLICIT_TLS
+#if defined(USE_EXPLICIT_TLS)
     TLS* tls = CBTF_GetTLS(TLSKey);
 #else
     TLS* tls = &the_tls;
 #endif
     Assert(tls != NULL);
+
+#if defined(PAPI_FOUND)
+    /* Is a CUDA context being created? */
+    if ((domain == CUPTI_CB_DOMAIN_RESOURCE) &&
+        (id == CUPTI_CBID_RESOURCE_CONTEXT_CREATED))
+    {
+        /* Start (initialize) PAPI */
+        start_papi();
+
+        /* Start PAPI data collection for this thread */
+        start_papi_data_collection(tls);
+    }
+    
+    /* Is a CUDA context being destroyed? */
+    if ((domain == CUPTI_CB_DOMAIN_RESOURCE) &&
+        (id == CUPTI_CBID_RESOURCE_CONTEXT_DESTROY_STARTING))
+    {
+        /* Stop (shutdown) PAPI */
+        stop_papi();
+    }
+#endif
 
     /* Do nothing if data collection is paused for this thread */
     if (tls->paused)
@@ -2060,31 +2204,6 @@ static void cupti_callback(void* userdata,
                                              CUPTI_ACTIVITY_BUFFER_SIZE),
                                     CUPTI_ACTIVITY_BUFFER_SIZE
                                     ));
-
-#if defined(PAPI_FOUND)
-                    /* Atomically check if PAPI is initialized */
-                    
-                    PTHREAD_CHECK(pthread_mutex_lock(&papi_initialized.mutex));
-                    
-                    if (!papi_initialized.value)
-                    {
-                        papi_initialized.value = TRUE;
-                        
-                        /* Initialize PAPI */
-                        PAPI_CHECK(PAPI_library_init(PAPI_VER_CURRENT));
-                        PAPI_CHECK(PAPI_thread_init(
-                                       (unsigned long (*)())(pthread_self)
-                                       ));
-                        PAPI_CHECK(PAPI_multiplex_init());
-                    }
-                    
-                    PTHREAD_CHECK(
-                        pthread_mutex_unlock(&papi_initialized.mutex)
-                        );
-                    
-                    /* Start PAPI data collection for this thread */
-                    start_papi_data_collection(tls);
-#endif
                 }
                 break;
 
@@ -2398,7 +2517,7 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
         printf("[CBTF/CUDA] cbtf_collector_start()\n");
     }
 #endif
-    
+
     /* Atomically increment the active thread count */
 
     PTHREAD_CHECK(pthread_mutex_lock(&thread_count.mutex));
@@ -2493,9 +2612,9 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     thread_count.value++;
 
     PTHREAD_CHECK(pthread_mutex_unlock(&thread_count.mutex));
-    
+
     /* Create, zero-initialize, and access our thread-local storage */
-#ifdef USE_EXPLICIT_TLS
+#if defined(USE_EXPLICIT_TLS)
     TLS* tls = malloc(sizeof(TLS));
     Assert(tls != NULL);
     OpenSS_SetTLS(TLSKey, tls);
@@ -2514,7 +2633,7 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if defined(PAPI_FOUND)
     /* Initially PAPI data collection is not started */
     tls->papi_event_set = PAPI_NULL;
-
+    
     /* Append the event sampling configuration to our performance data blob */
     if (sampling_config.events.events_len > 0)
     {
@@ -2528,22 +2647,13 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
         memcpy(message, &sampling_config, sizeof(CUDA_SamplingConfig));
     }
 #endif
-    
+
     /* Resume (start) data collection for this thread */
     tls->paused = FALSE;
-    
+
 #if defined(PAPI_FOUND)
-    /* Atomically check if PAPI is already initialized */
-    
-    PTHREAD_CHECK(pthread_mutex_lock(&papi_initialized.mutex));
-    
-    if (papi_initialized.value)
-    {
-        /* Start PAPI data collection for this thread */
-        start_papi_data_collection(tls);
-    }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&papi_initialized.mutex));
+    /* Start PAPI data collection for this thread */
+    start_papi_data_collection(tls);
 #endif
 }
 
@@ -2560,14 +2670,19 @@ void cbtf_collector_pause()
         printf("[CBTF/CUDA] cbtf_collector_pause()\n");
     }
 #endif
-                
+    
     /* Access our thread-local storage */
-#ifdef USE_EXPLICIT_TLS
+#if defined(USE_EXPLICIT_TLS)
     TLS* tls = CBTF_GetTLS(TLSKey);
 #else
     TLS* tls = &the_tls;
 #endif
     Assert(tls != NULL);
+
+#if defined(PAPI_FOUND)
+    /* Stop PAPI data collection for this thread */
+    stop_papi_data_collection(tls);
+#endif
 
     /* Pause data collection for this thread */
     tls->paused = TRUE;
@@ -2588,7 +2703,7 @@ void cbtf_collector_resume()
 #endif
 
     /* Access our thread-local storage */
-#ifdef USE_EXPLICIT_TLS
+#if defined(USE_EXPLICIT_TLS)
     TLS* tls = CBTF_GetTLS(TLSKey);
 #else
     TLS* tls = &the_tls;
@@ -2597,6 +2712,11 @@ void cbtf_collector_resume()
 
     /* Resume data collection for this thread */
     tls->paused = FALSE;
+
+#if defined(PAPI_FOUND)
+    /* Start PAPI data collection for this thread */
+    start_papi_data_collection(tls);
+#endif
 }
 
 
@@ -2614,45 +2734,26 @@ void cbtf_collector_stop()
 #endif
     
     /* Access our thread-local storage */
-#ifdef USE_EXPLICIT_TLS
+#if defined(USE_EXPLICIT_TLS)
     TLS* tls = CBTF_GetTLS(TLSKey);
 #else
     TLS* tls = &the_tls;
 #endif
     Assert(tls != NULL);
 
+#if defined(PAPI_FOUND)
+    /* Stop PAPI data collection for this thread */
+    stop_papi_data_collection(tls);
+#endif
+
     /* Pause (stop) data collection for this thread */
     tls->paused = TRUE;
-
-#if defined(PAPI_FOUND)
-    /* Was PAPI data collection ever started for this thread? */
-    if (tls->papi_event_set != PAPI_NULL)
-    {   
-        /* Stop the sampling of our PAPI event set */
-        if (periodic_sampling_count > 0)
-        {
-            PAPI_CHECK(PAPI_stop(tls->papi_event_set, NULL));
-            CBTF_Timer(0, NULL);
-        }
-        
-        /* Cleanup and destroy our PAPI event set */
-        PAPI_CHECK(PAPI_cleanup_eventset(tls->papi_event_set));
-        PAPI_CHECK(PAPI_destroy_eventset(&tls->papi_event_set));
-    }
-    else
-    {
-        fprintf(stderr, "[CBTF/CUDA] cbtf_collector_stop(): "
-                "No PAPI performance data collected for threads "
-                "created before CUDA was initialized.\n");
-        fflush(stderr);
-    }
-#endif
     
     /* Send any remaining performance data for this thread */
     send_data(tls);
     
     /* Destroy our thread-local storage */
-#ifdef USE_EXPLICIT_TLS
+#if defined(USE_EXPLICIT_TLS)
     free(tls);
     OpenSS_SetTLS(TLSKey, NULL);
 #endif
@@ -2683,11 +2784,6 @@ void cbtf_collector_stop()
         
         /* Unsubscribe from all CUPTI callbacks */
         CUPTI_CHECK(cuptiUnsubscribe(cupti_subscriber_handle));
-
-#if defined(PAPI_FOUND)
-        /* Shutdown PAPI */
-        PAPI_shutdown();
-#endif
     }
     
     PTHREAD_CHECK(pthread_mutex_unlock(&thread_count.mutex));
