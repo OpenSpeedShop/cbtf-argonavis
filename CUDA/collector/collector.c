@@ -1458,37 +1458,50 @@ static void start_papi_data_collection(TLS* tls)
     {
         printf("[CBTF/CUDA] start_papi_data_collection()\n");
     }
+
 #endif
+
+    /* Atomically test whether PAPI has been started */
     
-    /* Create our PAPI event set */
-    PAPI_CHECK(PAPI_create_eventset(&tls->papi_event_set));
+    PTHREAD_CHECK(pthread_mutex_lock(&context_count.mutex));
     
-    /* Initialize our PAPI event set */
-    u_int i;
-    for (i = 0; i < sampling_config.events.events_len; ++i)
+    if (context_count.value > 0)
     {
-        CUDA_EventDescription* event = &sampling_config.events.events_val[i];
+        /* Create our PAPI event set */
+        PAPI_CHECK(PAPI_create_eventset(&tls->papi_event_set));
         
-        /* Add this event to our PAPI event set */
-        int event_code = PAPI_NULL;
-        PAPI_CHECK(PAPI_event_name_to_code(event->name, &event_code));
-        PAPI_CHECK(PAPI_add_event(tls->papi_event_set, event_code));
-        
-        /* Setup overflow for this event if a threshold was specified */
-        if (event->threshold > 0)
+        /* Initialize our PAPI event set */
+        u_int i;
+        for (i = 0; i < sampling_config.events.events_len; ++i)
         {
-            PAPI_CHECK(PAPI_overflow(tls->papi_event_set, event_code,
-                                     event->threshold, PAPI_OVERFLOW_FORCE_SW,
-                                     papi_callback));
+            CUDA_EventDescription* event = 
+                &sampling_config.events.events_val[i];
+            
+            /* Add this event to our PAPI event set */
+            int event_code = PAPI_NULL;
+            PAPI_CHECK(PAPI_event_name_to_code(event->name, &event_code));
+            PAPI_CHECK(PAPI_add_event(tls->papi_event_set, event_code));
+            
+            /* Setup overflow for this event if a threshold was specified */
+            if (event->threshold > 0)
+            {
+                PAPI_CHECK(PAPI_overflow(tls->papi_event_set,
+                                         event_code,
+                                         event->threshold,
+                                         PAPI_OVERFLOW_FORCE_SW,
+                                         papi_callback));
+            }
+        }
+        
+        /* Start the sampling of our PAPI event set */
+        if (periodic_sampling_count > 0)
+        {  
+            PAPI_CHECK(PAPI_start(tls->papi_event_set));
+            CBTF_Timer(sampling_config.interval, timer_callback);
         }
     }
-
-    /* Start the sampling of our PAPI event set */
-    if (periodic_sampling_count > 0)
-    {  
-        PAPI_CHECK(PAPI_start(tls->papi_event_set));
-        CBTF_Timer(sampling_config.interval, timer_callback);
-    }
+    
+    PTHREAD_CHECK(pthread_mutex_unlock(&context_count.mutex));
 }
 #endif
 
@@ -1516,18 +1529,27 @@ static void stop_papi_data_collection(TLS* tls)
         printf("[CBTF/CUDA] stop_papi_data_collection()\n");
     }
 #endif
-        
-    /* Stop the sampling of our PAPI event set */
-    if (periodic_sampling_count > 0)
+
+    /* Atomically test whether PAPI has been started */
+    
+    PTHREAD_CHECK(pthread_mutex_lock(&context_count.mutex));
+    
+    if (context_count.value > 0)
     {
-        PAPI_CHECK(PAPI_stop(tls->papi_event_set, NULL));
-        CBTF_Timer(0, NULL);
+        /* Stop the sampling of our PAPI event set */
+        if (periodic_sampling_count > 0)
+        {
+            PAPI_CHECK(PAPI_stop(tls->papi_event_set, NULL));
+            CBTF_Timer(0, NULL);
+        }
+        
+        /* Cleanup and destroy our PAPI event set */
+        PAPI_CHECK(PAPI_cleanup_eventset(tls->papi_event_set));
+        PAPI_CHECK(PAPI_destroy_eventset(&tls->papi_event_set));
+        tls->papi_event_set = PAPI_NULL;
     }
     
-    /* Cleanup and destroy our PAPI event set */
-    PAPI_CHECK(PAPI_cleanup_eventset(tls->papi_event_set));
-    PAPI_CHECK(PAPI_destroy_eventset(&tls->papi_event_set));
-    tls->papi_event_set = PAPI_NULL;
+    PTHREAD_CHECK(pthread_mutex_unlock(&context_count.mutex));
 }
 #endif
 
