@@ -2482,7 +2482,7 @@ static void parse_configuration(const char* const configuration)
             /* Token is an event name and threshold */
             if (at != NULL)
             {
-                strncat(event->name, ptr, at - ptr);
+                strncpy(event->name, ptr, at - ptr);
                 event->threshold = atoi(at + 1);
                 
 #if !defined(NDEBUG)
@@ -2498,7 +2498,7 @@ static void parse_configuration(const char* const configuration)
             /* Token is an event name */
             else
             {
-                strcat(event->name, ptr);
+                strcpy(event->name, ptr);
             
 #if !defined(NDEBUG)
                 if (debug)
