@@ -1523,6 +1523,7 @@ static void start_papi_data_collection(TLS* tls)
             if (s == tls->eventset_count)
             {
                 tls->eventsets[s].component = component;
+		tls->eventsets[s].eventset = PAPI_NULL;
                 PAPI_CHECK(PAPI_create_eventset(&tls->eventsets[s].eventset));
                 tls->eventsets[s].event_count = 0;
                 tls->eventset_count++;
