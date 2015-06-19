@@ -265,6 +265,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_DYNINST_ROOT="${dir}"
             export DYNINST_ROOT="${dir}"
+            export DYNINST_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -277,6 +278,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_DYNINST_ROOT_LIB="${dir}"
             export DYNINST_ROOT_LIB="${dir}"
+            export DYNINST_DIR_LIB="${dir}"
             shift ; shift
             ;;
 
@@ -296,6 +298,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_TARGET_DYNINST_ROOT="${dir}"
             export DYNINST_ROOT="${dir}"
+            export DYNINST_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -308,6 +311,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_LIBDWARF_ROOT="${dir}"
             export LIBDWARF_ROOT="${dir}"
+            export LIBDWARF_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -320,6 +324,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_LIBDWARF_ROOT_LIB="${dir}"
             export LIBDWARF_ROOT_LIB="${dir}"
+            export LIBDWARF_DIR_LIB="${dir}"
             shift ; shift
             ;;
 
@@ -332,6 +337,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_TARGET_LIBDWARF_ROOT="${dir}"
             export LIBDWARF_ROOT="${dir}"
+            export LIBDWARF_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -344,6 +350,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_LIBELF_ROOT="${dir}"
             export LIBELF_ROOT="${dir}"
+            export LIBELF_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -357,6 +364,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_TARGET_LIBELF_ROOT="${dir}"
             export LIBELF_ROOT="${dir}"
+            export LIBELF_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -369,6 +377,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_LIBMONITOR_ROOT="${dir}"
             export LIBMONITOR_ROOT="${dir}"
+            export LIBMONITOR_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -382,6 +391,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_TARGET_LIBMONITOR_ROOT="${dir}"
             export LIBMONITOR_ROOT="${dir}"
+            export LIBMONITOR_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -394,6 +404,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_LIBUNWIND_ROOT="${dir}"
             export LIBUNWIND_ROOT="${dir}"
+            export LIBUNWIND_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -407,6 +418,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_TARGET_LIBUNWIND_ROOT="${dir}"
             export LIBUNWIND_ROOT="${dir}"
+            export LIBUNWIND_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -431,6 +443,7 @@ do
             test -d "$dir" || die "unable to find: $dir"
             export CBTF_MRNET_ROOT="${dir}"
             export MRNET_ROOT="${dir}"
+            export MRNET_DIR="${dir}"
             shift ; shift
             ;;
 
@@ -601,6 +614,8 @@ do
 	    esac
 	    test -d "$dir" || die "unable to find: $dir"
 	    export CBTF_PREFIX="${dir}"
+	    export CBTF_DIR="${dir}"
+	    export CBTF_KRELL_DIR="${dir}"
             shift ; shift
 	    ;;
 

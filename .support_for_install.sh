@@ -97,7 +97,7 @@ else
   export CXX=`which c++`
   export CPLUSPLUS=`which c++`
 
-  cmake -DCMAKE_MODULE_PATH=$CBTF_PREFIX/share/KrellInstitute/cmake -DCMAKE_INSTALL_PREFIX=$CBTF_PREFIX ..
+  cmake -DCMAKE_MODULE_PATH=$CBTF_PREFIX/share/KrellInstitute/cmake -DCMAKE_INSTALL_PREFIX=$CBTF_PREFIX -DCBTF_DIR=$CBTF_PREFIX -DCBTF_KRELL_DIR=$CBTF_PREFIX ..
 
   make
 

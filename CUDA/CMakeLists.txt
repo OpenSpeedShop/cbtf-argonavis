@@ -16,22 +16,30 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.0)
+cmake_minimum_required(VERSION 2.8.11)
 
 project(CBTF_CUDA_Collector)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR})
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
 find_package(Boost 1.39.0 REQUIRED COMPONENTS filesystem regex)
 find_package(CBTF REQUIRED)
-find_package(CBTF-Core REQUIRED)
-find_package(CBTF-Messages REQUIRED)
-find_package(CBTF-Services REQUIRED)
-find_package(CUPTI 2 REQUIRED)
-find_package(MRNet 4.0.0 REQUIRED)
-find_package(PAPI 5.1.0)
-
+#find_package(CBTF-Core REQUIRED)
+#find_package(CBTF-Messages REQUIRED)
+#find_package(CBTF-Services REQUIRED)
+find_package(CBTF-Krell REQUIRED)
+find_package(CUDA 5.0 REQUIRED)
+#find_package(CUPTI 2 REQUIRED)
+find_package(MRNet REQUIRED)
+find_package(PAPI 5.4.0)
 find_package(Threads REQUIRED)
+
+if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
+    set(CUPTI_INCLUDE_DIR ${CUDA_TOOLKIT_ROOT_DIR}/extras/CUPTI/include)
+    set(CUPTI_LIBRARY_DIR ${CUDA_cupti_LIBRARY})
+    set(CUPTI_LIBRARIES ${CUPTI_LIBRARY_DIR})
+    set(CUPTI_INCLUDE_DIRS ${CUDA_INCLUDE_DIRS} ${CUPTI_INCLUDE_DIR})
+endif()
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64*")
     set(CMAKE_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/lib64)
@@ -60,7 +68,4 @@ install(
         share/KrellInstitute/xml
     )
 
-install(
-    FILES FindCUPTI.cmake FindPAPI.cmake
-    DESTINATION share/KrellInstitute/cmake
-    )
+install( FILES cmake/FindCUPTI.cmake cmake/FindPAPI.cmake DESTINATION share/KrellInstitute/cmake)
