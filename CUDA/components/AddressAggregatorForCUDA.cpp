@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2012-2014 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -69,8 +69,8 @@ private:
     /** Handler for the "Data" input. */
     void handleData(const boost::shared_ptr<CBTF_Protocol_Blob>& message);
     
-    /** Handler for the "ThreadsFinished" input. */
-    void handleThreadsFinished(const bool& value);
+    /** Handler for the "Trigger" input. */
+    void handleTrigger(const bool& value);
 
     /** Address buffer containing all of the observed addresses. */
     AddressBuffer dm_addresses;
@@ -92,13 +92,12 @@ AddressAggregatorForCUDA::AddressAggregatorForCUDA() :
         boost::bind(&AddressAggregatorForCUDA::handleData, this, _1)
         );
     declareInput<bool>(
-        "ThreadsFinished",
-        boost::bind(&AddressAggregatorForCUDA::handleThreadsFinished, this, _1)
+        "Trigger",
+        boost::bind(&AddressAggregatorForCUDA::handleTrigger, this, _1)
         );
     
     declareOutput<AddressBuffer>("AddressBuffer");
     declareOutput<boost::shared_ptr<CBTF_Protocol_Blob> >("Data");
-    declareOutput<bool>("ThreadsFinished");
 }
 
 
@@ -170,19 +169,9 @@ void AddressAggregatorForCUDA::handleData(
 
 
 //------------------------------------------------------------------------------
-// Emit the address buffer containing all of the observed addresses if the
-// threads have actually finished. Re-emit the original message unchanged.
-//
-// It is extremely important that the ThreadsFinished message not be re-
-// emitted before the AddressBuffer is emitted. If it is, the frontend sees
-// the ThreadsFinished and immediately exits with predictably poor results.
+// Emit the address buffer containing all of the observed addresses.
 //------------------------------------------------------------------------------
-void AddressAggregatorForCUDA::handleThreadsFinished(const bool& value)
+void AddressAggregatorForCUDA::handleTrigger(const bool& value)
 {
-    if (value)
-    {
-        emitOutput<AddressBuffer>("AddressBuffer", dm_addresses);
-    }
-
-    emitOutput<bool>("ThreadsFinished", value);
+    emitOutput<AddressBuffer>("AddressBuffer", dm_addresses);
 }

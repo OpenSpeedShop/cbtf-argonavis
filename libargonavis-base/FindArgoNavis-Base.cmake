@@ -1,5 +1,6 @@
 ################################################################################
-# Copyright (c) 2006-2015 Krell Institute. All Rights Reserved.
+# Copyright (c) 2012-2015 Krell Institute. All Rights Reserved.
+# Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,31 +19,22 @@
 
 include(FindPackageHandleStandardArgs)
 
-find_library(CBTF_MESSAGES_CUDA_SHARED_LIBRARY
-    NAMES libcbtf-messages-cuda.so
-    HINTS ${CBTF_KRELL_DIR} $ENV{CBTF_KRELL_DIR}
+find_library(ARGONAVIS_BASE_LIBRARY NAMES libargonavis-base.so
+    HINTS $ENV{CBTF_ARGONAVIS_DIR} ${CBTF_ARGONAVIS_DIR}
     PATH_SUFFIXES lib lib64
     )
 
-find_path(CBTF_MESSAGES_CUDA_INCLUDE_DIR
-    KrellInstitute/Messages/CUDA_data.h
-    HINTS ${CBTF_KRELL_DIR} $ENV{CBTF_KRELL_DIR}
+find_path(ARGONAVIS_BASE_INCLUDE_DIR ArgonavisInstitute/Base/Address.hpp
+    HINTS $ENV{CBTF_ARGONAVIS_DIR} ${CBTF_ARGONAVIS_DIR}
     PATH_SUFFIXES include
     )
 
 find_package_handle_standard_args(
-    CBTF-Messages DEFAULT_MSG
-    CBTF_MESSAGES_CUDA_SHARED_LIBRARY
-    CBTF_MESSAGES_CUDA_INCLUDE_DIR
+    Argonavis-Base DEFAULT_MSG
+    ARGONAVIS_BASE_LIBRARY ARGONAVIS_BASE_INCLUDE_DIR
     )
 
-set(CBTF_MESSAGES_CUDA_LIBRARIES
-    ${CBTF_MESSAGES_CUDA_SHARED_LIBRARY}
-    )
+set(ARGONAVIS_BASE_LIBRARIES ${ARGONAVIS_BASE_LIBRARY})
+set(ARGONAVIS_BASE_INCLUDE_DIRS ${ARGONAVIS_BASE_INCLUDE_DIR})
 
-set(CBTF_MESSAGES_CUDA_INCLUDE_DIRS ${CBTF_MESSAGES_CUDA_INCLUDE_DIR})
-
-mark_as_advanced(
-    CBTF_MESSAGES_CUDA_SHARED_LIBRARY
-    CBTF_MESSAGES_INCLUDE_DIR
-    )
+mark_as_advanced(ARGONAVIS_BASE_LIBRARY ARGONAVIS_BASE_INCLUDE_DIR)

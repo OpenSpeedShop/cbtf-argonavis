@@ -75,11 +75,6 @@ private:
         const boost::shared_ptr<CBTF_Protocol_AttachedToThreads>& message
         );
 
-    /** Handler for the "CreatedProcess" input. */
-    void handleCreatedProcess(
-        const boost::shared_ptr<CBTF_Protocol_CreatedProcess>& message
-        );
-    
     /** Handler for the "InitialLinkedObjects" input. */
     void handleInitialLinkedObjects(
         const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
@@ -119,10 +114,6 @@ StateManagementForCUDA::StateManagementForCUDA() :
         "AttachedToThreads",
         boost::bind(&StateManagementForCUDA::handleAttachedToThreads, this, _1)
         );
-    declareInput<boost::shared_ptr<CBTF_Protocol_CreatedProcess> >(
-        "CreatedProcess",
-        boost::bind(&StateManagementForCUDA::handleCreatedProcess, this, _1)
-        );
     declareInput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
         "InitialLinkedObjects",
         boost::bind(&StateManagementForCUDA::handleInitialLinkedObjects,
@@ -146,17 +137,11 @@ StateManagementForCUDA::StateManagementForCUDA() :
     declareOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
         "AttachedToThreads"
         );
-    declareOutput<boost::shared_ptr<CBTF_Protocol_CreatedProcess> >(
-        "CreatedProcess"
-        );
     declareOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
         "InitialLinkedObjects"
         );
     declareOutput<boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject> >(
         "LoadedLinkedObject"
-        );
-    declareOutput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
-        "ThreadsStateChanged"
         );
     declareOutput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
         "UnloadedLinkedObject"
@@ -185,20 +170,6 @@ void StateManagementForCUDA::handleAttachedToThreads(
             SimpleThreadName(message->threads.names.names_val[i])
             );
     }
-}
-
-
-
-//------------------------------------------------------------------------------
-// Re-emit the original message unchanged.
-//------------------------------------------------------------------------------
-void StateManagementForCUDA::handleCreatedProcess(
-    const boost::shared_ptr<CBTF_Protocol_CreatedProcess>& message
-    )
-{
-    emitOutput<boost::shared_ptr<CBTF_Protocol_CreatedProcess> >(
-        "CreatedProcess", message
-        );
 }
 
 
@@ -257,18 +228,14 @@ void StateManagementForCUDA::handleLoadedLinkedObject(
 
 
 //------------------------------------------------------------------------------
-// Re-emit the original message unchanged. If the threads are being terminated,
-// update the list of active threads and, if that list is empty, emit a message
-// indicating that all threads have finished.
+// If the threads are being terminated, update the list of active threads
+// and, if that list is empty, emit a message indicating that all threads
+// have finished.
 //------------------------------------------------------------------------------
 void StateManagementForCUDA::handleThreadsStateChanged(
     const boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged>& message
     )
 {
-    emitOutput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
-        "ThreadsStateChanged", message
-        );
-
     if (message->state == Terminated)
     {
         for (u_int i = 0; i < message->threads.names.names_len; ++i)

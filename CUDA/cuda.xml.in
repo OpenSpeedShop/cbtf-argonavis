@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
-Copyright (c) 2012,2014 Argo Navis Technologies. All Rights Reserved.
+Copyright (c) 2012,2014-2015 Argo Navis Technologies. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,11 +42,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
   </Output>
   
   <Output>
-    <Name>created_process_xdr_output</Name>
-    <From><Output>OutgoingCreatedProcess</Output></From>
-  </Output>
-
-  <Output>
     <Name>linkedobjectentryvec_output</Name>
     <From><Output>OutgoingLinkedObjectEntryVec</Output></From>
   </Output>
@@ -69,11 +64,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
   <Output>
     <Name>threads_finished</Name>
     <From><Output>OutgoingThreadsFinished</Output></From>
-  </Output>
-  
-  <Output>
-    <Name>threads_state_changed_xdr_output</Name>
-    <From><Output>OutgoingThreadsStateChanged</Output></From>
   </Output>
   
   <Output>
@@ -136,7 +126,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <Network xmlns="http://www.krellinst.org/CBTF/Network">
       
       <Type>cuda_frontend</Type>
-      <Version>3.0.0</Version>
+      <Version>4.0.0</Version>
       
       <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
       
@@ -161,11 +151,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
         <To><Name>Management</Name><Input>AttachedToThreads</Input></To>
       </Input>
       
-      <Input>
-        <Name>IncomingCreatedProcess</Name>
-        <To><Name>Management</Name><Input>CreatedProcess</Input></To>
-      </Input>
-
       <Input>
         <Name>IncomingLinkedObjectGroup</Name>
         <To><Name>Management</Name><Input>InitialLinkedObjects</Input></To>
@@ -195,7 +180,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
       <Connection>
         <From><Name>Management</Name><Output>ThreadsFinished</Output></From>
-        <To><Name>Aggregator</Name><Input>ThreadsFinished</Input></To>
+        <To><Name>Aggregator</Name><Input>Trigger</Input></To>
       </Connection>
       
       <!-- List of the frontend network's outputs -->
@@ -211,11 +196,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       </Output>
 
       <Output>
-        <Name>OutgoingCreatedProcess</Name>
-        <From><Name>Management</Name><Output>CreatedProcess</Output></From>
-      </Output>
-
-      <Output>
         <Name>OutgoingLinkedObjectEntryVec</Name>
         <From>
           <Name>Management</Name><Output>LinkedObjectEntryVec</Output>
@@ -225,8 +205,8 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <Output>
         <Name>OutgoingLinkedObjectGroup</Name>
         <From>
-	  <Name>Management</Name><Output>InitialLinkedObjects</Output>
-	</From>
+	      <Name>Management</Name><Output>InitialLinkedObjects</Output>
+	    </From>
       </Output>
       
       <Output>
@@ -245,11 +225,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       </Output>
       
       <Output>
-        <Name>OutgoingThreadsStateChanged</Name>
-        <From><Name>Management</Name><Output>ThreadsStateChanged</Output></From>
-      </Output>
-      
-      <Output>
         <Name>OutgoingUnloadedLinkedObject</Name>
         <From>
           <Name>Management</Name><Output>UnloadedLinkedObject</Output>
@@ -265,11 +240,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <To><Input>IncomingAttachedToThreads</Input></To>
     </IncomingUpstream>
     
-    <IncomingUpstream>
-      <Name>CBTF_PROTOCOL_TAG_CREATED_PROCESS</Name>
-      <To><Input>IncomingCreatedProcess</Input></To>
-    </IncomingUpstream>
-
     <IncomingUpstream>
       <Name>CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP</Name>
       <To><Input>IncomingLinkedObjectGroup</Input></To>
