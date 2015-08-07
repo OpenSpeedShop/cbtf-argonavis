@@ -22,7 +22,7 @@
 #include "SymbolTable.hpp"
 
 using namespace ArgoNavis::Base;
-using namespace ArgoNavis::SymbolTable::Impl;
+using namespace ArgoNavis::Base::Impl;
 
 
 

@@ -31,10 +31,10 @@
 #include <ArgoNavis/Base/AddressRange.hpp>
 #include <ArgoNavis/Base/FileName.hpp>
 
-#include <ArgoNavis/SymbolTable/FunctionVisitor.hpp>
-#include <ArgoNavis/SymbolTable/LoopVisitor.hpp>
+#include <ArgoNavis/Base/FunctionVisitor.hpp>
+#include <ArgoNavis/Base/LoopVisitor.hpp>
 
-namespace ArgoNavis { namespace SymbolTable {
+namespace ArgoNavis { namespace Base {
 
     class LinkedObject;
 
@@ -64,7 +64,7 @@ namespace ArgoNavis { namespace SymbolTable {
          * @param column           Column number of this statement.
          */
         Statement(const LinkedObject& linked_object,
-                  const Base::FileName& file,
+                  const FileName& file,
                   unsigned int line,
                   unsigned int column);
 
@@ -114,7 +114,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        void addAddressRanges(const std::set<Base::AddressRange>& ranges);
+        void addAddressRanges(const std::set<AddressRange>& ranges);
 
         /**
          * Get the linked object containing this statement.
@@ -128,7 +128,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *
          * @return    Name of this statement's source file.
          */
-        Base::FileName getFile() const;
+        FileName getFile() const;
         
         /**
          * Get the line number of this statement.
@@ -155,7 +155,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        std::set<Base::AddressRange> getAddressRanges() const;
+        std::set<AddressRange> getAddressRanges() const;
 
         /**
          * Visit the functions containing this statement.
@@ -222,4 +222,4 @@ namespace ArgoNavis { namespace SymbolTable {
      */
     bool equivalent(const Statement& first, const Statement& second);
     
-} } // namespace ArgoNavis::SymbolTable
+} } // namespace ArgoNavis::Base

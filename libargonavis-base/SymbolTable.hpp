@@ -31,7 +31,7 @@
 
 #include "EntityTable.hpp"
 
-namespace ArgoNavis { namespace SymbolTable { namespace Impl {
+namespace ArgoNavis { namespace Base { namespace Impl {
 
     /**
      * Symbol table for a single executable or library. This class provides
@@ -64,10 +64,10 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
         struct LoopFields
         {
             /** Head address of this loop. */
-            Base::Address dm_head;
+            Address dm_head;
 
             /** Constructor from initial values. */
-            LoopFields(const Base::Address& head) :
+            LoopFields(const Address& head) :
                 dm_head(head)
             {
             }
@@ -78,7 +78,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
         struct StatementFields
         {
             /** Name of this statement's source file. */
-            Base::FileName dm_file;
+            FileName dm_file;
             
             /** Line number of this statement. */
             unsigned int dm_line;
@@ -87,7 +87,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
             unsigned int dm_column;
 
             /** Constructor from initial values. */
-            StatementFields(const Base::FileName& file,
+            StatementFields(const FileName& file,
                             unsigned int line, unsigned int column) :
                 dm_file(file),
                 dm_line(line),
@@ -103,7 +103,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
          *
          * @param file    Name of this symbol table's linked object file.
          */
-        SymbolTable(const Base::FileName& file);
+        SymbolTable(const FileName& file);
 
         /**
          * Construct a symbol table from a CBTF_Protocol_SymbolTable.
@@ -124,7 +124,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
          *
          * @return    Name of this symbol table's linked object file.
          */
-        const Base::FileName& getFile() const
+        const FileName& getFile() const
         {
             return dm_file;
         }
@@ -192,7 +192,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
     private:
 
         /** Name of this symbol table's linked object file. */
-        Base::FileName dm_file;
+        FileName dm_file;
 
         /** Table of functions in this symbol table. */
         EntityTable<FunctionFields> dm_functions;
@@ -205,4 +205,4 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
 
     }; // class SymbolTable
 
-} } } // namespace ArgoNavis::SymbolTable::Impl
+} } } // namespace ArgoNavis::Base::Impl

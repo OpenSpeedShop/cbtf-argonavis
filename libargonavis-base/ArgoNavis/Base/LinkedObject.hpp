@@ -31,12 +31,11 @@
 
 #include <ArgoNavis/Base/AddressRange.hpp>
 #include <ArgoNavis/Base/FileName.hpp>
+#include <ArgoNavis/Base/FunctionVisitor.hpp>
+#include <ArgoNavis/Base/LoopVisitor.hpp>
+#include <ArgoNavis/Base/StatementVisitor.hpp>
 
-#include <ArgoNavis/SymbolTable/FunctionVisitor.hpp>
-#include <ArgoNavis/SymbolTable/LoopVisitor.hpp>
-#include <ArgoNavis/SymbolTable/StatementVisitor.hpp>
-
-namespace ArgoNavis { namespace SymbolTable {
+namespace ArgoNavis { namespace Base {
 
     class Function;
     class Loop;
@@ -64,7 +63,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *
          * @param file    Name of this linked object's file.
          */
-        LinkedObject(const Base::FileName& file);
+        LinkedObject(const FileName& file);
         
         /**
          * Construct a linked object from a CBTF_Protocol_SymbolTable.
@@ -120,7 +119,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *
          * @return    Name of this linked object's file.
          */
-        Base::FileName getFile() const;
+        FileName getFile() const;
 
         /**
          * Visit the functions contained within this linked object.
@@ -142,7 +141,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          this linked object rather than an absolute address from the
          *          address space of a specific process.
          */
-        void visitFunctions(const Base::AddressRange& range,
+        void visitFunctions(const AddressRange& range,
                             const FunctionVisitor& visitor) const;
         
         /**
@@ -165,7 +164,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          this linked object rather than an absolute address from the
          *          address space of a specific process.
          */
-        void visitLoops(const Base::AddressRange& range,
+        void visitLoops(const AddressRange& range,
                         const LoopVisitor& visitor) const;
         
         /**
@@ -188,7 +187,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          this linked object rather than an absolute address from the
          *          address space of a specific process.
          */
-        void visitStatements(const Base::AddressRange& range,
+        void visitStatements(const AddressRange& range,
                              const StatementVisitor& vistor) const;
 
         /**
@@ -233,4 +232,4 @@ namespace ArgoNavis { namespace SymbolTable {
      */
     bool equivalent(const LinkedObject& first, const LinkedObject& second);
 
-} } // namespace ArgoNavis::SymbolTable
+} } // namespace ArgoNavis::Base

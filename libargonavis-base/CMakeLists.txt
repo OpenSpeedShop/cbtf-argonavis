@@ -22,12 +22,27 @@ add_library(argonavis-base SHARED
     ArgoNavis/Base/AddressBitmap.hpp AddressBitmap.cpp    
     ArgoNavis/Base/AddressRange.hpp
     ArgoNavis/Base/AddressSet.hpp AddressSet.cpp
+    ArgoNavis/Base/AddressSpaces.hpp AddressSpaces.cpp 
     ArgoNavis/Base/FileName.hpp FileName.cpp
+    ArgoNavis/Base/Function.hpp Function.cpp
+    ArgoNavis/Base/FunctionVisitor.hpp
     ArgoNavis/Base/Interval.hpp
+    ArgoNavis/Base/LinkedObject.hpp LinkedObject.cpp
+    ArgoNavis/Base/LinkedObjectVisitor.hpp
+    ArgoNavis/Base/Loop.hpp Loop.cpp
+    ArgoNavis/Base/LoopVisitor.hpp
+    ArgoNavis/Base/MappingVisitor.hpp
     ArgoNavis/Base/Raise.hpp
+    ArgoNavis/Base/Statement.hpp Statement.cpp
+    ArgoNavis/Base/StatementVisitor.hpp
     ArgoNavis/Base/ThreadName.hpp ThreadName.cpp
+    ArgoNavis/Base/ThreadVisitor.hpp
     ArgoNavis/Base/Time.hpp
     ArgoNavis/Base/TimeInterval.hpp
+    AddressRangeIndex.hpp
+    EntityTable.hpp
+    EntityUID.hpp
+    SymbolTable.hpp SymbolTable.cpp
     )
 
 include_directories(

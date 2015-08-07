@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014 Krell Institute. All Rights Reserved.
+// Copyright (c) 2013 Krell Institute. All Rights Reserved.
 // Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
@@ -17,28 +17,28 @@
 // Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
-/** @file Declaration of the LoopVisitor type. */
+/** @file Declaration of the ThreadVisitor type. */
 
 #pragma once
 
 #include <boost/function.hpp>
 
-namespace ArgoNavis { namespace SymbolTable {
+#include <ArgoNavis/Base/ThreadName.hpp>
 
-    class Loop;
+namespace ArgoNavis { namespace Base {
 
     /**
-     * Type of function invoked when visiting one or more Loop objects.
-     * Used with implicit iterations, a reference to the Loop is passed
-     * as a parameter to the function, and the function returns either
-     * "true" to continue the iteration or "false" to terminate it.
+     * Type of function invoked when visiting one or more ThreadName objects.
+     * Used with implicit iterations, a reference to the ThreadName is passed
+     * as a parameter to the function, and the function returns either "true"
+     * to continue the iteration or "false" to terminate it.
      *
-     * @note    The usage of the term "visitor" here does <em>not</em>
-     *          refer to the design pattern of the same name.
+     * @note    The usage of the term "visitor" here does <em>not</em> refer
+     *          to the design pattern of the same name.
      *
      * @sa http://en.wikipedia.org/wiki/Iterator#Implicit_iterators
      * @sa http://en.wikipedia.org/wiki/Visitor_pattern
      */
-    typedef boost::function<bool (const Loop&)> LoopVisitor;
+    typedef boost::function<bool (const ThreadName&)> ThreadVisitor;
     
-} } // namespace ArgoNavis::SymbolTable
+} } // namespace ArgoNavis::Base

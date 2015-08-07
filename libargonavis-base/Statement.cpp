@@ -22,15 +22,14 @@
 #include <boost/format.hpp>
 #include <sstream>
 
-#include <ArgoNavis/SymbolTable/Function.hpp>
-#include <ArgoNavis/SymbolTable/LinkedObject.hpp>
-#include <ArgoNavis/SymbolTable/Loop.hpp>
-#include <ArgoNavis/SymbolTable/Statement.hpp>
+#include <ArgoNavis/Base/Function.hpp>
+#include <ArgoNavis/Base/LinkedObject.hpp>
+#include <ArgoNavis/Base/Loop.hpp>
+#include <ArgoNavis/Base/Statement.hpp>
 
 #include "SymbolTable.hpp"
 
 using namespace ArgoNavis::Base;
-using namespace ArgoNavis::SymbolTable;
 
 
 
@@ -186,9 +185,8 @@ void Statement::visitLoops(const LoopVisitor& visitor) const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-std::ostream& ArgoNavis::SymbolTable::operator<<(
-    std::ostream& stream, const Statement& statement
-    )
+std::ostream& ArgoNavis::Base::operator<<(std::ostream& stream,
+                                          const Statement& statement)
 {
     stream << boost::str(
         boost::format("Statement %u in SymbolTable 0x%016X") % 
@@ -215,8 +213,8 @@ Statement::Statement(const Impl::SymbolTable::Handle& symbol_table,
 // The individual comparisons are performed from least to most expensive in
 // order to optimize performance.
 //------------------------------------------------------------------------------
-bool ArgoNavis::SymbolTable::equivalent(const Statement& first,
-                                        const Statement& second)
+bool ArgoNavis::Base::equivalent(const Statement& first,
+                                 const Statement& second)
 {
     if (first.getLine() != second.getLine())
     {

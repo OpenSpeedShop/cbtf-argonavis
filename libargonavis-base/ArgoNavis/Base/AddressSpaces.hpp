@@ -34,16 +34,15 @@
 #include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/AddressRange.hpp>
 #include <ArgoNavis/Base/FileName.hpp>
+#include <ArgoNavis/Base/LinkedObject.hpp>
+#include <ArgoNavis/Base/LinkedObjectVisitor.hpp>
+#include <ArgoNavis/Base/MappingVisitor.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
+#include <ArgoNavis/Base/ThreadVisitor.hpp>
 #include <ArgoNavis/Base/Time.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
-#include <ArgoNavis/SymbolTable/LinkedObject.hpp>
-#include <ArgoNavis/SymbolTable/LinkedObjectVisitor.hpp>
-#include <ArgoNavis/SymbolTable/MappingVisitor.hpp>
-#include <ArgoNavis/SymbolTable/ThreadVisitor.hpp>
-
-namespace ArgoNavis { namespace SymbolTable {
+namespace ArgoNavis { namespace Base {
 
     /**
      * In-memory address spaces of one or more threads.
@@ -98,10 +97,10 @@ namespace ArgoNavis { namespace SymbolTable {
          * @param when             Time when this linked object was loaded.
          */
         void loadLinkedObject(
-            const Base::ThreadName& thread,
+            const ThreadName& thread,
             const LinkedObject& linked_object,
-            const Base::AddressRange& range,
-            const Base::Time& when = Base::Time::TheBeginning()
+            const AddressRange& range,
+            const Time& when = Time::TheBeginning()
             );
         
         /**
@@ -113,9 +112,9 @@ namespace ArgoNavis { namespace SymbolTable {
          * @param when             Time when this linked object was unloaded.
          */
         void unloadLinkedObject(
-            const Base::ThreadName& thread,
+            const ThreadName& thread,
             const LinkedObject& linked_object,
-            const Base::Time& when = Base::Time::TheEnd()
+            const Time& when = Time::TheEnd()
             );
         
         /**
@@ -142,7 +141,7 @@ namespace ArgoNavis { namespace SymbolTable {
          * @param visitor    Visitor invoked for each linked object contained
          *                   within these address spaces mapped by that thread.
          */
-        void visitLinkedObjects(const Base::ThreadName& thread,
+        void visitLinkedObjects(const ThreadName& thread,
                                 const LinkedObjectVisitor& visitor) const;
 
         /**
@@ -162,7 +161,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *                   within these address spaces mapped by that
          *                   thread.
          */
-        void visitMappings(const Base::ThreadName& thread,
+        void visitMappings(const ThreadName& thread,
                            const MappingVisitor& visitor) const;
         
         /**
@@ -178,9 +177,9 @@ namespace ArgoNavis { namespace SymbolTable {
          *                    thread and interesecting that address range
          *                    and time interval.
          */
-        void visitMappings(const Base::ThreadName& thread,
-                           const Base::AddressRange& range,
-                           const Base::TimeInterval& interval,
+        void visitMappings(const ThreadName& thread,
+                           const AddressRange& range,
+                           const TimeInterval& interval,
                            const MappingVisitor& visitor) const;
         
     private:
@@ -189,22 +188,22 @@ namespace ArgoNavis { namespace SymbolTable {
         struct Mapping
         {
             /** Name of the thread containing this mapping. */
-            Base::ThreadName dm_thread;
+            ThreadName dm_thread;
             
             /** Linked object being mapped. */
             LinkedObject dm_linked_object;
 
             /** Address range of the linked object within the address space. */
-            Base::AddressRange dm_range;
+            AddressRange dm_range;
 
             /** Time interval for the linked object within the address space. */
-            Base::TimeInterval dm_interval;
+            TimeInterval dm_interval;
             
             /** Constructor from initial fields. */
-            Mapping(const Base::ThreadName& thread,
+            Mapping(const ThreadName& thread,
                     const LinkedObject& linked_object,
-                    const Base::AddressRange& range,
-                    const Base::TimeInterval& interval) :
+                    const AddressRange& range,
+                    const TimeInterval& interval) :
                 dm_thread(thread),
                 dm_linked_object(linked_object),
                 dm_range(range),
@@ -224,7 +223,7 @@ namespace ArgoNavis { namespace SymbolTable {
             boost::multi_index::indexed_by<
                 boost::multi_index::ordered_non_unique<
                     boost::multi_index::member<
-                        Mapping, Base::ThreadName, &Mapping::dm_thread
+                        Mapping, ThreadName, &Mapping::dm_thread
                         >
                     >,
                 boost::multi_index::ordered_non_unique<
@@ -236,7 +235,7 @@ namespace ArgoNavis { namespace SymbolTable {
                     boost::multi_index::composite_key<
                         Mapping,
                         boost::multi_index::member<
-                            Mapping, Base::ThreadName, &Mapping::dm_thread
+                            Mapping, ThreadName, &Mapping::dm_thread
                             >,
                         boost::multi_index::member<
                             Mapping, LinkedObject, &Mapping::dm_linked_object
@@ -247,7 +246,7 @@ namespace ArgoNavis { namespace SymbolTable {
             > MappingIndex;
 
         /** Indexed list of linked objects in these address spaces. */
-        std::map<Base::FileName, LinkedObject> dm_linked_objects;
+        std::map<FileName, LinkedObject> dm_linked_objects;
 
         /** Indexed list of mappings in these address spaces. */
         MappingIndex dm_mappings;
@@ -264,4 +263,4 @@ namespace ArgoNavis { namespace SymbolTable {
      */
     bool equivalent(const AddressSpaces& first, const AddressSpaces& second);
        
-} } // namespace ArgoNavis::SymbolTable
+} } // namespace ArgoNavis::Base

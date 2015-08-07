@@ -24,11 +24,10 @@
 #include <boost/tuple/tuple.hpp>
 #include <set>
 
-#include <ArgoNavis/SymbolTable/AddressSpaces.hpp>
+#include <ArgoNavis/Base/AddressSpaces.hpp>
 
 using namespace ArgoNavis::Base;
-using namespace ArgoNavis::SymbolTable;
-using namespace ArgoNavis::SymbolTable::Impl;
+using namespace ArgoNavis::Base::Impl;
 
 
 
@@ -395,8 +394,8 @@ void AddressSpaces::visitMappings(const ThreadName& thread,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-bool ArgoNavis::SymbolTable::equivalent(const AddressSpaces& first,
-                                        const AddressSpaces& second)
+bool ArgoNavis::Base::equivalent(const AddressSpaces& first,
+                                 const AddressSpaces& second)
 {
     // Is "second" missing any of the mappings from "first"?
     

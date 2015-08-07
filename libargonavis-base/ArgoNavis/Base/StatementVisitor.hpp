@@ -17,27 +17,21 @@
 // Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
-/** @file Declaration of the MappingVisitor type. */
+/** @file Declaration of the StatementVisitor type. */
 
 #pragma once
 
 #include <boost/function.hpp>
 
-#include <ArgoNavis/Base/AddressRange.hpp>
-#include <ArgoNavis/Base/ThreadName.hpp>
-#include <ArgoNavis/Base/TimeInterval.hpp>
+namespace ArgoNavis { namespace Base {
 
-namespace ArgoNavis { namespace SymbolTable {
-
-    class LinkedObject;
+    class Statement;
 
     /**
-     * Type of function invoked when visiting one or more mappings of a linked
-     * object into the address space of a thread. Used with implicit iterations,
-     * a reference to the ThreadName and LinkedObject, along with the address
-     * range and time interval of the mapping, are passed as parameters to the
-     * function, and the fuction returns either "true" to continue the iteration
-     * or "false" to terminate it.
+     * Type of function invoked when visiting one or more Statement objects.
+     * Used with implicit iterations, a reference to the Statement is passed
+     * as a parameter to the function, and the function returns either "true"
+     * to continue the iteration or "false" to terminate it.
      *
      * @note    The usage of the term "visitor" here does <em>not</em> refer
      *          to the design pattern of the same name.
@@ -45,11 +39,6 @@ namespace ArgoNavis { namespace SymbolTable {
      * @sa http://en.wikipedia.org/wiki/Iterator#Implicit_iterators
      * @sa http://en.wikipedia.org/wiki/Visitor_pattern
      */
-    typedef boost::function<
-        bool (const Base::ThreadName&,
-              const LinkedObject&,
-              const Base::AddressRange&,
-              const Base::TimeInterval&)
-        > MappingVisitor;
+    typedef boost::function<bool (const Statement&)> StatementVisitor;
     
-} } // namespace ArgoNavis::SymbolTable
+} } // namespace ArgoNavis::Base

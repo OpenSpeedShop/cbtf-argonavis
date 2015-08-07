@@ -17,19 +17,19 @@
 // Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
-/** @file Declaration of the ThreadVisitor type. */
+/** @file Declaration of the FunctionVisitor type. */
 
 #pragma once
 
 #include <boost/function.hpp>
 
-#include <ArgoNavis/Base/ThreadName.hpp>
+namespace ArgoNavis { namespace Base {
 
-namespace ArgoNavis { namespace SymbolTable {
+    class Function;
 
     /**
-     * Type of function invoked when visiting one or more ThreadName objects.
-     * Used with implicit iterations, a reference to the ThreadName is passed
+     * Type of function invoked when visiting one or more Function objects.
+     * Used with implicit iterations, a reference to the Function is passed
      * as a parameter to the function, and the function returns either "true"
      * to continue the iteration or "false" to terminate it.
      *
@@ -39,6 +39,6 @@ namespace ArgoNavis { namespace SymbolTable {
      * @sa http://en.wikipedia.org/wiki/Iterator#Implicit_iterators
      * @sa http://en.wikipedia.org/wiki/Visitor_pattern
      */
-    typedef boost::function<bool (const Base::ThreadName&)> ThreadVisitor;
+    typedef boost::function<bool (const Function&)> FunctionVisitor;
     
-} } // namespace ArgoNavis::SymbolTable
+} } // namespace ArgoNavis::Base

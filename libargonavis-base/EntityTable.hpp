@@ -35,7 +35,7 @@
 #include "AddressRangeIndex.hpp"
 #include "EntityUID.hpp"
 
-namespace ArgoNavis { namespace SymbolTable { namespace Impl {
+namespace ArgoNavis { namespace Base { namespace Impl {
 
     class SymbolTable;
 
@@ -65,10 +65,10 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
          * @param addresses    Optional, initial, addresses for the new entity.
          * @return             Unique identifier for the new entity.
          */
-        EntityUID add(const T& fields,
-                      const boost::optional<
-                          Base::AddressSet
-                          >& addresses = boost::none_t())
+        EntityUID add(
+            const T& fields,
+            const boost::optional<AddressSet>& addresses = boost::none_t()
+            )
         {
             if (addresses)
             {
@@ -77,9 +77,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
             }
             else
             {
-                dm_entities.push_back(
-                    std::make_pair(fields, Base::AddressSet())
-                    );
+                dm_entities.push_back(std::make_pair(fields, AddressSet()));
             }
             
             return dm_entities.size() - 1;
@@ -91,8 +89,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
          * @param uid       Unique identifier for the entity.
          * @param ranges    Address ranges to associate with that entity.
          */
-        void add(const EntityUID& uid,
-                 const std::set<Base::AddressRange>& ranges)
+        void add(const EntityUID& uid, const std::set<AddressRange>& ranges)
         {
             BOOST_ASSERT(uid < dm_entities.size());
             dm_entities[uid].second += ranges;
@@ -105,7 +102,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
          * @param uid    Unique identifier for the entity.
          * @return       Addresses associated with that entity.
          */
-        const Base::AddressSet& addresses(const EntityUID& uid) const
+        const AddressSet& addresses(const EntityUID& uid) const
         {
             BOOST_ASSERT(uid < dm_entities.size());
             return dm_entities[uid].second;
@@ -198,7 +195,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
          *          below that accepts an AddressSet.
          */
         template <typename E, typename V>
-        void visit(const Base::AddressRange& range,
+        void visit(const AddressRange& range,
                    const boost::shared_ptr<SymbolTable>& symbol_table,
                    const V& visitor) const
         {
@@ -247,7 +244,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
          *          modified to use that visitation pattern instead.
          */
         template <typename E, typename V>
-        void visit(const Base::AddressSet& set,
+        void visit(const AddressSet& set,
                    const boost::shared_ptr<SymbolTable>& symbol_table,
                    const V& visitor) const
         {
@@ -255,12 +252,12 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
             bool terminate = false;
             boost::dynamic_bitset<> visited(dm_entities.size());
             
-            std::set<Base::AddressRange> ranges = set;
+            std::set<AddressRange> ranges = set;
             
-            for (std::set<Base::AddressRange>::const_iterator
+            for (std::set<AddressRange>::const_iterator
                      r = ranges.begin(); !terminate && (r != ranges.end()); ++r)
             {
-                const Base::AddressRange& range = *r;
+                const AddressRange& range = *r;
                 
                 AddressRangeIndex::nth_index<1>::type::const_iterator i = 
                     dm_index.get<1>().lower_bound(range.begin());
@@ -290,7 +287,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
     private:
 
         /** Type of container used to store the list of entities. */
-        typedef std::vector< std::pair<T, Base::AddressSet> > List;
+        typedef std::vector< std::pair<T, AddressSet> > List;
         
         /**
          * Index the given entity by its addresses.
@@ -308,9 +305,9 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
                 dm_index.get<0>().erase(uid);
             }
             
-            std::set<Base::AddressRange> ranges = dm_entities[uid].second;
+            std::set<AddressRange> ranges = dm_entities[uid].second;
             
-            for (std::set<Base::AddressRange>::const_iterator
+            for (std::set<AddressRange>::const_iterator
                      i = ranges.begin(); i != ranges.end(); ++i)
             {
                 dm_index.insert(AddressRangeIndexRow(uid, *i));
@@ -325,4 +322,4 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
         
     }; // class EntityTable<T>
 
-} } } // namespace ArgoNavis::SymbolTable::Impl
+} } } // namespace ArgoNavis::Base::Impl

@@ -23,7 +23,7 @@
 
 #include <boost/function.hpp>
 
-namespace ArgoNavis { namespace SymbolTable {
+namespace ArgoNavis { namespace Base {
 
     class LinkedObject;
 
@@ -41,4 +41,4 @@ namespace ArgoNavis { namespace SymbolTable {
      */
     typedef boost::function<bool (const LinkedObject&)> LinkedObjectVisitor;
     
-} } // namespace ArgoNavis::SymbolTable
+} } // namespace ArgoNavis::Base

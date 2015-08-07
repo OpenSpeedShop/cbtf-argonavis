@@ -30,7 +30,7 @@
 
 #include "EntityUID.hpp"
 
-namespace ArgoNavis { namespace SymbolTable { namespace Impl {
+namespace ArgoNavis { namespace Base { namespace Impl {
 
     /** Structure containing one row of an address range index. */
     struct AddressRangeIndexRow
@@ -39,11 +39,10 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
         EntityUID dm_uid;
         
         /** Address range for that entity. */
-        Base::AddressRange dm_range;
+        AddressRange dm_range;
         
         /** Constructor from initial fields. */
-        AddressRangeIndexRow(const EntityUID& uid,
-                             const Base::AddressRange& range) :
+        AddressRangeIndexRow(const EntityUID& uid, const AddressRange& range) :
             dm_uid(uid),
             dm_range(range)
         {
@@ -52,7 +51,7 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
         /** Key extractor for the address range's beginning. */
         struct range_begin
         {
-            typedef Base::Address result_type;
+            typedef Address result_type;
             
             result_type operator()(const AddressRangeIndexRow& row) const
             {
@@ -90,4 +89,4 @@ namespace ArgoNavis { namespace SymbolTable { namespace Impl {
             >
         > AddressRangeIndex;
 
-} } } // namespace ArgoNavis::SymbolTable::Impl
+} } } // namespace ArgoNavis::Base::Impl

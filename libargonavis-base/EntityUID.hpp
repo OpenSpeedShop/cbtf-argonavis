@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2013 Krell Institute. All Rights Reserved.
+// Copyright (c) 2013,2014 Krell Institute. All Rights Reserved.
 // Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
@@ -17,28 +17,18 @@
 // Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
-/** @file Declaration of the FunctionVisitor type. */
+/** @file Declaration of the EntityUID type. */
 
 #pragma once
 
-#include <boost/function.hpp>
+#include <boost/cstdint.hpp>
 
-namespace ArgoNavis { namespace SymbolTable {
-
-    class Function;
+namespace ArgoNavis { namespace Base { namespace Impl {
 
     /**
-     * Type of function invoked when visiting one or more Function objects.
-     * Used with implicit iterations, a reference to the Function is passed
-     * as a parameter to the function, and the function returns either "true"
-     * to continue the iteration or "false" to terminate it.
-     *
-     * @note    The usage of the term "visitor" here does <em>not</em> refer
-     *          to the design pattern of the same name.
-     *
-     * @sa http://en.wikipedia.org/wiki/Iterator#Implicit_iterators
-     * @sa http://en.wikipedia.org/wiki/Visitor_pattern
+     * Type of unique identifier used to refer to entities (functions,
+     * loops, statements, etc.) contained within a symbol table.
      */
-    typedef boost::function<bool (const Function&)> FunctionVisitor;
-    
-} } // namespace ArgoNavis::SymbolTable
+    typedef boost::uint32_t EntityUID;
+
+} } } // namespace ArgoNavis::Base::Impl

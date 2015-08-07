@@ -22,15 +22,14 @@
 #include <boost/format.hpp>
 #include <sstream>
 
-#include <ArgoNavis/SymbolTable/Function.hpp>
-#include <ArgoNavis/SymbolTable/Loop.hpp>
-#include <ArgoNavis/SymbolTable/LinkedObject.hpp>
-#include <ArgoNavis/SymbolTable/Statement.hpp>
+#include <ArgoNavis/Base/Function.hpp>
+#include <ArgoNavis/Base/Loop.hpp>
+#include <ArgoNavis/Base/LinkedObject.hpp>
+#include <ArgoNavis/Base/Statement.hpp>
 
 #include "SymbolTable.hpp"
 
 using namespace ArgoNavis::Base;
-using namespace ArgoNavis::SymbolTable;
 
 
 
@@ -176,9 +175,8 @@ void Loop::visitStatements(const StatementVisitor& visitor) const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-std::ostream& ArgoNavis::SymbolTable::operator<<(
-    std::ostream& stream, const Loop& loop
-    )
+std::ostream& ArgoNavis::Base::operator<<(std::ostream& stream,
+                                          const Loop& loop)
 {
     stream << boost::str(
         boost::format("Loop %u in SymbolTable 0x%016X") % 
@@ -205,8 +203,7 @@ Loop::Loop(const Impl::SymbolTable::Handle& symbol_table,
 // The individual comparisons are performed from least to most expensive in
 // order to optimize performance.
 //------------------------------------------------------------------------------
-bool ArgoNavis::SymbolTable::equivalent(const Loop& first,
-                                        const Loop& second)
+bool ArgoNavis::Base::equivalent(const Loop& first, const Loop& second)
 {
     if (first.getHeadAddress() != second.getHeadAddress())
     {

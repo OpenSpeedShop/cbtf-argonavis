@@ -31,10 +31,10 @@
 #include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/AddressRange.hpp>
 
-#include <ArgoNavis/SymbolTable/FunctionVisitor.hpp>
-#include <ArgoNavis/SymbolTable/StatementVisitor.hpp>
+#include <ArgoNavis/Base/FunctionVisitor.hpp>
+#include <ArgoNavis/Base/StatementVisitor.hpp>
 
-namespace ArgoNavis { namespace SymbolTable {
+namespace ArgoNavis { namespace Base {
 
     class LinkedObject;
 
@@ -65,7 +65,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          absolute address from the address space of a specific
          *          process.
          */
-        Loop(const LinkedObject& linked_object, const Base::Address& head);
+        Loop(const LinkedObject& linked_object, const Address& head);
         
         /**
          * Type conversion to a string.
@@ -113,7 +113,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        void addAddressRanges(const std::set<Base::AddressRange>& ranges);
+        void addAddressRanges(const std::set<AddressRange>& ranges);
 
         /**
          * Get the linked object containing this loop.
@@ -132,7 +132,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          absolute address from the address space of a specific
          *          process.
          */
-        Base::Address getHeadAddress() const;
+        Address getHeadAddress() const;
         
         /**
          * Get the address ranges associated with this loop. An empty set
@@ -145,7 +145,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        std::set<Base::AddressRange> getAddressRanges() const;
+        std::set<AddressRange> getAddressRanges() const;
 
         /**
          * Visit the definitions of this loop.
@@ -217,4 +217,4 @@ namespace ArgoNavis { namespace SymbolTable {
      */
     bool equivalent(const Loop& first, const Loop& second);
         
-} } // namespace ArgoNavis::SymbolTable
+} } // namespace ArgoNavis::Base

@@ -29,11 +29,10 @@
 #include <string>
 
 #include <ArgoNavis/Base/AddressRange.hpp>
+#include <ArgoNavis/Base/LoopVisitor.hpp>
+#include <ArgoNavis/Base/StatementVisitor.hpp>
 
-#include <ArgoNavis/SymbolTable/LoopVisitor.hpp>
-#include <ArgoNavis/SymbolTable/StatementVisitor.hpp>
-
-namespace ArgoNavis { namespace SymbolTable {
+namespace ArgoNavis { namespace Base {
 
     class LinkedObject;
 
@@ -107,7 +106,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        void addAddressRanges(const std::set<Base::AddressRange>& ranges);
+        void addAddressRanges(const std::set<AddressRange>& ranges);
 
         /**
          * Get the linked object containing this function.
@@ -141,7 +140,7 @@ namespace ArgoNavis { namespace SymbolTable {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        std::set<Base::AddressRange> getAddressRanges() const;
+        std::set<AddressRange> getAddressRanges() const;
 
         /**
          * Visit the definitions of this function.
@@ -215,4 +214,4 @@ namespace ArgoNavis { namespace SymbolTable {
      */
     bool equivalent(const Function& first, const Function& second);
         
-} } // namespace ArgoNavis::SymbolTable
+} } // namespace ArgoNavis::Base
