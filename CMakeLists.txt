@@ -51,7 +51,6 @@ elseif(EXISTS /usr/lib64)
 endif()
 
 add_subdirectory(libargonavis-base)
-add_subdirectory(libargonavis-symtab)
 
 if(CUPTI_FOUND AND MRNET_FOUND)
     add_subdirectory(CUDA)
