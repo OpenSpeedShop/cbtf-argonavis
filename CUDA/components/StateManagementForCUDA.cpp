@@ -204,10 +204,6 @@ void StateManagementForCUDA::handleThreadsStateChanged(
         {
             CBTF_Protocol_AttachedToThreads threads = dm_address_spaces;
 
-            std::vector<
-                CBTF_Protocol_LinkedObjectGroup
-                > groups = dm_address_spaces;
-
             emitOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
                 "AttachedToThreads",
                 boost::shared_ptr<CBTF_Protocol_AttachedToThreads>(
@@ -216,6 +212,10 @@ void StateManagementForCUDA::handleThreadsStateChanged(
                 );
             
             emitOutput<bool>("TriggerAddressBuffer", true);
+
+            std::vector<
+                CBTF_Protocol_LinkedObjectGroup
+                > groups = dm_address_spaces;
 
             for (std::vector<CBTF_Protocol_LinkedObjectGroup>::const_iterator
                      i = groups.begin(); i != groups.end(); ++i)
