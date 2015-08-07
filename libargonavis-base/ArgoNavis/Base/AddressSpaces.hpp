@@ -30,6 +30,7 @@
 
 #include <KrellInstitute/Messages/LinkedObjectEvents.h>
 #include <KrellInstitute/Messages/Symbol.h>
+#include <KrellInstitute/Messages/ThreadEvents.h>
 
 #include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/AddressRange.hpp>
@@ -54,6 +55,20 @@ namespace ArgoNavis { namespace Base {
         
         /** Construct empty address spaces. */
         AddressSpaces();
+
+        /**
+         * Type conversion to a CBTF_Protocol_AttachedToThreads.
+         *
+         * @return    Message containing the threads in these address spaces.
+         */
+        operator CBTF_Protocol_AttachedToThreads() const;
+
+        /**
+         * Type conversion to a list of CBTF_Protocol_LinkedObjectGroup.
+         *
+         * @return    List of messages containing these address spaces.
+         */
+        operator std::vector<CBTF_Protocol_LinkedObjectGroup>() const;
         
         /**
          * Apply the given message, describing an initial list of linked

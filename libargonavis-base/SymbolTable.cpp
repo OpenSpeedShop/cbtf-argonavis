@@ -19,6 +19,8 @@
 
 /** @file Definition of the SymbolTable class. */
 
+#include <algorithm>
+
 #include "SymbolTable.hpp"
 
 using namespace ArgoNavis::Base;

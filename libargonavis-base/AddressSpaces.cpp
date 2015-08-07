@@ -19,6 +19,7 @@
 
 /** @file Definition of the AddressSpaces class. */
 
+#include <algorithm>
 #include <boost/bind.hpp>
 #include <boost/ref.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -94,6 +95,91 @@ AddressSpaces::AddressSpaces() :
     dm_linked_objects(),
     dm_mappings()
 {
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSpaces::operator CBTF_Protocol_AttachedToThreads() const
+{
+    std::set<ThreadName> threads;
+    
+    for (MappingIndex::const_iterator
+             i = dm_mappings.begin(), iEnd = dm_mappings.end(); i != iEnd; ++i)
+    {
+        threads.insert(i->dm_thread);
+    }
+
+    CBTF_Protocol_AttachedToThreads message;
+
+    message.threads.names.names_len = threads.size();
+    message.threads.names.names_val =
+        reinterpret_cast<CBTF_Protocol_ThreadName*>(
+            malloc(std::max(1U, message.threads.names.names_len) *
+                   sizeof(CBTF_Protocol_ThreadName))
+            );
+
+    u_int m = 0;
+    for (std::set<ThreadName>::const_iterator
+             i = threads.begin(); i != threads.end(); ++i, ++m)
+    {
+        CBTF_Protocol_ThreadName& entry = message.threads.names.names_val[m];
+        entry = *i;
+    }
+    
+    return message;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSpaces::operator std::vector<CBTF_Protocol_LinkedObjectGroup>() const
+{
+    std::set<ThreadName> threads;
+
+    for (MappingIndex::const_iterator
+             i = dm_mappings.begin(), iEnd = dm_mappings.end(); i != iEnd; ++i)
+    {
+        threads.insert(i->dm_thread);
+    }
+
+    std::vector<CBTF_Protocol_LinkedObjectGroup> message(threads.size());
+
+    u_int m = 0;
+    for (std::set<ThreadName>::const_iterator
+             i = threads.begin(); i != threads.end(); ++i, ++m)
+    {
+        CBTF_Protocol_LinkedObjectGroup& entry = message[m];
+        entry.thread = *i;
+
+        entry.linkedobjects.linkedobjects_len = dm_mappings.get<0>().count(*i);
+        entry.linkedobjects.linkedobjects_val =
+            reinterpret_cast<CBTF_Protocol_LinkedObject*>(
+                malloc(std::max(1U, entry.linkedobjects.linkedobjects_len) *
+                       sizeof(CBTF_Protocol_LinkedObject))
+                );        
+
+        u_int n = 0;
+        for (MappingIndex::nth_index<0>::type::const_iterator
+                 j = dm_mappings.get<0>().lower_bound(*i),
+                 jEnd = dm_mappings.get<0>().upper_bound(*i);
+             j != jEnd;
+             ++j, ++n)
+        {
+            CBTF_Protocol_LinkedObject& subentry = 
+                entry.linkedobjects.linkedobjects_val[n];
+            
+            subentry.linked_object = j->dm_linked_object.getFile();
+            subentry.range = j->dm_range;
+            subentry.time_begin = j->dm_interval.begin();
+            subentry.time_end = j->dm_interval.end() + 1;
+            subentry.is_executable = false;
+        }
+    }
+    
+    return message;
 }
 
 

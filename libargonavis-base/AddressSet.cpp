@@ -19,6 +19,7 @@
 
 /** @file Definition of the AddressSet class. */
 
+#include <algorithm>
 #include <deque>
 
 #include <ArgoNavis/Base/AddressSet.hpp>
