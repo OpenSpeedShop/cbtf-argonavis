@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -27,24 +27,22 @@
 #include <KrellInstitute/CBTF/Type.hpp>
 #include <KrellInstitute/CBTF/Version.hpp>
 
-#include "KrellInstitute/Core/LinkedObjectEntry.hpp"
-#include "KrellInstitute/Core/ThreadName.hpp"
-
 #include <KrellInstitute/Messages/LinkedObjectEvents.h>
 #include <KrellInstitute/Messages/ThreadEvents.h>
 
-#include "SimpleThreadName.hpp"
+#include <ArgoNavis/Base/AddressSpaces.hpp>
+#include <ArgoNavis/Base/ThreadName.hpp>
 
+using namespace ArgoNavis::Base;
 using namespace KrellInstitute::CBTF;
-using namespace KrellInstitute::Core;
 
 
 
 /**
  * Simple (thread and linked object) state management for the experiments that
- * use the CUDA collector. Mostly this component simply forwards messages on to
- * Open|SpeedShop. But it also determines when all of the attached threads have
- * finished and aggregates the list of all linked objects.
+ * use the CUDA collector. This is used to aggregate the attached threads and
+ * their address spaces, forwarding them on to Open|SpeedShop only once all of
+ * the attached threads have finished.
  *
  * @note    This component is <em>not</em> scalable to large thread counts.
  *          It is currently being used as a temporary measure until the CUDA
@@ -95,8 +93,11 @@ private:
         const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
         );
 
+    /** Address spaces of all (including terminated) threads. */
+    AddressSpaces dm_address_spaces;
+
     /** Names of all active (non-terminated) threads. */
-    std::set<SimpleThreadName> dm_threads;
+    std::set<ThreadName> dm_threads;
 
 }; // class StateManagementForCUDA
 
@@ -107,7 +108,8 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(StateManagementForCUDA)
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 StateManagementForCUDA::StateManagementForCUDA() :
-    Component(Type(typeid(StateManagementForCUDA)), Version(0, 0, 0)),
+    Component(Type(typeid(StateManagementForCUDA)), Version(1, 0, 0)),
+    dm_address_spaces(),
     dm_threads()
 {
     declareInput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
@@ -138,99 +140,54 @@ StateManagementForCUDA::StateManagementForCUDA() :
         "AttachedToThreads"
         );
     declareOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
-        "InitialLinkedObjects"
-        );
-    declareOutput<boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject> >(
-        "LoadedLinkedObject"
-        );
-    declareOutput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
-        "UnloadedLinkedObject"
+        "LinkedObjectGroup"
         );
 
-    declareOutput<LinkedObjectEntryVec>("LinkedObjectEntryVec");
     declareOutput<bool>("ThreadsFinished");
+    declareOutput<bool>("TriggerAddressBuffer");
 }
 
 
 
 //------------------------------------------------------------------------------
-// Re-emit the original message unchanged. Update the list of active threads.
 //------------------------------------------------------------------------------
 void StateManagementForCUDA::handleAttachedToThreads(
     const boost::shared_ptr<CBTF_Protocol_AttachedToThreads>& message
     )
 {
-    emitOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
-        "AttachedToThreads", message
-        );
-
     for (u_int i = 0; i < message->threads.names.names_len; ++i)
     {
-        dm_threads.insert(
-            SimpleThreadName(message->threads.names.names_val[i])
-            );
+        dm_threads.insert(ThreadName(message->threads.names.names_val[i]));
     }
 }
 
 
 
 //------------------------------------------------------------------------------
-// Re-emit the original message unchanged. Construct a LinkedObjectEntryVec from
-// the original message and emit that object too. Not sure why that is necessary
-// but it is what is done by the LinkedObject component in cbtf-krell.
 //------------------------------------------------------------------------------
 void StateManagementForCUDA::handleInitialLinkedObjects(
     const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
     )
 {
-    emitOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
-        "InitialLinkedObjects", message
-        );
-
-    ThreadName thread(message->thread);
-
-    LinkedObjectEntryVec linked_objects;
-    for (int i = 0; i < message->linkedobjects.linkedobjects_len; ++i)
-    {
-        const CBTF_Protocol_LinkedObject& entry =
-            message->linkedobjects.linkedobjects_val[i];
-        
-        LinkedObjectEntry linked_object;
-
-        linked_object.tname = thread;
-        linked_object.path = entry.linked_object.path;
-        linked_object.addr_begin = entry.range.begin;
-        linked_object.addr_end = entry.range.end;
-        linked_object.is_executable = entry.is_executable;
-        linked_object.time_loaded = entry.time_begin;
-        linked_object.time_unloaded = entry.time_end;
-        
-        linked_objects.push_back(linked_object);
-    }
-
-    emitOutput<LinkedObjectEntryVec>("LinkedObjectEntryVec", linked_objects);
+    dm_address_spaces.applyMessage(*message);
 }
 
 
 
 //------------------------------------------------------------------------------
-// Re-emit the original message unchanged.
 //------------------------------------------------------------------------------
 void StateManagementForCUDA::handleLoadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
     )
 {
-    emitOutput<boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject> >(
-        "LoadedLinkedObject", message
-        );
+    dm_address_spaces.applyMessage(*message);
 }
 
 
 
 //------------------------------------------------------------------------------
-// If the threads are being terminated, update the list of active threads
-// and, if that list is empty, emit a message indicating that all threads
-// have finished.
+// If threads are terminating, update the list of active threads and, if that
+// list is empty, emit a flurry of messages in the proper order.
 //------------------------------------------------------------------------------
 void StateManagementForCUDA::handleThreadsStateChanged(
     const boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged>& message
@@ -240,13 +197,37 @@ void StateManagementForCUDA::handleThreadsStateChanged(
     {
         for (u_int i = 0; i < message->threads.names.names_len; ++i)
         {
-            dm_threads.erase(
-                SimpleThreadName(message->threads.names.names_val[i])
-                );
+            dm_threads.erase(ThreadName(message->threads.names.names_val[i]));
         }
         
         if (dm_threads.empty())
         {
+            CBTF_Protocol_AttachedToThreads threads = dm_address_spaces;
+
+            std::vector<
+                CBTF_Protocol_LinkedObjectGroup
+                > groups = dm_address_spaces;
+
+            emitOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
+                "AttachedToThreads",
+                boost::shared_ptr<CBTF_Protocol_AttachedToThreads>(
+                    new CBTF_Protocol_AttachedToThreads(threads)
+                    )
+                );
+            
+            emitOutput<bool>("TriggerAddressBuffer", true);
+
+            for (std::vector<CBTF_Protocol_LinkedObjectGroup>::const_iterator
+                     i = groups.begin(); i != groups.end(); ++i)
+            {
+                emitOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
+                    "LinkedObjectGroup",
+                    boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>(
+                        new CBTF_Protocol_LinkedObjectGroup(*i)
+                        )
+                    );
+            }
+            
             emitOutput<bool>("ThreadsFinished", true);
         }
     }
@@ -255,13 +236,10 @@ void StateManagementForCUDA::handleThreadsStateChanged(
 
 
 //------------------------------------------------------------------------------
-// Re-emit the original message unchanged.
 //------------------------------------------------------------------------------
 void StateManagementForCUDA::handleUnloadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
     )
 {
-    emitOutput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
-        "UnloadedLinkedObject", message
-        );
+    dm_address_spaces.applyMessage(*message);
 }

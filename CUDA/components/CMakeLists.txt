@@ -27,6 +27,7 @@ add_library(CUDA SHARED
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/libargonavis-base
     ${PROJECT_BINARY_DIR}/CUDA/messages
     ${Boost_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
@@ -37,6 +38,7 @@ include_directories(
 
 target_link_libraries(CUDA
     cbtf-messages-cuda
+    argonavis-base
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_REGEX_LIBRARY}
     ${CBTF_LIBRARIES}

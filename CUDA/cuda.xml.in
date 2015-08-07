@@ -21,7 +21,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 <MRNet xmlns="http://www.krellinst.org/CBTF/MRNet.xsd">
 
   <Type>cuda</Type>
-  <Version>3.0.0</Version>
+  <Version>4.0.0</Version>
 
   <!--
      List of the network's outputs.
@@ -42,18 +42,8 @@ Place, Suite 330, Boston, MA  02111-1307  USA
   </Output>
   
   <Output>
-    <Name>linkedobjectentryvec_output</Name>
-    <From><Output>OutgoingLinkedObjectEntryVec</Output></From>
-  </Output>
-  
-  <Output>
     <Name>linkedobjectgroup_xdr_output</Name>
     <From><Output>OutgoingLinkedObjectGroup</Output></From>
-  </Output>
-  
-  <Output>
-    <Name>loaded_linkedobject_xdr_output</Name>
-    <From><Output>OutgoingLoadedLinkedObject</Output></From>
   </Output>
   
   <Output>
@@ -64,11 +54,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
   <Output>
     <Name>threads_finished</Name>
     <From><Output>OutgoingThreadsFinished</Output></From>
-  </Output>
-  
-  <Output>
-    <Name>unloaded_linkedobject_xdr_output</Name>
-    <From><Output>OutgoingUnloadedLinkedObject</Output></From>
   </Output>
   
   <!--
@@ -85,11 +70,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
   <Stream>
     <Name>CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS</Name>
     <Tag>1101</Tag>
-  </Stream>
-  
-  <Stream>
-    <Name>CBTF_PROTOCOL_TAG_CREATED_PROCESS</Name>
-    <Tag>1104</Tag>
   </Stream>
   
   <Stream>
@@ -179,7 +159,9 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <!-- List of the frontend network's connections -->
 
       <Connection>
-        <From><Name>Management</Name><Output>ThreadsFinished</Output></From>
+        <From>
+          <Name>Management</Name><Output>TriggerAddressBuffer</Output>
+        </From>
         <To><Name>Aggregator</Name><Input>Trigger</Input></To>
       </Connection>
       
@@ -196,24 +178,12 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       </Output>
 
       <Output>
-        <Name>OutgoingLinkedObjectEntryVec</Name>
-        <From>
-          <Name>Management</Name><Output>LinkedObjectEntryVec</Output>
-        </From>
-      </Output>
-
-      <Output>
         <Name>OutgoingLinkedObjectGroup</Name>
         <From>
-	      <Name>Management</Name><Output>InitialLinkedObjects</Output>
+	      <Name>Management</Name><Output>LinkedObjectGroup</Output>
 	    </From>
       </Output>
       
-      <Output>
-        <Name>OutgoingLoadedLinkedObject</Name>
-        <From><Name>Management</Name><Output>LoadedLinkedObject</Output></From>
-      </Output>
-
       <Output>
         <Name>OutgoingPerformanceData</Name>
         <From><Name>Aggregator</Name><Output>Data</Output></From>
@@ -221,16 +191,9 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       
       <Output>
         <Name>OutgoingThreadsFinished</Name>
-        <From><Name>Aggregator</Name><Output>ThreadsFinished</Output></From>
+        <From><Name>Management</Name><Output>ThreadsFinished</Output></From>
       </Output>
       
-      <Output>
-        <Name>OutgoingUnloadedLinkedObject</Name>
-        <From>
-          <Name>Management</Name><Output>UnloadedLinkedObject</Output>
-        </From>
-      </Output>
-
     </Network>
 
     <!-- List of the frontend's incoming upstreams -->

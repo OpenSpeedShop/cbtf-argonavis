@@ -21,7 +21,6 @@
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
 #include <typeinfo>
-#include <utility>
 
 #include <KrellInstitute/CBTF/Component.hpp>
 #include <KrellInstitute/CBTF/Type.hpp>
@@ -84,7 +83,7 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(AddressAggregatorForCUDA)
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 AddressAggregatorForCUDA::AddressAggregatorForCUDA() :
-    Component(Type(typeid(AddressAggregatorForCUDA)), Version(0, 0, 0)),
+    Component(Type(typeid(AddressAggregatorForCUDA)), Version(1, 0, 0)),
     dm_addresses()
 {
     declareInput<boost::shared_ptr<CBTF_Protocol_Blob> >(
