@@ -46,7 +46,6 @@ add_library(argonavis-base SHARED
     )
 
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
     ${Boost_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     )

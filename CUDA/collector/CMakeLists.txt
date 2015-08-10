@@ -23,7 +23,6 @@ add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
 add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
 
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
     ${PROJECT_BINARY_DIR}/CUDA/messages
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}

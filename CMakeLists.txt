@@ -16,10 +16,11 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 2.8.12)
 
 project(CBTF-ArgoNavis)
 
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
 find_package(Boost 1.39.0 REQUIRED
