@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2014 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -43,19 +43,12 @@
 
 
 /**
- * Alignment (in bytes) of each allocated CUPTI activity buffer. This value
- * is specified in the documentation for cuptiActivityEnqueueBuffer() within
- * the "cupti_activity.h" header file.
- */
-#define CUPTI_ACTIVITY_BUFFER_ALIGNMENT 8
-
-/**
  * Size (in bytes) of each allocated CUPTI activity buffer.
  *
- * @note    Currently the only basis for the selection of this value is that
- *          the CUPTI "activity_trace.cpp" example uses 2 buffers of 32 KB each.
+ * @note    Currently the only basis for the selection of this value is that the
+ *          CUPTI "activity_trace_async.cpp" example uses buffers of 32 KB each.
  */
-#define CUPTI_ACTIVITY_BUFFER_SIZE (2 * 32 * 1024 /* 64 KB */)
+#define CUPTI_ACTIVITY_BUFFER_SIZE (32 * 1024 /* 32 KB */)
 
 /**
  * Maximum number of (CBTF_Protocol_Address) stack trace addresses contained
@@ -76,6 +69,15 @@
  *          value other than a vague notion that it seems about right.
  */
 #define MAX_CUDA_CONTEXTS 32
+
+/** 
+ * Maximum supported number of CUDA streams. Controls the size of the table
+ * used to translate CUPTI stream IDs to CUDA stream pointers.
+ *
+ * @note    Currently there is no specific basis for the selection of this
+ *          value other than a vague notion that it seems about right.
+ */
+#define MAX_CUDA_STREAMS 32
 
 /**
  * Maximum number of individual (CBTF_cuda_message) messages contained within
@@ -253,7 +255,7 @@ static int64_t cupti_time_offset = 0;
  * but there is no direct way to map between context IDs and context pointers
  * similar to the cuptiGetStreamId() function. The only possible solution is
  * to store the mapping from context ID to pointer explicitly as encountered
- * in memcpy, memset, and kernel invocation activigy records. Then use that
+ * in memcpy, memset, and kernel invocation activity records. Then use that
  * mapping when a CUPTI_ACTIVITY_KIND_CONTEXT activity record is found.
  */
 struct {
@@ -263,6 +265,22 @@ struct {
     } values[MAX_CUDA_CONTEXTS];
     pthread_mutex_t mutex;
 } context_id_to_ptr;
+
+/**
+ * Table used to translate CUPTI stream IDs to CUDA stream pointers.
+ *
+ * CUPTI API version 4 introduced a mechanism for asynchronous activity buffer
+ * delivery. Unfortunately, similar to above, the CUDA stream pointer is not
+ * made available when the callback is invoked to deliver the activity buffer.
+ * So it must be tracked manually here.
+ */
+struct {
+    struct {
+        uint32_t id;
+        CUstream ptr;
+    } values[MAX_CUDA_STREAMS];
+    pthread_mutex_t mutex;
+} stream_id_to_ptr;
 
 #if defined(PAPI_FOUND)
 /**
@@ -432,7 +450,7 @@ static __thread TLS the_tls;
 /**
  * Add the specified mapping of CUPTI context ID to CUDA context pointer.
  *
- * @param id     CUPTI context ID. 
+ * @param id     CUPTI context ID.
  * @param ptr    Corresponding CUDA context pointer.
  */
 static void add_context_id_to_ptr(uint32_t id, CUcontext ptr)
@@ -479,6 +497,55 @@ static void add_context_id_to_ptr(uint32_t id, CUcontext ptr)
 
 
 /**
+ * Add the specified mapping of CUPTI stream ID to CUDA stream pointer.
+ *
+ * @param id     CUPTI stream ID.
+ * @param ptr    Corresponding CUDA stream pointer.
+ */
+static void add_stream_id_to_ptr(uint32_t id, CUstream ptr)
+{
+    PTHREAD_CHECK(pthread_mutex_lock(&stream_id_to_ptr.mutex));
+
+    int i;
+    for (i = 0;
+         (i < MAX_CUDA_STREAMS) && (stream_id_to_ptr.values[i].ptr != NULL);
+         ++i)
+    {
+        if (stream_id_to_ptr.values[i].id == id)
+        {
+            if (stream_id_to_ptr.values[i].ptr != ptr)
+            {
+                fprintf(stderr, "[CBTF/CUDA] add_stream_id_to_ptr(): "
+                        "CUDA stream pointer for CUPTI stream "
+                        "ID %u changed!\n", id);
+                fflush(stderr);
+                abort();
+            }
+            
+            break;
+        }
+    }
+
+    if (i == MAX_CUDA_STREAMS)
+    {
+        fprintf(stderr, "[CBTF/CUDA] add_stream_id_to_ptr(): "
+                "Maximum supported CUDA stream pointers (%d) was reached!\n",
+                MAX_CUDA_STREAMS);
+        fflush(stderr);
+        abort();
+    }
+    else if (stream_id_to_ptr.values[i].ptr == NULL)
+    {
+        stream_id_to_ptr.values[i].id = id;
+        stream_id_to_ptr.values[i].ptr = ptr;
+    }
+    
+    PTHREAD_CHECK(pthread_mutex_unlock(&stream_id_to_ptr.mutex));
+}
+
+
+
+/**
  * Find the CUDA context pointer corresponding to the given CUPTI context ID.
  *
  * @param id    CUPTI context ID.
@@ -503,6 +570,37 @@ static CUcontext find_context_ptr_from_id(uint32_t id)
     }
     
     PTHREAD_CHECK(pthread_mutex_unlock(&context_id_to_ptr.mutex));
+
+    return ptr;
+}
+
+
+
+/**
+ * Find the CUDA stream pointer corresponding to the given CUPTI stream ID.
+ *
+ * @param id    CUPTI stream ID.
+ * @return      Corresponding CUDA stream pointer.
+ */
+static CUstream find_stream_ptr_from_id(uint32_t id)
+{
+    CUstream ptr = NULL;
+
+    PTHREAD_CHECK(pthread_mutex_lock(&stream_id_to_ptr.mutex));
+    
+    int i;
+    for (i = 0;
+         (i < MAX_CUDA_STREAMS) && (stream_id_to_ptr.values[i].ptr != NULL);
+         ++i)
+    {
+        if (stream_id_to_ptr.values[i].id == id)
+        {
+            ptr = stream_id_to_ptr.values[i].ptr;
+            break;
+        }
+    }
+    
+    PTHREAD_CHECK(pthread_mutex_unlock(&stream_id_to_ptr.mutex));
 
     return ptr;
 }
@@ -869,9 +967,11 @@ inline CUDA_CachePreference toCachePreference(CUfunc_cache value)
  * @param context      CUDA context for the activities to be added.
  * @param stream       CUDA stream for the activities to be added.
  * @param stream_id    CUDA stream ID for the activities to be added.
+ * @param buffer       Buffer containing the activity records.
+ * @param size         Actual size of the buffer.
  */
-static void add_activities(TLS* tls, CUcontext context, 
-                           CUstream stream, uint32_t stream_id)
+static void add_activities(TLS* tls, CUcontext context, CUstream stream,
+                           uint32_t stream_id, uint8_t* buffer, size_t size)
 {
     Assert(tls != NULL);
 
@@ -887,22 +987,6 @@ static void add_activities(TLS* tls, CUcontext context,
         fflush(stderr);
     }
     
-    /* Dequeue the buffer of activities */
-    
-    uint8_t* buffer = NULL;
-    size_t size = 0;
-    
-    CUptiResult retval = cuptiActivityDequeueBuffer(
-        context, stream_id, &buffer, &size
-        );
-    
-    if (retval == CUPTI_ERROR_QUEUE_EMPTY)
-    {
-        return;
-    }
-    
-    CUPTI_CHECK(retval);
-
     /* Iterate over each activity record */
     
     CUpti_Activity* raw_activity = NULL;
@@ -910,7 +994,8 @@ static void add_activities(TLS* tls, CUcontext context,
     size_t added;
     for (added = 0; true; ++added)
     {
-        retval = cuptiActivityGetNextRecord(buffer, size, &raw_activity);
+        CUptiResult retval = cuptiActivityGetNextRecord(buffer, size,
+                                                        &raw_activity);
 
         if (retval == CUPTI_ERROR_MAX_LIMIT_REACHED)
         {
@@ -955,7 +1040,7 @@ static void add_activities(TLS* tls, CUcontext context,
                     message->compute_api = "CUDA";
                     break;
 
-#if CUPTI_API_VERSION == 2
+#if (CUPTI_API_VERSION == 2)
                 case CUPTI_ACTIVITY_COMPUTE_API_OPENCL:
                     message->compute_api = "OpenCL";
                     break;
@@ -1065,8 +1150,10 @@ static void add_activities(TLS* tls, CUcontext context,
                 update_header_with_time(tls, message->time_begin);
                 update_header_with_time(tls, message->time_end);
 
+#if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
                 add_context_id_to_ptr(activity->contextId, context);
+#endif
             }
             break;
 
@@ -1097,8 +1184,10 @@ static void add_activities(TLS* tls, CUcontext context,
                 update_header_with_time(tls, message->time_begin);
                 update_header_with_time(tls, message->time_end);
 
+#if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
                 add_context_id_to_ptr(activity->contextId, context);
+#endif
             }
             break;
 
@@ -1145,8 +1234,10 @@ static void add_activities(TLS* tls, CUcontext context,
                 update_header_with_time(tls, message->time_begin);
                 update_header_with_time(tls, message->time_end);
 
+#if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
                 add_context_id_to_ptr(activity->contextId, context);
+#endif
             }
             break;
 
@@ -1165,12 +1256,101 @@ static void add_activities(TLS* tls, CUcontext context,
                (unsigned int)added, stream, context);
     }
 #endif
+}
+
+
+
+#if (CUPTI_API_VERSION < 4)
+/**
+ * Wrapper for add_activities() used with CUPTI API versions 2 and 3.
+ *
+ * @param tls          Thread-local storage to which activities are to be added.
+ * @param context      CUDA context for the activities to be added.
+ * @param stream       CUDA stream for the activities to be added.
+ * @param stream_id    CUDA stream ID for the activities to be added.
+ */
+static void wrap_add_activities(TLS* tls, CUcontext context, 
+                                CUstream stream, uint32_t stream_id)
+{
+    Assert(tls != NULL);
+
+    /* Dequeue the buffer of activities */
     
+    uint8_t* buffer = NULL;
+    size_t size = 0;
+    
+    CUptiResult retval = cuptiActivityDequeueBuffer(
+        context, stream_id, &buffer, &size
+        );
+    
+    if (retval == CUPTI_ERROR_QUEUE_EMPTY)
+    {
+        return;
+    }
+    
+    CUPTI_CHECK(retval);
+
+    /* Actually add these activities */
+    add_activities(tls, context, stream, stream_id, buffer, size);
+
     /* Re-enqueue this buffer of activities */
     CUPTI_CHECK(cuptiActivityEnqueueBuffer(
                     context, stream_id, buffer, CUPTI_ACTIVITY_BUFFER_SIZE
                     ));
 }
+#endif
+
+
+
+#if (CUPTI_API_VERSION >= 4)
+/**
+ * Callback invoked by CUPTI (API versions 4 and above) each time it requires
+ * a new activity buffer to be allocated.
+ *
+ * @retval buffer         Buffer to contain activity records.
+ * @retval allocated      Allocated size of the buffer.
+ * @retval max_records    Maximum number of records to put in this buffer.
+ */
+static void allocate_activities(uint8_t** buffer, size_t* allocated,
+                                size_t* max_records)
+{
+    *buffer = memalign(ACTIVITY_RECORD_ALIGNMENT, CUPTI_ACTIVITY_BUFFER_SIZE);
+    *allocated = CUPTI_ACTIVITY_BUFFER_SIZE;
+    *max_records = 0; /* Fill with as many records as possible */
+}
+#endif
+
+
+
+#if (CUPTI_API_VERSION >= 4)
+/**
+ * Callback invoked by CUPTI (API versions 4 and above) each time it has filled
+ * a buffer with activity records.
+ *
+ * @param context      CUDA context for the activities to be added.
+ * @param stream_id    CUDA stream ID for the activities to be added.
+ * @param buffer       Buffer containing the activity records.
+ * @param allocated    Allocated size of the buffer.
+ * @param size         Actual size of the buffer.
+ */
+static void wrap_add_activities(CUcontext context, uint32_t stream_id,
+                                uint8_t* buffer, size_t allocated, size_t size)
+{
+    /* Access our thread-local storage */
+#if defined(USE_EXPLICIT_TLS)
+    TLS* tls = CBTF_GetTLS(TLSKey);
+#else
+    TLS* tls = &the_tls;
+#endif
+    Assert(tls != NULL);
+
+    /* Find the CUDA stream pointer corresponding to this CUPTI stream ID */
+    CUstream stream = find_stream_ptr_from_id(stream_id);
+    
+    /* Actually add these activities */
+    add_activities(tls, context, stream, stream_id, buffer, size);
+}
+#endif
 
 
 
@@ -1523,7 +1703,7 @@ static void start_papi_data_collection(TLS* tls)
             if (s == tls->eventset_count)
             {
                 tls->eventsets[s].component = component;
-		tls->eventsets[s].eventset = PAPI_NULL;
+                tls->eventsets[s].eventset = PAPI_NULL;
                 PAPI_CHECK(PAPI_create_eventset(&tls->eventsets[s].eventset));
                 tls->eventsets[s].event_count = 0;
                 tls->eventset_count++;
@@ -2259,7 +2439,8 @@ static void cupti_callback(void* userdata,
                         message->time = CBTF_GetTime();
                         message->handle = (CBTF_Protocol_Address)params->hmod;
                         
-                        update_header_with_time(tls, message->time);                                 }
+                        update_header_with_time(tls, message->time);
+                    }
                 }
                 break;
                 
@@ -2288,13 +2469,21 @@ static void cupti_callback(void* userdata,
                     }
 #endif
 
+#if (CUPTI_API_VERSION < 4)
                     /* Enqueue a buffer for context-specific activities */
                     CUPTI_CHECK(cuptiActivityEnqueueBuffer(
                                     rdata->context, 0,
-                                    memalign(CUPTI_ACTIVITY_BUFFER_ALIGNMENT,
+                                    memalign(ACTIVITY_RECORD_ALIGNMENT,
                                              CUPTI_ACTIVITY_BUFFER_SIZE),
                                     CUPTI_ACTIVITY_BUFFER_SIZE
                                     ));
+#elif (CUPTI_API_VERSION >= 5)
+                    uint32_t context_id = 0;
+                    CUPTI_CHECK(cuptiGetContextId(rdata->context, &context_id));
+
+                    /* Add the context ID to pointer mapping */
+                    add_context_id_to_ptr(context_id, rdata->context);
+#endif
                 }
                 break;
 
@@ -2310,11 +2499,13 @@ static void cupti_callback(void* userdata,
                     }
 #endif
 
+#if (CUPTI_API_VERSION < 4)
                     /* Add messages for this context's activities */
-                    add_activities(tls, rdata->context, NULL, 0);
-
+                    wrap_add_activities(tls, rdata->context, NULL, 0);
+                    
                     /* Add messages for global activities */
-                    add_activities(tls, NULL, NULL, 0);
+                    wrap_add_activities(tls, NULL, NULL, 0);
+#endif
                 }
                 break;
 
@@ -2322,11 +2513,6 @@ static void cupti_callback(void* userdata,
 
             case CUPTI_CBID_RESOURCE_STREAM_CREATED:
                 {
-                    uint32_t stream_id = 0;
-                    CUPTI_CHECK(cuptiGetStreamId(rdata->context,
-                                                 rdata->resourceHandle.stream,
-                                                 &stream_id));
-                    
 #if !defined(NDEBUG)
                     if (debug)
                     {
@@ -2334,14 +2520,25 @@ static void cupti_callback(void* userdata,
                                rdata->resourceHandle.stream, rdata->context);
                     }
 #endif
-                    
+
+                    uint32_t stream_id = 0;
+                    CUPTI_CHECK(cuptiGetStreamId(rdata->context,
+                                                 rdata->resourceHandle.stream,
+                                                 &stream_id));
+                                        
+#if (CUPTI_API_VERSION < 4)
                     /* Enqueue a buffer for stream-specific activities */
                     CUPTI_CHECK(cuptiActivityEnqueueBuffer(
                                     rdata->context, stream_id,
-                                    memalign(CUPTI_ACTIVITY_BUFFER_ALIGNMENT,
+                                    memalign(ACTIVITY_RECORD_ALIGNMENT,
                                              CUPTI_ACTIVITY_BUFFER_SIZE),
                                     CUPTI_ACTIVITY_BUFFER_SIZE
                                     ));
+#else
+                    /* Add the stream ID to pointer mapping */
+                    add_stream_id_to_ptr(stream_id,
+                                         rdata->resourceHandle.stream);
+#endif
                 }
                 break;
                 
@@ -2349,11 +2546,6 @@ static void cupti_callback(void* userdata,
 
             case CUPTI_CBID_RESOURCE_STREAM_DESTROY_STARTING:
                 {
-                    uint32_t stream_id = 0;
-                    CUPTI_CHECK(cuptiGetStreamId(rdata->context,
-                                                 rdata->resourceHandle.stream,
-                                                 &stream_id));
-
 #if !defined(NDEBUG)
                     if (debug)
                     {
@@ -2363,12 +2555,20 @@ static void cupti_callback(void* userdata,
                     }
 #endif
 
+#if (CUPTI_API_VERSION < 4)
+                    uint32_t stream_id = 0;
+                    CUPTI_CHECK(cuptiGetStreamId(rdata->context,
+                                                 rdata->resourceHandle.stream,
+                                                 &stream_id));
+
                     /* Add messages for this stream's activities */
-                    add_activities(tls, rdata->context,
-                                   rdata->resourceHandle.stream, stream_id);
+                    wrap_add_activities(tls, rdata->context,
+                                        rdata->resourceHandle.stream,
+                                        stream_id);
                     
                     /* Add messages for global activities */
-                    add_activities(tls, NULL, NULL, 0);                    
+                    wrap_add_activities(tls, NULL, NULL, 0);
+#endif
                 }
                 break;
                 
@@ -2400,11 +2600,13 @@ static void cupti_callback(void* userdata,
                     }
 #endif
 
+#if (CUPTI_API_VERSION < 4)
                     /* Add messages for this context's activities */
-                    add_activities(tls, sdata->context, NULL, 0);
+                    wrap_add_activities(tls, sdata->context, NULL, 0);
 
                     /* Add messages for global activities */
-                    add_activities(tls, NULL, NULL, 0);
+                    wrap_add_activities(tls, NULL, NULL, 0);
+#endif
                 }
                 break;
 
@@ -2426,12 +2628,14 @@ static void cupti_callback(void* userdata,
                     }
 #endif
                     
+#if (CUPTI_API_VERSION < 4)
                     /* Add messages for this stream's activities */
-                    add_activities(tls, sdata->context,
-                                   sdata->stream, stream_id);
+                    wrap_add_activities(tls, sdata->context,
+                                        sdata->stream, stream_id);
 
                     /* Add messages for global activities */
-                    add_activities(tls, NULL, NULL, 0);                    
+                    wrap_add_activities(tls, NULL, NULL, 0);
+#endif
                 }
                 break;
 
@@ -2642,13 +2846,19 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
         }
 #endif
         
+#if (CUPTI_API_VERSION < 4)
         /* Enqueue a buffer for CUPTI global activities */
         CUPTI_CHECK(cuptiActivityEnqueueBuffer(
                         NULL, 0,
-                        memalign(CUPTI_ACTIVITY_BUFFER_ALIGNMENT,
+                        memalign(ACTIVITY_RECORD_ALIGNMENT,
                                  CUPTI_ACTIVITY_BUFFER_SIZE),
                         CUPTI_ACTIVITY_BUFFER_SIZE
                         ));
+#else
+        /* Register callbacks with CUPTI for activity buffer handling */
+        CUPTI_CHECK(cuptiActivityRegisterCallbacks(allocate_activities,
+                                                   wrap_add_activities));
+#endif
         
         /* Enable the CUPTI activities of interest */
         CUPTI_CHECK(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONTEXT));
@@ -2828,6 +3038,14 @@ void cbtf_collector_stop()
 #if defined(PAPI_FOUND)
     /* Stop PAPI data collection for this thread */
     stop_papi_data_collection(tls);
+#endif
+
+#if (CUPTI_API_VERSION == 4)
+    /* Wait until CUPTI flushes all activity buffers */
+    CUPTI_CHECK(cuptiActivityFlushAll(0));
+#elif (CUPTI_API_VERSION >= 5)
+    /* Wait until CUPTI flushes all activity buffers */
+    CUPTI_CHECK(cuptiActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
 #endif
 
     /* Pause (stop) data collection for this thread */

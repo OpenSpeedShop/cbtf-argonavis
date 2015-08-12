@@ -18,6 +18,12 @@
 
 set(SOURCES collector.c)
 
+#
+# The following linker options were useful when compiling and linking
+# (not executing) the collector against a variety of CUPTI API versions.
+#
+#set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--unresolved-symbols=report-all -Wl,--warn-unresolved-symbols -Wl,--warn-once")
+
 add_library(cuda-collector-monitor-fileio SHARED ${SOURCES})
 add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
 add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
