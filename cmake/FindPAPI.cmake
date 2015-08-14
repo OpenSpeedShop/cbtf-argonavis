@@ -20,17 +20,17 @@
 include(FindPackageHandleStandardArgs)
 
 find_library(PAPI_SHARED_LIBRARY libpapi.so
-    HINTS $ENV{PAPI_ROOT}
+    HINTS $ENV{PAPI_DIR}
     PATH_SUFFIXES lib lib64
     )
 
 find_library(PAPI_STATIC_LIBRARY libpapi.a
-    HINTS $ENV{PAPI_ROOT}
+    HINTS $ENV{PAPI_DIR}
     PATH_SUFFIXES lib lib64
     )
 
 find_path(PAPI_INCLUDE_DIR papi.h
-    HINTS $ENV{PAPI_ROOT}
+    HINTS $ENV{PAPI_DIR}
     PATH_SUFFIXES include    
     )
 
