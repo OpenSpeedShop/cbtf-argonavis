@@ -40,6 +40,7 @@
 
 #include "CUDA_data.h"
 
+#include "CUPTI_check.h"
 #include "CUPTI_context.h"
 #include "CUPTI_stream.h"
 #include "pthread_check.h"
@@ -122,35 +123,6 @@
 #endif
 
 
-
-/**
- * Checks that the given CUPTI function call returns the value "CUPTI_SUCCESS".
- * If the call was unsuccessful, the returned error is reported on the standard
- * error stream and the application is aborted.
- *
- * @param x    CUPTI function call to be checked.
- */
-#define CUPTI_CHECK(x)                                              \
-    do {                                                            \
-        CUptiResult RETVAL = x;                                     \
-        if (RETVAL != CUPTI_SUCCESS)                                \
-        {                                                           \
-            const char* description = NULL;                         \
-            if (cuptiGetResultString(RETVAL, &description) ==       \
-                CUPTI_SUCCESS)                                      \
-            {                                                       \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d (%s)\n", \
-                        __func__, #x, RETVAL, description);         \
-            }                                                       \
-            else                                                    \
-            {                                                       \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d\n",      \
-                        __func__, #x, RETVAL);                      \
-            }                                                       \
-            fflush(stderr);                                         \
-            abort();                                                \
-        }                                                           \
-    } while (0)
 
 #if defined(PAPI_FOUND)
 /**
