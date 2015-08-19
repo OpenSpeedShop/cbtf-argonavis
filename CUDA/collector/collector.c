@@ -40,6 +40,10 @@
 
 #include "CUDA_data.h"
 
+#include "cuda_context.h"
+#include "cuda_stream.h"
+#include "pthread_check.h"
+
 
 
 /**
@@ -60,24 +64,6 @@
  *          optimal value.
  */
 #define MAX_ADDRESSES_PER_BLOB 1024
-
-/** 
- * Maximum supported number of CUDA contexts. Controls the size of the table
- * used to translate CUPTI context IDs to CUDA context pointers.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than a vague notion that it seems about right.
- */
-#define MAX_CUDA_CONTEXTS 32
-
-/** 
- * Maximum supported number of CUDA streams. Controls the size of the table
- * used to translate CUPTI stream IDs to CUDA stream pointers.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than a vague notion that it seems about right.
- */
-#define MAX_CUDA_STREAMS 32
 
 /**
  * Maximum number of individual (CBTF_cuda_message) messages contained within
@@ -196,25 +182,6 @@
     } while (0)
 #endif
 
-/**
- * Checks that the given pthread function call returns the value "0". If the
- * call was unsuccessful, the returned error is reported on the standard error
- * stream and the application is aborted.
- *
- * @param x    Pthread function call to be checked.
- */
-#define PTHREAD_CHECK(x)                                   \
-    do {                                                   \
-        int RETVAL = x;                                    \
-        if (RETVAL != 0)                                   \
-        {                                                  \
-            fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d\n", \
-                    __func__, #x, RETVAL);                 \
-            fflush(stderr);                                \
-            abort();                                       \
-        }                                                  \
-    } while (0)
-
 
 
 /** String uniquely identifying this collector. */
@@ -243,44 +210,6 @@ static CUpti_SubscriberHandle cupti_subscriber_handle;
  * by the process-wide initialization in cbtf_collector_start().
  */
 static int64_t cupti_time_offset = 0;
-
-/**
- * Table used to translate CUPTI context IDs to CUDA context pointers.
- *
- * For some reason CUPTI returns CUPTI_ACTIVITY_KIND_CONTEXT activity records
- * in the global, rather than the per-context, activity queue. So the "context"
- * parameter to add_activities() is NULL when this record is processed, making
- * it difficult to associate the provided information with a context pointer.
- * The associated CUpti_ActivityContext structure contains a "contextId" field,
- * but there is no direct way to map between context IDs and context pointers
- * similar to the cuptiGetStreamId() function. The only possible solution is
- * to store the mapping from context ID to pointer explicitly as encountered
- * in memcpy, memset, and kernel invocation activity records. Then use that
- * mapping when a CUPTI_ACTIVITY_KIND_CONTEXT activity record is found.
- */
-struct {
-    struct {
-        uint32_t id;
-        CUcontext ptr;
-    } values[MAX_CUDA_CONTEXTS];
-    pthread_mutex_t mutex;
-} context_id_to_ptr;
-
-/**
- * Table used to translate CUPTI stream IDs to CUDA stream pointers.
- *
- * CUPTI API version 4 introduced a mechanism for asynchronous activity buffer
- * delivery. Unfortunately, similar to above, the CUDA stream pointer is not
- * made available when the callback is invoked to deliver the activity buffer.
- * So it must be tracked manually here.
- */
-struct {
-    struct {
-        uint32_t id;
-        CUstream ptr;
-    } values[MAX_CUDA_STREAMS];
-    pthread_mutex_t mutex;
-} stream_id_to_ptr;
 
 #if defined(PAPI_FOUND)
 /**
@@ -444,166 +373,6 @@ static const uint32_t TLSKey = 0xBADC00DA;
 /** Thread-local storage. */
 static __thread TLS the_tls;
 #endif
-
-
-
-/**
- * Add the specified mapping of CUPTI context ID to CUDA context pointer.
- *
- * @param id     CUPTI context ID.
- * @param ptr    Corresponding CUDA context pointer.
- */
-static void add_context_id_to_ptr(uint32_t id, CUcontext ptr)
-{
-    PTHREAD_CHECK(pthread_mutex_lock(&context_id_to_ptr.mutex));
-
-    int i;
-    for (i = 0;
-         (i < MAX_CUDA_CONTEXTS) && (context_id_to_ptr.values[i].ptr != NULL);
-         ++i)
-    {
-        if (context_id_to_ptr.values[i].id == id)
-        {
-            if (context_id_to_ptr.values[i].ptr != ptr)
-            {
-                fprintf(stderr, "[CBTF/CUDA] add_context_id_to_ptr(): "
-                        "CUDA context pointer for CUPTI context "
-                        "ID %u changed!\n", id);
-                fflush(stderr);
-                abort();
-            }
-            
-            break;
-        }
-    }
-
-    if (i == MAX_CUDA_CONTEXTS)
-    {
-        fprintf(stderr, "[CBTF/CUDA] add_context_id_to_ptr(): "
-                "Maximum supported CUDA context pointers (%d) was reached!\n",
-                MAX_CUDA_CONTEXTS);
-        fflush(stderr);
-        abort();
-    }
-    else if (context_id_to_ptr.values[i].ptr == NULL)
-    {
-        context_id_to_ptr.values[i].id = id;
-        context_id_to_ptr.values[i].ptr = ptr;
-    }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&context_id_to_ptr.mutex));
-}
-
-
-
-/**
- * Add the specified mapping of CUPTI stream ID to CUDA stream pointer.
- *
- * @param id     CUPTI stream ID.
- * @param ptr    Corresponding CUDA stream pointer.
- */
-static void add_stream_id_to_ptr(uint32_t id, CUstream ptr)
-{
-    PTHREAD_CHECK(pthread_mutex_lock(&stream_id_to_ptr.mutex));
-
-    int i;
-    for (i = 0;
-         (i < MAX_CUDA_STREAMS) && (stream_id_to_ptr.values[i].ptr != NULL);
-         ++i)
-    {
-        if (stream_id_to_ptr.values[i].id == id)
-        {
-            if (stream_id_to_ptr.values[i].ptr != ptr)
-            {
-                fprintf(stderr, "[CBTF/CUDA] add_stream_id_to_ptr(): "
-                        "CUDA stream pointer for CUPTI stream "
-                        "ID %u changed!\n", id);
-                fflush(stderr);
-                abort();
-            }
-            
-            break;
-        }
-    }
-
-    if (i == MAX_CUDA_STREAMS)
-    {
-        fprintf(stderr, "[CBTF/CUDA] add_stream_id_to_ptr(): "
-                "Maximum supported CUDA stream pointers (%d) was reached!\n",
-                MAX_CUDA_STREAMS);
-        fflush(stderr);
-        abort();
-    }
-    else if (stream_id_to_ptr.values[i].ptr == NULL)
-    {
-        stream_id_to_ptr.values[i].id = id;
-        stream_id_to_ptr.values[i].ptr = ptr;
-    }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&stream_id_to_ptr.mutex));
-}
-
-
-
-/**
- * Find the CUDA context pointer corresponding to the given CUPTI context ID.
- *
- * @param id    CUPTI context ID.
- * @return      Corresponding CUDA context pointer.
- */
-static CUcontext find_context_ptr_from_id(uint32_t id)
-{
-    CUcontext ptr = NULL;
-
-    PTHREAD_CHECK(pthread_mutex_lock(&context_id_to_ptr.mutex));
-    
-    int i;
-    for (i = 0;
-         (i < MAX_CUDA_CONTEXTS) && (context_id_to_ptr.values[i].ptr != NULL);
-         ++i)
-    {
-        if (context_id_to_ptr.values[i].id == id)
-        {
-            ptr = context_id_to_ptr.values[i].ptr;
-            break;
-        }
-    }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&context_id_to_ptr.mutex));
-
-    return ptr;
-}
-
-
-
-/**
- * Find the CUDA stream pointer corresponding to the given CUPTI stream ID.
- *
- * @param id    CUPTI stream ID.
- * @return      Corresponding CUDA stream pointer.
- */
-static CUstream find_stream_ptr_from_id(uint32_t id)
-{
-    CUstream ptr = NULL;
-
-    PTHREAD_CHECK(pthread_mutex_lock(&stream_id_to_ptr.mutex));
-    
-    int i;
-    for (i = 0;
-         (i < MAX_CUDA_STREAMS) && (stream_id_to_ptr.values[i].ptr != NULL);
-         ++i)
-    {
-        if (stream_id_to_ptr.values[i].id == id)
-        {
-            ptr = stream_id_to_ptr.values[i].ptr;
-            break;
-        }
-    }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&stream_id_to_ptr.mutex));
-
-    return ptr;
-}
 
 
 
@@ -1025,7 +794,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
                     &raw_message->CBTF_cuda_message_u.context_info;
 
                 message->context = (CBTF_Protocol_Address)
-                    find_context_ptr_from_id(activity->contextId);
+                    cuda_context_ptr_from_id(activity->contextId);
 
                 message->device = activity->deviceId;
                 
@@ -1152,7 +921,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
 #if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
-                add_context_id_to_ptr(activity->contextId, context);
+                cuda_context_id_to_ptr(activity->contextId, context);
 #endif
             }
             break;
@@ -1186,7 +955,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
 #if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
-                add_context_id_to_ptr(activity->contextId, context);
+                cuda_context_id_to_ptr(activity->contextId, context);
 #endif
             }
             break;
@@ -1236,7 +1005,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
 #if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
-                add_context_id_to_ptr(activity->contextId, context);
+                cuda_context_id_to_ptr(activity->contextId, context);
 #endif
             }
             break;
@@ -1345,7 +1114,7 @@ static void wrap_add_activities(CUcontext context, uint32_t stream_id,
     Assert(tls != NULL);
 
     /* Find the CUDA stream pointer corresponding to this CUPTI stream ID */
-    CUstream stream = find_stream_ptr_from_id(stream_id);
+    CUstream stream = cuda_stream_ptr_from_id(stream_id);
     
     /* Actually add these activities */
     add_activities(tls, context, stream, stream_id, buffer, size);
@@ -2482,7 +2251,7 @@ static void cupti_callback(void* userdata,
                     CUPTI_CHECK(cuptiGetContextId(rdata->context, &context_id));
 
                     /* Add the context ID to pointer mapping */
-                    add_context_id_to_ptr(context_id, rdata->context);
+                    cuda_context_id_to_ptr(context_id, rdata->context);
 #endif
                 }
                 break;
@@ -2536,8 +2305,8 @@ static void cupti_callback(void* userdata,
                                     ));
 #else
                     /* Add the stream ID to pointer mapping */
-                    add_stream_id_to_ptr(stream_id,
-                                         rdata->resourceHandle.stream);
+                    cuda_stream_id_to_ptr(stream_id,
+                                          rdata->resourceHandle.stream);
 #endif
                 }
                 break;

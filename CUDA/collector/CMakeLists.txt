@@ -16,7 +16,12 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-set(SOURCES collector.c)
+set(SOURCES
+    cuda_context.h cuda_context.c
+    cuda_stream.h cuda_stream.c
+    collector.c
+    pthread_check.h
+    )
 
 #
 # The following linker options were useful when compiling and linking
