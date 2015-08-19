@@ -32,18 +32,14 @@
 
 #include "KrellInstitute/Services/Assert.h"
 #include "KrellInstitute/Services/Collector.h"
-#include "KrellInstitute/Services/Data.h"
 #include "KrellInstitute/Services/Time.h"
 #include "KrellInstitute/Services/Timer.h"
-#include "KrellInstitute/Services/TLS.h"
-#include "KrellInstitute/Services/Unwind.h"
-
-#include "CUDA_data.h"
 
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
 #include "CUPTI_stream.h"
 #include "Pthread_check.h"
+#include "TLS.h"
 
 
 
@@ -54,73 +50,6 @@
  *          CUPTI "activity_trace_async.cpp" example uses buffers of 32 KB each.
  */
 #define CUPTI_ACTIVITY_BUFFER_SIZE (32 * 1024 /* 32 KB */)
-
-/**
- * Maximum number of (CBTF_Protocol_Address) stack trace addresses contained
- * within each (CBTF_cuda_data) performance data blob.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than a vague notion that it seems about right. In
- *          the future, performance testing should be done to determine an
- *          optimal value.
- */
-#define MAX_ADDRESSES_PER_BLOB 1024
-
-/**
- * Maximum number of individual (CBTF_cuda_message) messages contained within
- * each (CBTF_cuda_data) performance data blob. 
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than a vague notion that it seems about right. In
- *          the future, performance testing should be done to determine an
- *          optimal value.
- */
-#define MAX_MESSAGES_PER_BLOB 128
-
-
-
-#if defined(PAPI_FOUND)
-/**
- * Maximum number of bytes used to store the periodic sampling deltas within
- * each (CBTF_cuda_data) performance data blob.
- *
- * @note    Assuming that 2 events are being sampled, and that deltas can
- *          typically be encoded in 3 bytes/delta, 9 bytes/sample will be
- *          needed (including the time delta). Periodic sampling occcurs
- *          at 100 samples/second by default. Thus periodic sampling will
- *          require 900 bytes/second under these assumptions, and 32 KB
- *          will store about 36 seconds worth of periodic sampling data,
- *          which seems reasonable.
- */
-#define MAX_DELTAS_BYTES_PER_BLOB (32 * 1024 /* 32 KB */)
-
-/**
- * Maximum supported number of concurrently sampled events. Controls the fixed
- * size of several of the tables related to event sampling.
- *
- * @note    This value should not be construed to be the actual number of
- *          concurrent events supported by any particular hardware. It is
- *          the maximum supported by this performance data collector.
- */
-#define MAX_EVENTS 16
-
-/**
- * Maximum number of (CBTF_Protocol_Address) unique overflow PC addresses
- * contained within each (CBTF_cuda_data) performance data blob.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than a vague notion that it seems about right. In
- *          the future, performance testing should be done to determine an
- *          optimal value.
- */
-#define MAX_OVERFLOW_PCS_PER_BLOB 1024
-
-/**
- * Number of entries in the overflow sampling PC addresses hash table.
- */
-#define OVERFLOW_HASH_TABLE_SIZE \
-    (MAX_OVERFLOW_PCS_PER_BLOB + (MAX_OVERFLOW_PCS_PER_BLOB / 4))
-#endif
 
 
 
@@ -159,6 +88,9 @@
 /** String uniquely identifying this collector. */
 const char* const cbtf_collector_unique_id = "cuda";
 
+/** Flag indicating if debugging is enabled. */
+bool DebugEnabled = FALSE;
+
 /**
  * The number of threads for which are are collecting data (actively or not).
  * This value is atomically incremented in cbtf_collector_start(), decremented
@@ -169,9 +101,6 @@ static struct {
     int value;
     pthread_mutex_t mutex;
 } thread_count = { 0, PTHREAD_MUTEX_INITIALIZER };
-
-/** Flag indicating if debugging is enabled. */
-static bool debug = FALSE;
 
 /** CUPTI subscriber handle for this collector. */
 static CUpti_SubscriberHandle cupti_subscriber_handle;
@@ -213,404 +142,11 @@ static CUDA_SamplingConfig sampling_config;
 static CUDA_EventDescription event_descriptions[MAX_EVENTS];
 
 /** Number of events for which overflow sampling is enabled. */
-static int overflow_sampling_count = 0;
-
-/** Type defining the data stored for each event sample. */
-typedef struct {
-    CBTF_Protocol_Time time;    /**< Time at which the sample was taken. */
-    uint64_t count[MAX_EVENTS]; /**< Count for each sampled event. */
-} EventSample;
+int OverflowSamplingCount = 0;
 #endif
 
 
     
-/** Type defining the data stored in thread-local storage. */
-typedef struct {
-
-    /** Flag indicating if data collection is paused. */
-    bool paused;
-
-    /**
-     * Performance data header to be applied to this thread's performance data.
-     * All of the fields except [addr|time]_[begin|end] are constant throughout
-     * data collection. These exceptions are updated dynamically by the various
-     * collection routines.
-     */
-    CBTF_DataHeader data_header;
-
-    /**
-     * Current performance data blob for this thread. Messages are added by the
-     * various collection routines. It is sent when full, or upon completion of
-     * data collection.
-     */
-    CBTF_cuda_data data;
-
-    /**
-     * Individual messages containing data gathered by this collector. Pointed
-     * to by the performance data blob above.
-     */
-    CBTF_cuda_message messages[MAX_MESSAGES_PER_BLOB];
-
-    /**
-     * Unique, null-terminated, stack traces referenced by the messages. Pointed
-     * to by the performance data blob above.
-     */
-    CBTF_Protocol_Address stack_traces[MAX_ADDRESSES_PER_BLOB];
-
-#if defined(PAPI_FOUND)
-    /** Number of eventsets for this thread. */
-    int eventset_count;
-    
-    /** Eventsets for this thread. */
-    struct {
-
-        /** Handle for the component collecting this eventset. */
-        int component;
-        
-        /** Handle for this eventset. */
-        int eventset;
-
-        /** Number of events in this eventset. */
-        int event_count;
-
-        /** Map event indicies in this eventset to periodic count indicies. */
-        int event_to_periodic[MAX_EVENTS];
-
-        /** Map event indicies in this eventset to overflow count indicies. */
-        int event_to_overflow[MAX_EVENTS];
-        
-    } eventsets[MAX_EVENTS];
-
-    /** Current overflow samples for this thread. */
-    struct {
-
-        /**
-         * Pointer to the message containing the overflow event samples. There
-         * is always one such message within every performance data blob when
-         * overflow event sampling is enabled.
-         */
-        CUDA_OverflowSamples* message;
-
-        /**
-         * Program counter (PC) addresses. Pointed to by the above message.
-         */
-        CBTF_Protocol_Address pcs[MAX_OVERFLOW_PCS_PER_BLOB];
-
-        /**
-         * Event overflow count at those addresses. Pointed to by the above
-         * message.
-         */
-        uint64_t counts[MAX_OVERFLOW_PCS_PER_BLOB * MAX_EVENTS];
-
-        /**
-         * Hash table used to map PC addresses to their array index within
-         * the "pcs" array above. The value stored in the table is actually
-         * one more than the real index so that a zero value can be used to
-         * indicate an empty hash table entry.
-         */
-        uint32_t hash_table[OVERFLOW_HASH_TABLE_SIZE];
-
-    } overflow_samples;
-    
-    /** Current periodic event samples for this thread. */
-    struct {
-        
-        /**
-         * Pointer to the message containing the periodic event samples. There
-         * is always one such message within every performance data blob when
-         * periodic event sampling is enabled.
-         */
-        CUDA_PeriodicSamples* message;
-        
-        /**
-         * Time and event count deltas. Pointed to by the above message.
-         */
-        uint8_t deltas[MAX_DELTAS_BYTES_PER_BLOB];
-        
-        /** Previously taken event sample. */
-        EventSample previous;
-        
-    } periodic_samples;
-#endif
-    
-} TLS;
-
-#if defined(USE_EXPLICIT_TLS)
-/**
- * Key used to look up our thread-local storage. This key <em>must</em> be
- * unique from any other key used by any of the CBTF services.
- */
-static const uint32_t TLSKey = 0xBADC00DA;
-#else
-/** Thread-local storage. */
-static __thread TLS the_tls;
-#endif
-
-
-
-/**
- * Initialize the performance data header and blob contained within the given
- * thread-local storage. This function <em>must</em> be called before any of
- * the collection routines attempts to add a message.
- *
- * @param tls    Thread-local storage to be initialized.
- */
-static void initialize_data(TLS* tls)
-{
-    Assert(tls != NULL);
-
-    tls->data_header.time_begin = ~0;
-    tls->data_header.time_end = 0;
-    tls->data_header.addr_begin = ~0;
-    tls->data_header.addr_end = 0;
-    
-    tls->data.messages.messages_len = 0;
-    tls->data.messages.messages_val = tls->messages;
-    
-    tls->data.stack_traces.stack_traces_len = 0;
-    tls->data.stack_traces.stack_traces_val = tls->stack_traces;
-    
-    memset(tls->stack_traces, 0, sizeof(tls->stack_traces));
-
-#if defined(PAPI_FOUND)
-    if (overflow_sampling_count > 0)
-    {
-        CBTF_cuda_message* raw_message = 
-            &(tls->messages[tls->data.messages.messages_len++]);
-        raw_message->type = OverflowSamples;
-        
-        tls->overflow_samples.message =
-            &raw_message->CBTF_cuda_message_u.overflow_samples;
-
-        tls->overflow_samples.message->time_begin = ~0;
-        tls->overflow_samples.message->time_end = 0;
-        
-        tls->overflow_samples.message->pcs.pcs_len = 0;
-        tls->overflow_samples.message->pcs.pcs_val = tls->overflow_samples.pcs;
-        
-        tls->overflow_samples.message->counts.counts_len = 0;
-        tls->overflow_samples.message->counts.counts_val = 
-            tls->overflow_samples.counts;
-        
-        memset(tls->overflow_samples.hash_table, 0,
-               sizeof(tls->overflow_samples.hash_table));
-    }
-
-    CBTF_cuda_message* raw_message = 
-        &(tls->messages[tls->data.messages.messages_len++]);
-    raw_message->type = PeriodicSamples;
-    
-    tls->periodic_samples.message =
-        &raw_message->CBTF_cuda_message_u.periodic_samples;
-    
-    tls->periodic_samples.message->deltas.deltas_len = 0;
-    tls->periodic_samples.message->deltas.deltas_val = 
-        tls->periodic_samples.deltas;
-    
-    memset(&tls->periodic_samples.previous, 0, sizeof(EventSample));
-#endif
-}
-
-
-
-/**
- * Send the performance data blob contained within the given thread-local
- * storage. The blob is re-initialized (cleared) after being sent. Nothing
- * is sent if the blob is empty.
- *
- * @param tls    Thread-local storage containing data to be sent.
- */
-static void send_data(TLS* tls)
-{
-    Assert(tls != NULL);
-
-    if (tls->data.messages.messages_len > 0)
-    {
-#if !defined(NDEBUG)
-        if (debug)
-        {
-            printf("[CBTF/CUDA] send_data(): "
-                   "sending CBTF_cuda_data message (%u msg, %u pc)\n",
-                   tls->data.messages.messages_len,
-                   tls->data.stack_traces.stack_traces_len);
-        }
-#endif
-
-        cbtf_collector_send(
-            &tls->data_header, (xdrproc_t)xdr_CBTF_cuda_data, &tls->data
-            );
-        initialize_data(tls);
-    }
-}
-
-
-
-/**
- * Add a new message to the performance data blob contained within the given
- * thread-local storage. The current blob is sent and re-initialized (cleared)
- * if it is already full.
- *
- * @param tls    Thread-local storage to which a message is to be added.
- * @return       Pointer to the new message to be filled in by the caller.
- */
-static CBTF_cuda_message* add_message(TLS* tls)
-{
-    Assert(tls != NULL);
-
-    if (tls->data.messages.messages_len == MAX_MESSAGES_PER_BLOB)
-    {
-        send_data(tls);
-    }
-    
-    return &(tls->messages[tls->data.messages.messages_len++]);
-}
-
-
-
-/**
- * Update the performance data header contained within the given thread-local
- * storage with the specified time. Insures that the time interval defined by
- * time_begin and time_end contain the specified time.
- *
- * @param tls     Thread-local storage to be updated.
- * @param time    Time with which to update.
- */
-inline void update_header_with_time(TLS* tls, CBTF_Protocol_Time time)
-{
-    Assert(tls != NULL);
-
-    if (time < tls->data_header.time_begin)
-    {
-        tls->data_header.time_begin = time;
-    }
-    if (time >= tls->data_header.time_end)
-    {
-        tls->data_header.time_end = time + 1;
-    }
-}
-
-
-
-/**
- * Update the performance data header contained within the given thread-local
- * storage with the specified address. Insures that the address range defined
- * by addr_begin and addr_end contain the specified address.
- *
- * @param tls     Thread-local storage to be updated.
- * @param addr    Address with which to update.
- */
-inline void update_header_with_address(TLS* tls, CBTF_Protocol_Address addr)
-{
-    Assert(tls != NULL);
-
-    if (addr < tls->data_header.addr_begin)
-    {
-        tls->data_header.addr_begin = addr;
-    }
-    if (addr >= tls->data_header.addr_end)
-    {
-        tls->data_header.addr_end = addr + 1;
-    }
-}
-
-
-
-/**
- * Add a new stack trace for the current call site to the performance data
- * blob contained within the given thread-local storage.
- *
- * @param tls    Thread-local storage to which the stack trace is to be added.
- * @return       Index of this call site within the performance data blob.
- */
-static uint32_t add_current_call_site(TLS* tls)
-{
-    Assert(tls != NULL);
-
-    /* Get the stack trace for the current call site */
-
-    int frame_count = 0;
-    uint64_t frame_buffer[CBTF_ST_MAXFRAMES];
-    
-    CBTF_GetStackTraceFromContext(
-        NULL, FALSE, 0, CBTF_ST_MAXFRAMES, &frame_count, frame_buffer
-        );
-
-    /* Search for this stack trace amongst the existing stack traces */
-    
-    int i, j;
-    
-    /* Iterate over the addresses in the existing stack traces */
-    for (i = 0, j = 0; i < MAX_ADDRESSES_PER_BLOB; ++i)
-    {
-        /* Is this the terminating null of an existing stack trace? */
-        if (tls->stack_traces[i] == 0)
-        {
-            /*
-             * Terminate the search if a complete match has been found between
-             * this stack trace and the existing stack trace.
-             */
-            if (j == frame_count)
-            {
-                break;
-            }
-
-            /*
-             * Otherwise check for a null in the first or last entry, or
-             * for consecutive nulls, all of which indicate the end of the
-             * existing stack traces, and the need to add this stack trace
-             * to the existing stack traces.
-             */
-            else if ((i == 0) || 
-                     (i == (MAX_ADDRESSES_PER_BLOB - 1)) ||
-                     (tls->stack_traces[i - 1] == 0))
-            {
-                /*
-                 * Send performance data for this thread if there isn't enough
-                 * room in the existing stack traces to add this stack trace.
-                 * Doing so frees up enough space for this stack trace.
-                 */
-                if ((i + frame_count) >= MAX_ADDRESSES_PER_BLOB)
-                {
-                    send_data(tls);
-                    i = 0;
-                }
-
-                /* Add this stack trace to the existing stack traces */
-                for (j = 0; j < frame_count; ++j, ++i)
-                {
-                    tls->stack_traces[i] = frame_buffer[j];
-                    update_header_with_address(tls, tls->stack_traces[i]);
-                }
-                tls->stack_traces[i] = 0;
-                tls->data.stack_traces.stack_traces_len = i + 1;
-              
-                break;
-            }
-            
-            /* Otherwise reset the pointer within this stack trace to zero. */
-            else
-            {
-                j = 0;
-            }
-        }
-        else
-        {
-            /*
-             * Advance the pointer within this stack trace if the current
-             * address within this stack trace matches the current address
-             * within the existing stack traces. Otherwise reset the pointer
-             * to zero.
-             */
-            j = (frame_buffer[j] == tls->stack_traces[i]) ? (j + 1) : 0;
-        }
-    }
-
-    /* Return the index of this stack trace within the existing stack traces */
-    return i - frame_count;
-}
-
-
-
 /**
  * Convert a CUpti_ActivityMemcpyKind enumerant to a CUDA_CopyKind enumerant.
  *
@@ -758,7 +294,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
                 /* Add a message for this activity */
 
-                CBTF_cuda_message* raw_message = add_message(tls);
+                CBTF_cuda_message* raw_message = TLS_add_message(tls);
                 Assert(raw_message != NULL);
                 raw_message->type = ContextInfo;
                 
@@ -804,7 +340,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
                 /* Add a message for this activity */
 
-                CBTF_cuda_message* raw_message = add_message(tls);
+                CBTF_cuda_message* raw_message = TLS_add_message(tls);
                 Assert(raw_message != NULL);
                 raw_message->type = DeviceInfo;
                 
@@ -865,7 +401,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
                 /* Add a message for this activity */
 
-                CBTF_cuda_message* raw_message = add_message(tls);
+                CBTF_cuda_message* raw_message = TLS_add_message(tls);
                 Assert(raw_message != NULL);
                 raw_message->type = CopiedMemory;
                 
@@ -888,8 +424,8 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
                     (activity->flags & CUPTI_ACTIVITY_FLAG_MEMCPY_ASYNC) ?
                     true : false;
                 
-                update_header_with_time(tls, message->time_begin);
-                update_header_with_time(tls, message->time_end);
+                TLS_update_header_with_time(tls, message->time_begin);
+                TLS_update_header_with_time(tls, message->time_end);
 
 #if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
@@ -907,7 +443,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
                 /* Add a message for this activity */
 
-                CBTF_cuda_message* raw_message = add_message(tls);
+                CBTF_cuda_message* raw_message = TLS_add_message(tls);
                 Assert(raw_message != NULL);
                 raw_message->type = SetMemory;
                 
@@ -922,8 +458,8 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
                 message->size = activity->bytes;
                 
-                update_header_with_time(tls, message->time_begin);
-                update_header_with_time(tls, message->time_end);
+                TLS_update_header_with_time(tls, message->time_begin);
+                TLS_update_header_with_time(tls, message->time_end);
 
 #if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
@@ -941,7 +477,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
                 /* Add a message for this activity */
 
-                CBTF_cuda_message* raw_message = add_message(tls);
+                CBTF_cuda_message* raw_message = TLS_add_message(tls);
                 Assert(raw_message != NULL);
                 raw_message->type = ExecutedKernel;
 
@@ -972,8 +508,8 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
                 message->dynamic_shared_memory = activity->dynamicSharedMemory;
                 message->local_memory = activity->localMemoryTotal;
 
-                update_header_with_time(tls, message->time_begin);
-                update_header_with_time(tls, message->time_end);
+                TLS_update_header_with_time(tls, message->time_begin);
+                TLS_update_header_with_time(tls, message->time_end);
 
 #if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
@@ -990,7 +526,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
     }
 
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] add_activities(): "
                "added %u activity records for stream %p in context %p\n",
@@ -1078,12 +614,7 @@ static void wrap_add_activities(CUcontext context, uint32_t stream_id,
                                 uint8_t* buffer, size_t allocated, size_t size)
 {
     /* Access our thread-local storage */
-#if defined(USE_EXPLICIT_TLS)
-    TLS* tls = CBTF_GetTLS(TLSKey);
-#else
-    TLS* tls = &the_tls;
-#endif
-    Assert(tls != NULL);
+    TLS* tls = TLS_get();
 
     /* Find the CUDA stream pointer corresponding to this CUPTI stream ID */
     CUstream stream = CUPTI_stream_ptr_from_id(stream_id);
@@ -1110,15 +641,10 @@ static void wrap_add_activities(CUcontext context, uint32_t stream_id,
 static void papi_callback(int eventset, void* address,
                           long long overflow_vector, void* context)
 {
-    Assert(overflow_sampling_count > 0);
+    Assert(OverflowSamplingCount > 0);
 
     /* Access our thread-local storage */
-#if defined(USE_EXPLICIT_TLS)
-    TLS* tls = CBTF_GetTLS(TLSKey);
-#else
-    TLS* tls = &the_tls;
-#endif
-    Assert(tls != NULL);
+    TLS* tls = TLS_get();
 
     /* Do nothing if data collection is paused for this thread */
     if (tls->paused)
@@ -1183,20 +709,20 @@ static void papi_callback(int eventset, void* address,
             if (tls->overflow_samples.message->pcs.pcs_len == 
                 MAX_OVERFLOW_PCS_PER_BLOB)
             {
-                send_data(tls);
+                TLS_send_data(tls);
                 continue;
             }
 
             /* Add an entry for this sample to the existing overflow samples */
             pcs[tls->overflow_samples.message->pcs.pcs_len] = pc;
             memset(&counts[tls->overflow_samples.message->counts.counts_len],
-                   0, overflow_sampling_count * sizeof(uint64_t));            
+                   0, OverflowSamplingCount * sizeof(uint64_t));            
             hash_table[bucket] = ++tls->overflow_samples.message->pcs.pcs_len;
             tls->overflow_samples.message->counts.counts_len += 
-                overflow_sampling_count;
+                OverflowSamplingCount;
                                     
             /* Update the header with this sample's address */
-            update_header_with_address(tls, pc);            
+            TLS_update_header_with_address(tls, pc);            
         }
 
         /*
@@ -1206,7 +732,7 @@ static void papi_callback(int eventset, void* address,
          * the counts array, and then adds that result to the base index of
          * this PC address within the counts array.
          */
-        int e, base = (hash_table[bucket] - 1) * overflow_sampling_count;
+        int e, base = (hash_table[bucket] - 1) * OverflowSamplingCount;
         for (e = 0; e < event_count; ++e)
         {
             counts[base + tls->eventsets[s].event_to_overflow[events[e]]]++;
@@ -1218,7 +744,7 @@ static void papi_callback(int eventset, void* address,
 
     /* Update the header (and overflow samples message) with this sample time */
 
-    update_header_with_time(tls, time);
+    TLS_update_header_with_time(tls, time);
 
     if (time < tls->overflow_samples.message->time_begin)
     {
@@ -1242,12 +768,7 @@ static void papi_callback(int eventset, void* address,
 static void timer_callback(const ucontext_t* context)
 {
     /* Access our thread-local storage */
-#if defined(USE_EXPLICIT_TLS)
-    TLS* tls = CBTF_GetTLS(TLSKey);
-#else
-    TLS* tls = &the_tls;
-#endif
-    Assert(tls != NULL);
+    TLS* tls = TLS_get();
 
     /* Do nothing if data collection is paused for this thread */
     if (tls->paused)
@@ -1300,8 +821,8 @@ static void timer_callback(const ucontext_t* context)
     {
         /*
          * Compute the delta between the previous and current samples for this
-         * value. The previous event sample is zeroed by initialize_data(), so
-         * there is no need to treat the first sample specially here.
+         * value. The previous event sample is zeroed by TLS_initialize_data(),
+         * so there is no need to treat the first sample specially here.
          */
 
         uint64_t delta = *current - *previous;
@@ -1346,7 +867,7 @@ static void timer_callback(const ucontext_t* context)
 
         if ((index + num_bytes) > MAX_DELTAS_BYTES_PER_BLOB)
         {
-            send_data(tls);
+            TLS_send_data(tls);
             index = tls->periodic_samples.message->deltas.deltas_len;
             previous = &tls->periodic_samples.previous.time - 1;
             current = &sample.time - 1;
@@ -1377,7 +898,7 @@ static void timer_callback(const ucontext_t* context)
     tls->periodic_samples.message->deltas.deltas_len = index;
 
     /* Update the header with this sample time */
-    update_header_with_time(tls, sample.time);
+    TLS_update_header_with_time(tls, sample.time);
     
     /* Replace the previous event sample with the new event sample */
     memcpy(&tls->periodic_samples.previous, &sample, sizeof(EventSample));
@@ -1403,7 +924,7 @@ static void start_papi_data_collection(TLS* tls)
     }
 
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] start_papi_data_collection()\n");
     }
@@ -1509,7 +1030,7 @@ static void stop_papi_data_collection(TLS* tls)
     }
 
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] stop_papi_data_collection()\n");
     }
@@ -1556,7 +1077,7 @@ static void start_papi()
     PTHREAD_CHECK(pthread_mutex_lock(&context_count.mutex));
     
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] start_papi(): "
                "context_count.value = %d --> %d\n",
@@ -1591,7 +1112,7 @@ static void stop_papi()
     PTHREAD_CHECK(pthread_mutex_lock(&context_count.mutex));
     
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] stop_papi(): "
                "context_count.value = %d --> %d\n",
@@ -1629,12 +1150,7 @@ static void cupti_callback(void* userdata,
                            const void* data)
 {
     /* Access our thread-local storage */
-#if defined(USE_EXPLICIT_TLS)
-    TLS* tls = CBTF_GetTLS(TLSKey);
-#else
-    TLS* tls = &the_tls;
-#endif
-    Assert(tls != NULL);
+    TLS* tls = TLS_get();
 
 #if defined(PAPI_FOUND)
     /* Is a CUDA context being created? */
@@ -1683,7 +1199,7 @@ static void cupti_callback(void* userdata,
                         (cuLaunchKernel_params*)cbdata->functionParams;
 
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] enter cuLaunchKernel()\n");
                     }
@@ -1691,7 +1207,7 @@ static void cupti_callback(void* userdata,
                     
                     /* Add a message for this event */
                     
-                    CBTF_cuda_message* raw_message = add_message(tls);
+                    CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
                     raw_message->type = EnqueueRequest;
                     
@@ -1702,9 +1218,9 @@ static void cupti_callback(void* userdata,
                     message->time = CBTF_GetTime();
                     message->context = (CBTF_Protocol_Address)cbdata->context;
                     message->stream = (CBTF_Protocol_Address)params->hStream;
-                    message->call_site = add_current_call_site(tls);
+                    message->call_site = TLS_add_current_call_site(tls);
                     
-                    update_header_with_time(tls, message->time);
+                    TLS_update_header_with_time(tls, message->time);
                 }
                 break;
 
@@ -1755,7 +1271,7 @@ static void cupti_callback(void* userdata,
                 if (cbdata->callbackSite == CUPTI_API_ENTER)
                 {
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] enter cuMemcpy*()\n");
                     }
@@ -1763,7 +1279,7 @@ static void cupti_callback(void* userdata,
                     
                     /* Add a message for this event */
                     
-                    CBTF_cuda_message* raw_message = add_message(tls);
+                    CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
                     raw_message->type = EnqueueRequest;
                     
@@ -1879,9 +1395,9 @@ static void cupti_callback(void* userdata,
 
                     }
 
-                    message->call_site = add_current_call_site(tls);
+                    message->call_site = TLS_add_current_call_site(tls);
                     
-                    update_header_with_time(tls, message->time);
+                    TLS_update_header_with_time(tls, message->time);
                 }
                 break;
 
@@ -1908,7 +1424,7 @@ static void cupti_callback(void* userdata,
                 if (cbdata->callbackSite == CUPTI_API_ENTER)
                 {
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] enter cuMemset*()\n");
                     }
@@ -1916,7 +1432,7 @@ static void cupti_callback(void* userdata,
                     
                     /* Add a message for this event */
                     
-                    CBTF_cuda_message* raw_message = add_message(tls);
+                    CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
                     raw_message->type = EnqueueRequest;
                     
@@ -1972,9 +1488,9 @@ static void cupti_callback(void* userdata,
 
                     }
 
-                    message->call_site = add_current_call_site(tls);
+                    message->call_site = TLS_add_current_call_site(tls);
                     
-                    update_header_with_time(tls, message->time);
+                    TLS_update_header_with_time(tls, message->time);
                 }
                 break;
 
@@ -1987,7 +1503,7 @@ static void cupti_callback(void* userdata,
                         (cuModuleGetFunction_params*)cbdata->functionParams;
                     
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] exit cuModuleGetFunction()\n");
                     }
@@ -1995,7 +1511,7 @@ static void cupti_callback(void* userdata,
                     
                     /* Add a message for this event */
                     
-                    CBTF_cuda_message* raw_message = add_message(tls);
+                    CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
                     raw_message->type = ResolvedFunction;
                     
@@ -2008,7 +1524,7 @@ static void cupti_callback(void* userdata,
                     message->function = (char*)params->name;
                     message->handle = (CBTF_Protocol_Address)*(params->hfunc);
                     
-                    update_header_with_time(tls, message->time);
+                    TLS_update_header_with_time(tls, message->time);
                 }
                 break;
 
@@ -2021,7 +1537,7 @@ static void cupti_callback(void* userdata,
                         (cuModuleLoad_params*)cbdata->functionParams;
                     
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] exit cuModuleLoad()\n");
                     }
@@ -2029,7 +1545,7 @@ static void cupti_callback(void* userdata,
                     
                     /* Add a message for this event */
                     
-                    CBTF_cuda_message* raw_message = add_message(tls);
+                    CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
                     raw_message->type = LoadedModule;
                     
@@ -2041,7 +1557,7 @@ static void cupti_callback(void* userdata,
                     message->module.checksum = 0;
                     message->handle = (CBTF_Protocol_Address)*(params->module);
                     
-                    update_header_with_time(tls, message->time);
+                    TLS_update_header_with_time(tls, message->time);
                 }
                 break;
 
@@ -2054,7 +1570,7 @@ static void cupti_callback(void* userdata,
                         (cuModuleLoadData_params*)cbdata->functionParams;
                     
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] exit cuModuleLoadData()\n");
                     }
@@ -2062,7 +1578,7 @@ static void cupti_callback(void* userdata,
                         
                     /* Add a message for this event */
                     
-                    CBTF_cuda_message* raw_message = add_message(tls);
+                    CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
                     raw_message->type = LoadedModule;
                     
@@ -2077,7 +1593,7 @@ static void cupti_callback(void* userdata,
                     message->module.checksum = 0;
                     message->handle = (CBTF_Protocol_Address)*(params->module);
                         
-                    update_header_with_time(tls, message->time);
+                    TLS_update_header_with_time(tls, message->time);
                 }
                 break;
                 
@@ -2090,7 +1606,7 @@ static void cupti_callback(void* userdata,
                         (cuModuleLoadDataEx_params*)cbdata->functionParams;
                     
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] exit cuModuleLoadDataEx()\n");
                     }
@@ -2098,7 +1614,7 @@ static void cupti_callback(void* userdata,
                     
                     /* Add a message for this event */
                     
-                    CBTF_cuda_message* raw_message = add_message(tls);
+                    CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
                     raw_message->type = LoadedModule;
                     
@@ -2113,7 +1629,7 @@ static void cupti_callback(void* userdata,
                     message->module.checksum = 0;
                     message->handle = (CBTF_Protocol_Address)*(params->module);
                         
-                    update_header_with_time(tls, message->time);
+                    TLS_update_header_with_time(tls, message->time);
                 }
                 break;
                 
@@ -2126,7 +1642,7 @@ static void cupti_callback(void* userdata,
                         (cuModuleLoadFatBinary_params*)cbdata->functionParams;
                     
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] exit cuModuleLoadFatBinary()\n");
                     }
@@ -2134,7 +1650,7 @@ static void cupti_callback(void* userdata,
                     
                     /* Add a message for this event */
                     
-                    CBTF_cuda_message* raw_message = add_message(tls);
+                    CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
                     raw_message->type = LoadedModule;
                     
@@ -2148,7 +1664,7 @@ static void cupti_callback(void* userdata,
                     message->module.checksum = 0;
                     message->handle = (CBTF_Protocol_Address)*(params->module);
                         
-                    update_header_with_time(tls, message->time);
+                    TLS_update_header_with_time(tls, message->time);
                 }
                 break;
                 
@@ -2162,7 +1678,7 @@ static void cupti_callback(void* userdata,
                             (cuModuleUnload_params*)cbdata->functionParams;
                         
 #if !defined(NDEBUG)
-                        if (debug)
+                        if (DebugEnabled)
                         {
                             printf("[CBTF/CUDA] exit cuModuleUnload()\n");
                         }
@@ -2170,7 +1686,7 @@ static void cupti_callback(void* userdata,
                         
                         /* Add a message for this event */
                         
-                        CBTF_cuda_message* raw_message = add_message(tls);
+                        CBTF_cuda_message* raw_message = TLS_add_message(tls);
                         Assert(raw_message != NULL);
                         raw_message->type = UnloadedModule;
                         
@@ -2180,7 +1696,7 @@ static void cupti_callback(void* userdata,
                         message->time = CBTF_GetTime();
                         message->handle = (CBTF_Protocol_Address)params->hmod;
                         
-                        update_header_with_time(tls, message->time);
+                        TLS_update_header_with_time(tls, message->time);
                     }
                 }
                 break;
@@ -2203,7 +1719,7 @@ static void cupti_callback(void* userdata,
             case CUPTI_CBID_RESOURCE_CONTEXT_CREATED:
                 {
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] created context %p\n",
                                rdata->context);
@@ -2233,7 +1749,7 @@ static void cupti_callback(void* userdata,
             case CUPTI_CBID_RESOURCE_CONTEXT_DESTROY_STARTING:
                 {
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] destroying context %p\n",
                                rdata->context);
@@ -2255,7 +1771,7 @@ static void cupti_callback(void* userdata,
             case CUPTI_CBID_RESOURCE_STREAM_CREATED:
                 {
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] created stream %p in context %p\n",
                                rdata->resourceHandle.stream, rdata->context);
@@ -2288,7 +1804,7 @@ static void cupti_callback(void* userdata,
             case CUPTI_CBID_RESOURCE_STREAM_DESTROY_STARTING:
                 {
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] "
                                "destroying stream %p in context %p\n",
@@ -2334,7 +1850,7 @@ static void cupti_callback(void* userdata,
             case CUPTI_CBID_SYNCHRONIZE_CONTEXT_SYNCHRONIZED:
                 {
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] synchronized context %p\n",
                                sdata->context);
@@ -2361,7 +1877,7 @@ static void cupti_callback(void* userdata,
                                                  &stream_id));
                     
 #if !defined(NDEBUG)
-                    if (debug)
+                    if (DebugEnabled)
                     {
                         printf("[CBTF/CUDA] "
                                "synchronized stream %p in context %p\n",
@@ -2406,7 +1922,7 @@ static void parse_configuration(const char* const configuration)
     static const char* const kIntervalPrefix = "interval=";
 
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] parse_configuration(\"%s\")\n", configuration);
     }
@@ -2467,7 +1983,7 @@ static void parse_configuration(const char* const configuration)
             sampling_config.interval = (uint64_t)interval;
 
 #if !defined(NDEBUG)
-            if (debug)
+            if (DebugEnabled)
             {
                 printf("[CBTF/CUDA] parse_configuration(): "
                        "sampling interval = %llu nS\n",
@@ -2500,7 +2016,7 @@ static void parse_configuration(const char* const configuration)
                 event->threshold = atoi(at + 1);
                 
 #if !defined(NDEBUG)
-                if (debug)
+                if (DebugEnabled)
                 {
                     printf("[CBTF/CUDA] parse_configuration(): "
                            "event name = \"%s\", threshold = %d\n",
@@ -2515,7 +2031,7 @@ static void parse_configuration(const char* const configuration)
                 strcpy(event->name, ptr);
             
 #if !defined(NDEBUG)
-                if (debug)
+                if (DebugEnabled)
                 {
                     printf("[CBTF/CUDA] parse_configuration(): "
                            "event name = \"%s\"\n", event->name);
@@ -2526,7 +2042,7 @@ static void parse_configuration(const char* const configuration)
             /* Increment the number of overflow sampled events */
             if (event->threshold > 0)
             {
-                ++overflow_sampling_count;
+                ++OverflowSamplingCount;
             }
             
             /* Increment the number of sampled events */
@@ -2544,7 +2060,7 @@ static void parse_configuration(const char* const configuration)
 void cbtf_collector_start(const CBTF_DataHeader* const header)
 {
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] cbtf_collector_start()\n");
     }
@@ -2555,7 +2071,7 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     PTHREAD_CHECK(pthread_mutex_lock(&thread_count.mutex));
     
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] cbtf_collector_start(): "
                "thread_count.value = %d --> %d\n",
@@ -2566,10 +2082,10 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     if (thread_count.value == 0)
     {
         /* Should debugging be enabled? */
-        debug = (getenv("CBTF_DEBUG_COLLECTOR") != NULL);
+        DebugEnabled = (getenv("CBTF_DEBUG_COLLECTOR") != NULL);
         
 #if !defined(NDEBUG)
-        if (debug)
+        if (DebugEnabled)
         {
             printf("[CBTF/CUDA] cbtf_collector_start()\n");
             printf("[CBTF/CUDA] cbtf_collector_start(): "
@@ -2651,28 +2167,23 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 
     PTHREAD_CHECK(pthread_mutex_unlock(&thread_count.mutex));
 
-    /* Create, zero-initialize, and access our thread-local storage */
-#if defined(USE_EXPLICIT_TLS)
-    TLS* tls = malloc(sizeof(TLS));
-    Assert(tls != NULL);
-    OpenSS_SetTLS(TLSKey, tls);
-#else
-    TLS* tls = &the_tls;
-#endif
-    Assert(tls != NULL);
-    memset(tls, 0, sizeof(TLS));
+    /* Create and zero-initialize our thread-local storage */
+    TLS_initialize();
+    
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
 
     /* Copy the header into our thread-local storage for future use */
     memcpy(&tls->data_header, header, sizeof(CBTF_DataHeader));
 
     /* Initialize our performance data header and blob */
-    initialize_data(tls);
+    TLS_initialize_data(tls);
 
 #if defined(PAPI_FOUND)
     /* Append the event sampling configuration to our performance data blob */
     if (sampling_config.events.events_len > 0)
     {
-        CBTF_cuda_message* raw_message = add_message(tls);
+        CBTF_cuda_message* raw_message = TLS_add_message(tls);
         Assert(raw_message != NULL);
         raw_message->type = SamplingConfig;
         
@@ -2700,19 +2211,14 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 void cbtf_collector_pause()
 {
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] cbtf_collector_pause()\n");
     }
 #endif
     
     /* Access our thread-local storage */
-#if defined(USE_EXPLICIT_TLS)
-    TLS* tls = CBTF_GetTLS(TLSKey);
-#else
-    TLS* tls = &the_tls;
-#endif
-    Assert(tls != NULL);
+    TLS* tls = TLS_get();
 
 #if defined(PAPI_FOUND)
     /* Stop PAPI data collection for this thread */
@@ -2731,19 +2237,14 @@ void cbtf_collector_pause()
 void cbtf_collector_resume()
 {
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] cbtf_collector_resume()\n");
     }
 #endif
 
     /* Access our thread-local storage */
-#if defined(USE_EXPLICIT_TLS)
-    TLS* tls = CBTF_GetTLS(TLSKey);
-#else
-    TLS* tls = &the_tls;
-#endif
-    Assert(tls != NULL);
+    TLS* tls = TLS_get();
 
     /* Resume data collection for this thread */
     tls->paused = FALSE;
@@ -2762,19 +2263,14 @@ void cbtf_collector_resume()
 void cbtf_collector_stop()
 {
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] cbtf_collector_stop()\n");
     }
 #endif
     
     /* Access our thread-local storage */
-#if defined(USE_EXPLICIT_TLS)
-    TLS* tls = CBTF_GetTLS(TLSKey);
-#else
-    TLS* tls = &the_tls;
-#endif
-    Assert(tls != NULL);
+    TLS* tls = TLS_get();
 
 #if defined(PAPI_FOUND)
     /* Stop PAPI data collection for this thread */
@@ -2793,20 +2289,17 @@ void cbtf_collector_stop()
     tls->paused = TRUE;
     
     /* Send any remaining performance data for this thread */
-    send_data(tls);
+    TLS_send_data(tls);
     
     /* Destroy our thread-local storage */
-#if defined(USE_EXPLICIT_TLS)
-    free(tls);
-    OpenSS_SetTLS(TLSKey, NULL);
-#endif
+    TLS_destroy();
 
     /* Atomically decrement the active thread count */
     
     PTHREAD_CHECK(pthread_mutex_lock(&thread_count.mutex));
     
 #if !defined(NDEBUG)
-    if (debug)
+    if (DebugEnabled)
     {
         printf("[CBTF/CUDA] cbtf_collector_stop(): "
                "thread_count.value = %d --> %d\n",

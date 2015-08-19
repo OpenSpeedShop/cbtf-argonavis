@@ -17,11 +17,12 @@
 ################################################################################
 
 set(SOURCES
-    collector.c
+    collector.h collector.c
     CUPTI_check.h
     CUPTI_context.h CUPTI_context.c
     CUPTI_stream.h CUPTI_stream.c
     Pthread_check.h
+    TLS.h TLS.c
     )
 
 #
