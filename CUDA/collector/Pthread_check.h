@@ -23,8 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
-
 /**
  * Checks that the given pthread function call returns the value "0". If the
  * call was unsuccessful, the returned error is reported on the standard error

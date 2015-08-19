@@ -16,7 +16,7 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Declaration of the CUPTI stream lookup functions.
+/** @file Declaration of the CUPTI stream support functions.
  *
  * When referring to a particular CUDA stream, CUPTI will sometimes use the
  * CUDA stream pointer, and sometimes a unique CUPTI stream ID. Frequently
@@ -35,8 +35,6 @@
 #include <cupti.h>
 #include <inttypes.h>
 
-
-
 /**
  * Add the specified mapping of CUPTI stream ID to CUDA stream pointer.
  *
@@ -45,8 +43,6 @@
  */
 extern void CUPTI_stream_add(uint32_t id, CUstream ptr);
 
-
-
 /**
  * Find the CUDA stream pointer corresponding to the given CUPTI stream ID.
  *
@@ -54,8 +50,6 @@ extern void CUPTI_stream_add(uint32_t id, CUstream ptr);
  * @return      Corresponding CUDA stream pointer.
  */
 extern CUstream CUPTI_stream_ptr_from_id(uint32_t id);
-
-
 
 /**
  * Find the CUPTI stream ID corresponding to the given CUDA stream pointer.

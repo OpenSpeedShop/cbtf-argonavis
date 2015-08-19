@@ -24,8 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
-
 /**
  * Checks that the given CUPTI function call returns the value "CUPTI_SUCCESS".
  * If the call was unsuccessful, the returned error is reported on the standard
