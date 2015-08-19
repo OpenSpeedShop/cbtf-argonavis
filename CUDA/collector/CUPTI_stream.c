@@ -16,31 +16,31 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Definition of the CUDA context support functions. */
+/** @file Definition of the CUPTI stream support functions. */
 
 #include <pthread.h>
 
-#include "cuda_context.h"
+#include "CUPTI_stream.h"
 #include "pthread_check.h"
 
 
 
 /** 
- * Maximum supported number of CUDA contexts. Controls the size of the table
- * used to translate between CUPTI context IDs and CUDA context pointers.
+ * Maximum supported number of CUDA streams. Controls the size of the table
+ * used to translate between CUPTI stream IDs and CUDA stream pointers.
  *
  * @note    Currently there is no specific basis for the selection of this
  *          value other than testing indicates it is usually sufficient.
  */
-#define MAX_CUDA_CONTEXTS 32
+#define MAX_STREAMS 32
 
 
 
-/** Table used to translate CUPTI context IDs to CUDA context pointers. */
+/** Table used to translate CUPTI stream IDs to CUDA stream pointers. */
 struct {
     uint32_t id;
-    CUcontext ptr;
-} Table[MAX_CUDA_CONTEXTS];
+    CUstream ptr;
+} Table[MAX_STREAMS];
 
 /** Mutex controlling access to Table. */
 pthread_mutex_t Mutex;
@@ -49,19 +49,19 @@ pthread_mutex_t Mutex;
 
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-void cuda_context_add(uint32_t id, CUcontext ptr)
+void CUPTI_stream_add(uint32_t id, CUstream ptr)
 {
     PTHREAD_CHECK(pthread_mutex_lock(&Mutex));
 
     int i;
-    for (i = 0; (i < MAX_CUDA_CONTEXTS) && (Table[i].ptr != NULL); ++i)
+    for (i = 0; (i < MAX_STREAMS) && (Table[i].ptr != NULL); ++i)
     {
         if (Table[i].id == id)
         {
             if (Table[i].ptr != ptr)
             {
-                fprintf(stderr, "[CBTF/CUDA] cuda_context_add(): "
-                        "CUDA context pointer for CUPTI context "
+                fprintf(stderr, "[CBTF/CUDA] CUPTI_stream_add(): "
+                        "CUDA stream pointer for CUPTI stream "
                         "ID %u changed!\n", id);
                 fflush(stderr);
                 abort();
@@ -71,11 +71,11 @@ void cuda_context_add(uint32_t id, CUcontext ptr)
         }
     }
 
-    if (i == MAX_CUDA_CONTEXTS)
+    if (i == MAX_STREAMS)
     {
-        fprintf(stderr, "[CBTF/CUDA] cuda_context_add(): "
-                "Maximum supported CUDA context pointers (%d) was reached!\n",
-                MAX_CUDA_CONTEXTS);
+        fprintf(stderr, "[CBTF/CUDA] CUPTI_stream_add(): "
+                "Maximum supported CUDA stream pointers (%d) was reached!\n",
+                MAX_STREAMS);
         fflush(stderr);
         abort();
     }
@@ -92,14 +92,14 @@ void cuda_context_add(uint32_t id, CUcontext ptr)
 
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-CUcontext cuda_context_ptr_from_id(uint32_t id)
+CUstream CUPTI_stream_ptr_from_id(uint32_t id)
 {
-    CUcontext ptr = NULL;
+    CUstream ptr = NULL;
 
     PTHREAD_CHECK(pthread_mutex_lock(&Mutex));
     
     int i;
-    for (i = 0; (i < MAX_CUDA_CONTEXTS) && (Table[i].ptr != NULL); ++i)
+    for (i = 0; (i < MAX_STREAMS) && (Table[i].ptr != NULL); ++i)
     {
         if (Table[i].id == id)
         {
@@ -108,10 +108,10 @@ CUcontext cuda_context_ptr_from_id(uint32_t id)
         }
     }
 
-    if (i == MAX_CUDA_CONTEXTS)
+    if (i == MAX_STREAMS)
     {
-        fprintf(stderr, "[CBTF/CUDA] cuda_context_ptr_from_id(): "
-                "Unknown CUPTI context ID (%u) encountered!\n", id);
+        fprintf(stderr, "[CBTF/CUDA] CUPTI_stream_ptr_from_id(): "
+                "Unknown CUPTI stream ID (%u) encountered!\n", id);
         fflush(stderr);
         abort();
     }
@@ -125,14 +125,14 @@ CUcontext cuda_context_ptr_from_id(uint32_t id)
 
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-uint32_t cuda_context_id_from_ptr(CUcontext ptr)
+uint32_t CUPTI_stream_id_from_ptr(CUstream ptr)
 {
     uint32_t id = 0;
 
     PTHREAD_CHECK(pthread_mutex_lock(&Mutex));
     
     int i;
-    for (i = 0; (i < MAX_CUDA_CONTEXTS) && (Table[i].ptr != NULL); ++i)
+    for (i = 0; (i < MAX_STREAMS) && (Table[i].ptr != NULL); ++i)
     {
         if (Table[i].ptr == ptr)
         {
@@ -141,10 +141,10 @@ uint32_t cuda_context_id_from_ptr(CUcontext ptr)
         }
     }
 
-    if (i == MAX_CUDA_CONTEXTS)
+    if (i == MAX_STREAMS)
     {
-        fprintf(stderr, "[CBTF/CUDA] cuda_context_id_from_ptr(): "
-                "Unknown CUDA context pointer (%p) encountered!\n", ptr);
+        fprintf(stderr, "[CBTF/CUDA] CUPTI_stream_id_from_ptr(): "
+                "Unknown CUDA stream pointer (%p) encountered!\n", ptr);
         fflush(stderr);
         abort();
     }

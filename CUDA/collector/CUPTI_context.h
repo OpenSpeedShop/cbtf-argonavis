@@ -16,7 +16,7 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Declaration of the CUDA context lookup functions.
+/** @file Declaration of the CUPTI context lookup functions.
  *
  * When referring to a particular CUDA context, CUPTI will sometimes use the
  * CUDA context pointer, and sometimes a unique CUPTI context ID. Frequently
@@ -43,7 +43,7 @@
  * @param id     CUPTI context ID.
  * @param ptr    Corresponding CUDA context pointer.
  */
-extern void cuda_context_add(uint32_t id, CUcontext ptr);
+extern void CUPTI_context_add(uint32_t id, CUcontext ptr);
 
 
 
@@ -53,7 +53,7 @@ extern void cuda_context_add(uint32_t id, CUcontext ptr);
  * @param id    CUPTI context ID.
  * @return      Corresponding CUDA context pointer.
  */
-extern CUcontext cuda_context_ptr_from_id(uint32_t id);
+extern CUcontext CUPTI_context_ptr_from_id(uint32_t id);
 
 
 
@@ -63,4 +63,4 @@ extern CUcontext cuda_context_ptr_from_id(uint32_t id);
  * @param ptr    CUDA context pointer.
  * @return       Corresponding CUPTI context ID.
  */
-extern uint32_t cuda_context_id_from_ptr(CUcontext ptr);
+extern uint32_t CUPTI_context_id_from_ptr(CUcontext ptr);

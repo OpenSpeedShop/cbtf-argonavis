@@ -17,9 +17,9 @@
 ################################################################################
 
 set(SOURCES
-    cuda_context.h cuda_context.c
-    cuda_stream.h cuda_stream.c
     collector.c
+    CUPTI_context.h CUPTI_context.c
+    CUPTI_stream.h CUPTI_stream.c
     pthread_check.h
     )
 

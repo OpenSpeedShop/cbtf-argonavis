@@ -40,8 +40,8 @@
 
 #include "CUDA_data.h"
 
-#include "cuda_context.h"
-#include "cuda_stream.h"
+#include "CUPTI_context.h"
+#include "CUPTI_stream.h"
 #include "pthread_check.h"
 
 
@@ -794,7 +794,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
                     &raw_message->CBTF_cuda_message_u.context_info;
 
                 message->context = (CBTF_Protocol_Address)
-                    cuda_context_ptr_from_id(activity->contextId);
+                    CUPTI_context_ptr_from_id(activity->contextId);
 
                 message->device = activity->deviceId;
                 
@@ -921,7 +921,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
 #if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
-                cuda_context_id_to_ptr(activity->contextId, context);
+                CUPTI_context_id_to_ptr(activity->contextId, context);
 #endif
             }
             break;
@@ -955,7 +955,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
 #if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
-                cuda_context_id_to_ptr(activity->contextId, context);
+                CUPTI_context_id_to_ptr(activity->contextId, context);
 #endif
             }
             break;
@@ -1005,7 +1005,7 @@ static void add_activities(TLS* tls, CUcontext context, CUstream stream,
 
 #if (CUPTI_API_VERSION < 5)
                 /* Add the context ID to pointer mapping from this activity */
-                cuda_context_id_to_ptr(activity->contextId, context);
+                CUPTI_context_id_to_ptr(activity->contextId, context);
 #endif
             }
             break;
@@ -1114,7 +1114,7 @@ static void wrap_add_activities(CUcontext context, uint32_t stream_id,
     Assert(tls != NULL);
 
     /* Find the CUDA stream pointer corresponding to this CUPTI stream ID */
-    CUstream stream = cuda_stream_ptr_from_id(stream_id);
+    CUstream stream = CUPTI_stream_ptr_from_id(stream_id);
     
     /* Actually add these activities */
     add_activities(tls, context, stream, stream_id, buffer, size);
@@ -2251,7 +2251,7 @@ static void cupti_callback(void* userdata,
                     CUPTI_CHECK(cuptiGetContextId(rdata->context, &context_id));
 
                     /* Add the context ID to pointer mapping */
-                    cuda_context_id_to_ptr(context_id, rdata->context);
+                    CUPTI_context_id_to_ptr(context_id, rdata->context);
 #endif
                 }
                 break;
@@ -2305,8 +2305,8 @@ static void cupti_callback(void* userdata,
                                     ));
 #else
                     /* Add the stream ID to pointer mapping */
-                    cuda_stream_id_to_ptr(stream_id,
-                                          rdata->resourceHandle.stream);
+                    CUPTI_stream_id_to_ptr(stream_id,
+                                           rdata->resourceHandle.stream);
 #endif
                 }
                 break;

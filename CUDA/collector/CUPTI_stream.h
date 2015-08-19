@@ -16,7 +16,7 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Declaration of the CUDA stream lookup functions.
+/** @file Declaration of the CUPTI stream lookup functions.
  *
  * When referring to a particular CUDA stream, CUPTI will sometimes use the
  * CUDA stream pointer, and sometimes a unique CUPTI stream ID. Frequently
@@ -43,7 +43,7 @@
  * @param id     CUPTI stream ID.
  * @param ptr    Corresponding CUDA stream pointer.
  */
-extern void cuda_stream_add(uint32_t id, CUstream ptr);
+extern void CUPTI_stream_add(uint32_t id, CUstream ptr);
 
 
 
@@ -53,7 +53,7 @@ extern void cuda_stream_add(uint32_t id, CUstream ptr);
  * @param id    CUPTI stream ID.
  * @return      Corresponding CUDA stream pointer.
  */
-extern CUstream cuda_stream_ptr_from_id(uint32_t id);
+extern CUstream CUPTI_stream_ptr_from_id(uint32_t id);
 
 
 
@@ -63,4 +63,4 @@ extern CUstream cuda_stream_ptr_from_id(uint32_t id);
  * @param ptr    CUDA stream pointer.
  * @return       Corresponding CUPTI stream ID.
  */
-extern uint32_t cuda_stream_id_from_ptr(CUstream ptr);
+extern uint32_t CUPTI_stream_id_from_ptr(CUstream ptr);
