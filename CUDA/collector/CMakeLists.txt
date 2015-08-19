@@ -21,7 +21,7 @@ set(SOURCES
     CUPTI_check.h
     CUPTI_context.h CUPTI_context.c
     CUPTI_stream.h CUPTI_stream.c
-    pthread_check.h
+    Pthread_check.h
     )
 
 #

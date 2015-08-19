@@ -21,7 +21,7 @@
 #include <pthread.h>
 
 #include "CUPTI_stream.h"
-#include "pthread_check.h"
+#include "Pthread_check.h"
 
 
 
