@@ -296,6 +296,11 @@ static void add(TLS* tls, CUcontext context, CUstream stream,
                 const CUpti_ActivityMemcpy* const activity =
                     (CUpti_ActivityMemcpy*)raw_activity;
 
+#if (CUPTI_API_VERSION < 5)
+                /* Add the context ID to pointer mapping from this activity */
+                CUPTI_context_id_to_ptr(activity->contextId, context);
+#endif
+
                 /* Add a message for this activity */
 
                 CBTF_cuda_message* raw_message = TLS_add_message(tls);
@@ -323,45 +328,6 @@ static void add(TLS* tls, CUcontext context, CUstream stream,
                 
                 TLS_update_header_with_time(tls, message->time_begin);
                 TLS_update_header_with_time(tls, message->time_end);
-
-#if (CUPTI_API_VERSION < 5)
-                /* Add the context ID to pointer mapping from this activity */
-                CUPTI_context_id_to_ptr(activity->contextId, context);
-#endif
-            }
-            break;
-
-
-
-        case CUPTI_ACTIVITY_KIND_MEMSET:
-            {
-                const CUpti_ActivityMemset* const activity =
-                    (CUpti_ActivityMemset*)raw_activity;
-
-                /* Add a message for this activity */
-
-                CBTF_cuda_message* raw_message = TLS_add_message(tls);
-                Assert(raw_message != NULL);
-                raw_message->type = SetMemory;
-                
-                CUDA_SetMemory* message =
-                    &raw_message->CBTF_cuda_message_u.set_memory;
-
-                message->context = (CBTF_Protocol_Address)context;
-                message->stream = (CBTF_Protocol_Address)stream;
-
-                message->time_begin = activity->start + TimeOffset;
-                message->time_end = activity->end + TimeOffset;
-
-                message->size = activity->bytes;
-                
-                TLS_update_header_with_time(tls, message->time_begin);
-                TLS_update_header_with_time(tls, message->time_end);
-
-#if (CUPTI_API_VERSION < 5)
-                /* Add the context ID to pointer mapping from this activity */
-                CUPTI_context_id_to_ptr(activity->contextId, context);
-#endif
             }
             break;
 
@@ -371,6 +337,11 @@ static void add(TLS* tls, CUcontext context, CUstream stream,
             {
                 const CUpti_ActivityKernel* const activity =
                     (CUpti_ActivityKernel*)raw_activity;
+
+#if (CUPTI_API_VERSION < 5)
+                /* Add the context ID to pointer mapping from this activity */
+                CUPTI_context_id_to_ptr(activity->contextId, context);
+#endif
 
                 /* Add a message for this activity */
 
@@ -407,11 +378,6 @@ static void add(TLS* tls, CUcontext context, CUstream stream,
 
                 TLS_update_header_with_time(tls, message->time_begin);
                 TLS_update_header_with_time(tls, message->time_end);
-
-#if (CUPTI_API_VERSION < 5)
-                /* Add the context ID to pointer mapping from this activity */
-                CUPTI_context_id_to_ptr(activity->contextId, context);
-#endif
             }
             break;
 
@@ -581,6 +547,5 @@ void CUPTI_activities_stop()
     CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONTEXT));
     CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_DEVICE));
     CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_MEMCPY));
-    CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_MEMSET));
     CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_KERNEL));
 }
