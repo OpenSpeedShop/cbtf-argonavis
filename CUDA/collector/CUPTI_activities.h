@@ -16,19 +16,30 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Declaration of CUDA collector globals. */
+/** @file Declaration of CUPTI activity functions. */
 
 #pragma once
 
-#include <stdbool.h>
+#include <cupti.h>
 
-#include "CUDA_data.h"
+#include "TLS.h"
 
-/* Flag indicating if debugging is enabled. */
-extern bool IsDebugEnabled;
+/* Start CUPTI activity data collection for this process. */
+void CUPTI_activities_start();
 
-/* Event sampling configuration. */
-extern CUDA_SamplingConfig TheSamplingConfig;
+/*
+ * Add the CUPTI activity data for the specified CUDA context/stream to the
+ * performance data blob contained within the given thread-local storage.
+ *
+ * @param tls        Thread-local storage to which activities are to be added.
+ * @param context    CUDA context for the activities to be added.
+ * @param stream     CUDA stream for the activities to be added.
+ */
+void CUPTI_activities_add(TLS* tls, CUcontext context, CUstream stream);
 
-/* Number of events for which overflow sampling is enabled. */
-extern int OverflowSamplingCount;
+/* Ensure that all CUPTI activity data for this process has been flushed. */
+void CUPTI_activities_flush();
+
+/* Stop CUPTI activity data collection for this process. */
+void CUPTI_activities_stop();
+

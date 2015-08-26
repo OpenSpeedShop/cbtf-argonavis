@@ -35,26 +35,26 @@
 #include <cupti.h>
 #include <inttypes.h>
 
-/**
+/*
  * Add the specified mapping of CUPTI stream ID to CUDA stream pointer.
  *
  * @param id     CUPTI stream ID.
  * @param ptr    Corresponding CUDA stream pointer.
  */
-extern void CUPTI_stream_add(uint32_t id, CUstream ptr);
+void CUPTI_stream_add(uint32_t id, CUstream ptr);
 
-/**
+/*
  * Find the CUDA stream pointer corresponding to the given CUPTI stream ID.
  *
  * @param id    CUPTI stream ID.
  * @return      Corresponding CUDA stream pointer.
  */
-extern CUstream CUPTI_stream_ptr_from_id(uint32_t id);
+CUstream CUPTI_stream_ptr_from_id(uint32_t id);
 
-/**
+/*
  * Find the CUPTI stream ID corresponding to the given CUDA stream pointer.
  *
  * @param ptr    CUDA stream pointer.
  * @return       Corresponding CUPTI stream ID.
  */
-extern uint32_t CUPTI_stream_id_from_ptr(CUstream ptr);
+uint32_t CUPTI_stream_id_from_ptr(CUstream ptr);

@@ -16,19 +16,17 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Declaration of CUDA collector globals. */
+/** @file Declaration of CUPTI time support functions and globals. */
 
 #pragma once
 
-#include <stdbool.h>
+#include <inttypes.h>
 
-#include "CUDA_data.h"
+/*
+ * The offset that must be added to all CUPTI-provided time values in order to
+ * translate them to the same time "origin" provided by CBTF_GetTime().
+ */
+extern int64_t TimeOffset;
 
-/* Flag indicating if debugging is enabled. */
-extern bool IsDebugEnabled;
-
-/* Event sampling configuration. */
-extern CUDA_SamplingConfig TheSamplingConfig;
-
-/* Number of events for which overflow sampling is enabled. */
-extern int OverflowSamplingCount;
+/* Estimate the offset from CUPTI-provided times to CBTF_GetTime(). */
+void CUPTI_time_synchronize();

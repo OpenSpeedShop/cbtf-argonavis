@@ -18,9 +18,13 @@
 
 set(SOURCES
     collector.h collector.c
+    CUPTI_activities.c CUPTI_activities.h
+    CUPTI_callbacks.c CUPTI_callbacks.h
     CUPTI_check.h
     CUPTI_context.h CUPTI_context.c
     CUPTI_stream.h CUPTI_stream.c
+    CUPTI_time.h CUPTI_time.h
+    PAPI.h PAPI.c
     Pthread_check.h
     TLS.h TLS.c
     )

@@ -16,19 +16,18 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Declaration of CUDA collector globals. */
+/** @file Declaration of PAPI functions. */
 
 #pragma once
 
-#include <stdbool.h>
+/* Called by the CUPTI callback to notify when a CUDA context is created. */
+void PAPI_notify_cuda_context_created();
 
-#include "CUDA_data.h"
+/* Called by the CUPTI callback to notify when a CUDA context is destroyed. */
+void PAPI_notify_cuda_context_destroyed();
 
-/* Flag indicating if debugging is enabled. */
-extern bool IsDebugEnabled;
+/* Start PAPI data collection for the current thread. */
+void PAPI_start_data_collection();
 
-/* Event sampling configuration. */
-extern CUDA_SamplingConfig TheSamplingConfig;
-
-/* Number of events for which overflow sampling is enabled. */
-extern int OverflowSamplingCount;
+/* Stop PAPI data collection for the current thread. */
+void PAPI_stop_data_collection();

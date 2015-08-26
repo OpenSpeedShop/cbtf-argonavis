@@ -35,26 +35,26 @@
 #include <cupti.h>
 #include <inttypes.h>
 
-/**
+/*
  * Add the specified mapping of CUPTI context ID to CUDA context pointer.
  *
  * @param id     CUPTI context ID.
  * @param ptr    Corresponding CUDA context pointer.
  */
-extern void CUPTI_context_add(uint32_t id, CUcontext ptr);
+void CUPTI_context_add(uint32_t id, CUcontext ptr);
 
-/**
+/*
  * Find the CUDA context pointer corresponding to the given CUPTI context ID.
  *
  * @param id    CUPTI context ID.
  * @return      Corresponding CUDA context pointer.
  */
-extern CUcontext CUPTI_context_ptr_from_id(uint32_t id);
+CUcontext CUPTI_context_ptr_from_id(uint32_t id);
 
-/**
+/*
  * Find the CUPTI context ID corresponding to the given CUDA context pointer.
  *
  * @param ptr    CUDA context pointer.
  * @return       Corresponding CUPTI context ID.
  */
-extern uint32_t CUPTI_context_id_from_ptr(CUcontext ptr);
+uint32_t CUPTI_context_id_from_ptr(CUcontext ptr);

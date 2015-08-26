@@ -46,8 +46,11 @@ static __thread TLS Implicit;
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Allocate and zero-initialize the thread-local storage for the current thread.
+ * This function <em>must</em> be called by a thread before that thread attempts
+ * to call any of this file's other functions or memory corruption will result!
+ */
 void TLS_initialize()
 {
 #if defined(USE_EXPLICIT_TLS)
@@ -63,8 +66,9 @@ void TLS_initialize()
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Destroy the thread-local storage for the current thread.
+ */
 void TLS_destroy()
 {
 #if defined(USE_EXPLICIT_TLS)
@@ -77,8 +81,11 @@ void TLS_destroy()
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Access the thread-local storage for the current thread.
+ *
+ * @return    Thread-local storage for the current thread.
+ */
 TLS* TLS_get()
 {
     /* Access our thread-local storage */
@@ -92,8 +99,13 @@ TLS* TLS_get()
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Initialize the performance data header and blob contained within the given
+ * thread-local storage. This function <em>must</em> be called before any of
+ * the collection routines attempts to add a message.
+ *
+ * @param tls    Thread-local storage to be initialized.
+ */
 void TLS_initialize_data(TLS* tls)
 {
     Assert(tls != NULL);
@@ -152,8 +164,13 @@ void TLS_initialize_data(TLS* tls)
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Send the performance data blob contained within the given thread-local
+ * storage. The blob is re-initialized (cleared) after being sent. Nothing
+ * is sent if the blob is empty.
+ *
+ * @param tls    Thread-local storage containing data to be sent.
+ */
 void TLS_send_data(TLS* tls)
 {
     Assert(tls != NULL);
@@ -161,7 +178,7 @@ void TLS_send_data(TLS* tls)
     if (tls->data.messages.messages_len > 0)
     {
 #if !defined(NDEBUG)
-        if (DebugEnabled)
+        if (IsDebugEnabled)
         {
             printf("[CBTF/CUDA] TLS_send_data(): "
                    "sending CBTF_cuda_data message (%u msg, %u pc)\n",
@@ -179,8 +196,14 @@ void TLS_send_data(TLS* tls)
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Add a new message to the performance data blob contained within the given
+ * thread-local storage. The current blob is sent and re-initialized (cleared)
+ * if it is already full.
+ *
+ * @param tls    Thread-local storage to which a message is to be added.
+ * @return       Pointer to the new message to be filled in by the caller.
+ */
 CBTF_cuda_message* TLS_add_message(TLS* tls)
 {
     Assert(tls != NULL);
@@ -195,8 +218,14 @@ CBTF_cuda_message* TLS_add_message(TLS* tls)
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Update the performance data header contained within the given thread-local
+ * storage with the specified time. Insures that the time interval defined by
+ * time_begin and time_end contain the specified time.
+ *
+ * @param tls     Thread-local storage to be updated.
+ * @param time    Time with which to update.
+ */
 void TLS_update_header_with_time(TLS* tls, CBTF_Protocol_Time time)
 {
     Assert(tls != NULL);
@@ -213,8 +242,14 @@ void TLS_update_header_with_time(TLS* tls, CBTF_Protocol_Time time)
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Update the performance data header contained within the given thread-local
+ * storage with the specified address. Insures that the address range defined
+ * by addr_begin and addr_end contain the specified address.
+ *
+ * @param tls     Thread-local storage to be updated.
+ * @param addr    Address with which to update.
+ */
 void TLS_update_header_with_address(TLS* tls, CBTF_Protocol_Address addr)
 {
     Assert(tls != NULL);
@@ -231,8 +266,13 @@ void TLS_update_header_with_address(TLS* tls, CBTF_Protocol_Address addr)
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Add a new stack trace for the current call site to the performance data
+ * blob contained within the given thread-local storage.
+ *
+ * @param tls    Thread-local storage to which the stack trace is to be added.
+ * @return       Index of this call site within the performance data blob.
+ */
 uint32_t TLS_add_current_call_site(TLS* tls)
 {
     Assert(tls != NULL);

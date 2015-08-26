@@ -37,28 +37,32 @@
 
 
 /** Table used to translate CUPTI stream IDs to CUDA stream pointers. */
-struct {
-    uint32_t id;
-    CUstream ptr;
-} Table[MAX_STREAMS];
+static struct {
+    struct {
+        uint32_t id;
+        CUstream ptr;
+    } values[MAX_STREAMS];
+    pthread_mutex_t mutex;
+} Streams = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
 
-/** Mutex controlling access to Table. */
-pthread_mutex_t Mutex;
 
 
-
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Add the specified mapping of CUPTI stream ID to CUDA stream pointer.
+ *
+ * @param id     CUPTI stream ID.
+ * @param ptr    Corresponding CUDA stream pointer.
+ */
 void CUPTI_stream_add(uint32_t id, CUstream ptr)
 {
-    PTHREAD_CHECK(pthread_mutex_lock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_lock(&Streams.mutex));
 
     int i;
-    for (i = 0; (i < MAX_STREAMS) && (Table[i].ptr != NULL); ++i)
+    for (i = 0; (i < MAX_STREAMS) && (Streams.values[i].ptr != NULL); ++i)
     {
-        if (Table[i].id == id)
+        if (Streams.values[i].id == id)
         {
-            if (Table[i].ptr != ptr)
+            if (Streams.values[i].ptr != ptr)
             {
                 fprintf(stderr, "[CBTF/CUDA] CUPTI_stream_add(): "
                         "CUDA stream pointer for CUPTI stream "
@@ -79,31 +83,35 @@ void CUPTI_stream_add(uint32_t id, CUstream ptr)
         fflush(stderr);
         abort();
     }
-    else if (Table[i].ptr == NULL)
+    else if (Streams.values[i].ptr == NULL)
     {
-        Table[i].id = id;
-        Table[i].ptr = ptr;
+        Streams.values[i].id = id;
+        Streams.values[i].ptr = ptr;
     }
     
-    PTHREAD_CHECK(pthread_mutex_unlock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_unlock(&Streams.mutex));
 }
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Find the CUDA stream pointer corresponding to the given CUPTI stream ID.
+ *
+ * @param id    CUPTI stream ID.
+ * @return      Corresponding CUDA stream pointer.
+ */
 CUstream CUPTI_stream_ptr_from_id(uint32_t id)
 {
     CUstream ptr = NULL;
 
-    PTHREAD_CHECK(pthread_mutex_lock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_lock(&Streams.mutex));
     
     int i;
-    for (i = 0; (i < MAX_STREAMS) && (Table[i].ptr != NULL); ++i)
+    for (i = 0; (i < MAX_STREAMS) && (Streams.values[i].ptr != NULL); ++i)
     {
-        if (Table[i].id == id)
+        if (Streams.values[i].id == id)
         {
-            ptr = Table[i].ptr;
+            ptr = Streams.values[i].ptr;
             break;
         }
     }
@@ -116,27 +124,31 @@ CUstream CUPTI_stream_ptr_from_id(uint32_t id)
         abort();
     }
 
-    PTHREAD_CHECK(pthread_mutex_unlock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_unlock(&Streams.mutex));
     
     return ptr;
 }
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Find the CUPTI stream ID corresponding to the given CUDA stream pointer.
+ *
+ * @param ptr    CUDA stream pointer.
+ * @return       Corresponding CUPTI stream ID.
+ */
 uint32_t CUPTI_stream_id_from_ptr(CUstream ptr)
 {
     uint32_t id = 0;
 
-    PTHREAD_CHECK(pthread_mutex_lock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_lock(&Streams.mutex));
     
     int i;
-    for (i = 0; (i < MAX_STREAMS) && (Table[i].ptr != NULL); ++i)
+    for (i = 0; (i < MAX_STREAMS) && (Streams.values[i].ptr != NULL); ++i)
     {
-        if (Table[i].ptr == ptr)
+        if (Streams.values[i].ptr == ptr)
         {
-            id = Table[i].id;
+            id = Streams.values[i].id;
             break;
         }
     }
@@ -149,7 +161,7 @@ uint32_t CUPTI_stream_id_from_ptr(CUstream ptr)
         abort();
     }
 
-    PTHREAD_CHECK(pthread_mutex_unlock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_unlock(&Streams.mutex));
     
     return id;
 }

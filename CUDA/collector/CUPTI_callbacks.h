@@ -16,19 +16,12 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Declaration of CUDA collector globals. */
+/** @file Declaration of CUPTI callback functions. */
 
 #pragma once
 
-#include <stdbool.h>
+/* Subscribe to CUPTI callbacks for this process. */
+void CUPTI_callbacks_subscribe();
 
-#include "CUDA_data.h"
-
-/* Flag indicating if debugging is enabled. */
-extern bool IsDebugEnabled;
-
-/* Event sampling configuration. */
-extern CUDA_SamplingConfig TheSamplingConfig;
-
-/* Number of events for which overflow sampling is enabled. */
-extern int OverflowSamplingCount;
+/* Unsubscribe to CUPTI callbacks for this process. */
+void CUPTI_callbacks_unsubscribe();

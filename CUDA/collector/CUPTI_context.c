@@ -37,28 +37,32 @@
 
 
 /** Table used to translate CUPTI context IDs to CUDA context pointers. */
-struct {
-    uint32_t id;
-    CUcontext ptr;
-} Table[MAX_CONTEXTS];
+static struct {
+    struct {
+        uint32_t id;
+        CUcontext ptr;
+    } values[MAX_CONTEXTS];
+    pthread_mutex_t mutex;
+} Contexts = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
 
-/** Mutex controlling access to Table. */
-pthread_mutex_t Mutex;
 
 
-
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Add the specified mapping of CUPTI context ID to CUDA context pointer.
+ *
+ * @param id     CUPTI context ID.
+ * @param ptr    Corresponding CUDA context pointer.
+ */
 void CUPTI_context_add(uint32_t id, CUcontext ptr)
 {
-    PTHREAD_CHECK(pthread_mutex_lock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_lock(&Contexts.mutex));
 
     int i;
-    for (i = 0; (i < MAX_CONTEXTS) && (Table[i].ptr != NULL); ++i)
+    for (i = 0; (i < MAX_CONTEXTS) && (Contexts.values[i].ptr != NULL); ++i)
     {
-        if (Table[i].id == id)
+        if (Contexts.values[i].id == id)
         {
-            if (Table[i].ptr != ptr)
+            if (Contexts.values[i].ptr != ptr)
             {
                 fprintf(stderr, "[CBTF/CUDA] CUPTI_context_add(): "
                         "CUDA context pointer for CUPTI context "
@@ -79,31 +83,35 @@ void CUPTI_context_add(uint32_t id, CUcontext ptr)
         fflush(stderr);
         abort();
     }
-    else if (Table[i].ptr == NULL)
+    else if (Contexts.values[i].ptr == NULL)
     {
-        Table[i].id = id;
-        Table[i].ptr = ptr;
+        Contexts.values[i].id = id;
+        Contexts.values[i].ptr = ptr;
     }
     
-    PTHREAD_CHECK(pthread_mutex_unlock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_unlock(&Contexts.mutex));
 }
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Find the CUDA context pointer corresponding to the given CUPTI context ID.
+ *
+ * @param id    CUPTI context ID.
+ * @return      Corresponding CUDA context pointer.
+ */
 CUcontext CUPTI_context_ptr_from_id(uint32_t id)
 {
     CUcontext ptr = NULL;
 
-    PTHREAD_CHECK(pthread_mutex_lock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_lock(&Contexts.mutex));
     
     int i;
-    for (i = 0; (i < MAX_CONTEXTS) && (Table[i].ptr != NULL); ++i)
+    for (i = 0; (i < MAX_CONTEXTS) && (Contexts.values[i].ptr != NULL); ++i)
     {
-        if (Table[i].id == id)
+        if (Contexts.values[i].id == id)
         {
-            ptr = Table[i].ptr;
+            ptr = Contexts.values[i].ptr;
             break;
         }
     }
@@ -116,27 +124,31 @@ CUcontext CUPTI_context_ptr_from_id(uint32_t id)
         abort();
     }
 
-    PTHREAD_CHECK(pthread_mutex_unlock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_unlock(&Contexts.mutex));
     
     return ptr;
 }
 
 
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/**
+ * Find the CUPTI context ID corresponding to the given CUDA context pointer.
+ *
+ * @param ptr    CUDA context pointer.
+ * @return       Corresponding CUPTI context ID.
+ */
 uint32_t CUPTI_context_id_from_ptr(CUcontext ptr)
 {
     uint32_t id = 0;
 
-    PTHREAD_CHECK(pthread_mutex_lock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_lock(&Contexts.mutex));
     
     int i;
-    for (i = 0; (i < MAX_CONTEXTS) && (Table[i].ptr != NULL); ++i)
+    for (i = 0; (i < MAX_CONTEXTS) && (Contexts.values[i].ptr != NULL); ++i)
     {
-        if (Table[i].ptr == ptr)
+        if (Contexts.values[i].ptr == ptr)
         {
-            id = Table[i].id;
+            id = Contexts.values[i].id;
             break;
         }
     }
@@ -149,7 +161,7 @@ uint32_t CUPTI_context_id_from_ptr(CUcontext ptr)
         abort();
     }
 
-    PTHREAD_CHECK(pthread_mutex_unlock(&Mutex));
+    PTHREAD_CHECK(pthread_mutex_unlock(&Contexts.mutex));
     
     return id;
 }
