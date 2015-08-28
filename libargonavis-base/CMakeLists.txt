@@ -19,10 +19,11 @@
 
 add_library(argonavis-base SHARED
     ArgoNavis/Base/Address.hpp
-    ArgoNavis/Base/AddressBitmap.hpp AddressBitmap.cpp    
+    ArgoNavis/Base/AddressBitmap.hpp AddressBitmap.cpp
     ArgoNavis/Base/AddressRange.hpp
     ArgoNavis/Base/AddressSet.hpp AddressSet.cpp
-    ArgoNavis/Base/AddressSpaces.hpp AddressSpaces.cpp 
+    ArgoNavis/Base/AddressSpaces.hpp AddressSpaces.cpp
+    ArgoNavis/Base/BlobVisitor.hpp
     ArgoNavis/Base/FileName.hpp FileName.cpp
     ArgoNavis/Base/Function.hpp Function.cpp
     ArgoNavis/Base/FunctionVisitor.hpp
