@@ -29,7 +29,7 @@ add_library(argonavis-cuda SHARED
     ArgoNavis/CUDA/PerformanceData.hpp PerformanceData.cpp
     ArgoNavis/CUDA/PeriodicSampleVisitor.hpp
     ArgoNavis/CUDA/StackTrace.hpp
-    ArgoNavis/CUDA/Stringify.hpp
+    ArgoNavis/CUDA/stringify.hpp
     ArgoNavis/CUDA/Vector.hpp
     DataTable.hpp DataTable.cpp
     )

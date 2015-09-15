@@ -275,16 +275,6 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     };
 
     template <>
-    struct Stringify<CBTF_Protocol_FileName>
-    {
-        static std::string impl(const CBTF_Protocol_FileName& value)
-        {
-            return boost::str(boost::format("%1% (%2%)") % value.path % 
-                              stringify<boost::uint64_t>(value.checksum));
-        }
-    };
-    
-    template <>
     struct Stringify<CUDA_CachePreference>
     {
         static std::string impl(const CUDA_CachePreference& value)
@@ -349,33 +339,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         {
             switch (value)
             {
+            case CompletedExec: return "CompletedExec";
+            case CompletedXfer: return "CompletedXfer";
             case ContextInfo: return "ContextInfo";
-            case CopiedMemory: return "CopiedMemory";
             case DeviceInfo: return "DeviceInfo";
-            case EnqueueRequest: return "EnqueueRequest";
-            case ExecutedKernel: return "ExecutedKernel";
-            case LoadedModule: return "LoadedModule";
+            case EnqueueExec: return "EnqueueExec";
+            case EnqueueXfer: return "EnqueueXfer";
             case OverflowSamples: return "OverflowSamples";
             case PeriodicSamples: return "PeriodicSamples";
-            case ResolvedFunction: return "ResolvedFunction";
             case SamplingConfig: return "SamplingConfig";
-            case SetMemory: return "SetMemory";
-            case UnloadedModule: return "UnloadedModule";
-            }
-            return "?";
-        }
-    };
-
-    template <>
-    struct Stringify<CUDA_RequestTypes>
-    {
-        static std::string impl(const CUDA_RequestTypes& value)
-        {
-            switch (value)
-            {
-            case LaunchKernel: return "LaunchKernel";
-            case MemoryCopy: return "MemoryCopy";
-            case MemorySet: return "MemorySet";
             }
             return "?";
         }
@@ -392,32 +364,57 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                            value.name % value.threshold);
         }
     };
-    
+
     template <>
-    struct Stringify<CUDA_ContextInfo>
+    struct Stringify<CUDA_CompletedExec>
     {
-        static std::string impl(const CUDA_ContextInfo& value)
+        static std::string impl(const CUDA_CompletedExec& value)
         {
             return stringify<Fields>(
                 boost::assign::tuple_list_of
+                ("id", stringify(value.id))
+                ("time_begin", stringify(value.time_begin))
+                ("time_end", stringify(value.time_end))
                 ("context", stringify(value.context))
-                ("device", stringify(value.device))
-                ("compute_api", stringify(value.compute_api))
+                ("stream", stringify(value.stream))
+                ("function", stringify<FunctionName>(value.function))
+                ("grid", 
+                 stringify<std::vector<boost::int32_t> >(
+                     boost::assign::list_of
+                     (value.grid[0])
+                     (value.grid[1])
+                     (value.grid[2])
+                     ))
+                ("block",
+                 stringify<std::vector<boost::int32_t> >(
+                     boost::assign::list_of
+                     (value.block[0])
+                     (value.block[1])
+                     (value.block[2])
+                     ))
+                ("cache_preference", stringify(value.cache_preference))
+                ("registers_per_thread", stringify(value.registers_per_thread))
+                ("static_shared_memory", 
+                 stringify<ByteCount>(value.static_shared_memory))
+                ("dynamic_shared_memory",
+                 stringify<ByteCount>(value.dynamic_shared_memory))
+                ("local_memory", stringify<ByteCount>(value.local_memory))
                 );
         }
     };
-    
+
     template <>
-    struct Stringify<CUDA_CopiedMemory>
+    struct Stringify<CUDA_CompletedXfer>
     {
-        static std::string impl(const CUDA_CopiedMemory& value)
+        static std::string impl(const CUDA_CompletedXfer& value)
         {
             return stringify<Fields>(
                 boost::assign::tuple_list_of
-                ("context", stringify(value.context))
-                ("stream", stringify(value.stream))
+                ("id", stringify(value.id))
                 ("time_begin", stringify(value.time_begin))
                 ("time_end", stringify(value.time_end))
+                ("context", stringify(value.context))
+                ("stream", stringify(value.stream))
                 ("size", stringify<ByteCount>(value.size))
                 ("kind", stringify(value.kind))
                 ("source_kind", stringify(value.source_kind))
@@ -427,6 +424,19 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         }
     };
 
+    template <>
+    struct Stringify<CUDA_ContextInfo>
+    {
+        static std::string impl(const CUDA_ContextInfo& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("context", stringify(value.context))
+                ("device", stringify(value.device))
+                );
+        }
+    };
+    
     template <>
     struct Stringify<CUDA_DeviceInfo>
     {
@@ -486,72 +496,33 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     };
     
     template <>
-    struct Stringify<CUDA_EnqueueRequest>
+    struct Stringify<CUDA_EnqueueExec>
     {
-        static std::string impl(const CUDA_EnqueueRequest& value)
+        static std::string impl(const CUDA_EnqueueExec& value)
         {
             return stringify<Fields>(
                 boost::assign::tuple_list_of
-                ("type", stringify(value.type))
+                ("id", stringify(value.id))
                 ("time", stringify(value.time))
-                ("context", stringify(value.context))
-                ("stream", stringify(value.stream))
                 ("call_site", stringify(value.call_site))
                 );
         }
     };
 
     template <>
-    struct Stringify<CUDA_ExecutedKernel>
+    struct Stringify<CUDA_EnqueueXfer>
     {
-        static std::string impl(const CUDA_ExecutedKernel& value)
+        static std::string impl(const CUDA_EnqueueXfer& value)
         {
             return stringify<Fields>(
                 boost::assign::tuple_list_of
-                ("context", stringify(value.context))
-                ("stream", stringify(value.stream))
-                ("time_begin", stringify(value.time_begin))
-                ("time_end", stringify(value.time_end))
-                ("function", stringify<FunctionName>(value.function))
-                ("grid", 
-                 stringify<std::vector<boost::int32_t> >(
-                     boost::assign::list_of
-                     (value.grid[0])
-                     (value.grid[1])
-                     (value.grid[2])
-                     ))
-                ("block",
-                 stringify<std::vector<boost::int32_t> >(
-                     boost::assign::list_of
-                     (value.block[0])
-                     (value.block[1])
-                     (value.block[2])
-                     ))
-                ("cache_preference", stringify(value.cache_preference))
-                ("registers_per_thread", stringify(value.registers_per_thread))
-                ("static_shared_memory", 
-                 stringify<ByteCount>(value.static_shared_memory))
-                ("dynamic_shared_memory",
-                 stringify<ByteCount>(value.dynamic_shared_memory))
-                ("local_memory", stringify<ByteCount>(value.local_memory))
-                );
-        }
-    };
-    
-    template <>
-    struct Stringify<CUDA_LoadedModule>
-    {
-        static std::string impl(const CUDA_LoadedModule& value)
-        {
-            return stringify<Fields>(
-                boost::assign::tuple_list_of
+                ("id", stringify(value.id))
                 ("time", stringify(value.time))
-                ("module", stringify(value.module))
-                ("handle", stringify(value.handle))
+                ("call_site", stringify(value.call_site))
                 );
         }
     };
-  
+
     template <>
     struct Stringify<CUDA_OverflowSamples>
     {
@@ -647,21 +618,6 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     };
 
     template <>
-    struct Stringify<CUDA_ResolvedFunction>
-    {
-        static std::string impl(const CUDA_ResolvedFunction& value)
-        {
-            return stringify<Fields>(
-                boost::assign::tuple_list_of
-                ("time", stringify(value.time))
-                ("module_handle", stringify(value.module_handle))
-                ("function", stringify<FunctionName>(value.function))
-                ("handle", stringify(value.handle))
-                );
-        }
-    };
-    
-    template <>
     struct Stringify<CUDA_SamplingConfig>
     {
         static std::string impl(const CUDA_SamplingConfig& value)
@@ -685,76 +641,30 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     };
     
     template <>
-    struct Stringify<CUDA_SetMemory>
-    {
-        static std::string impl(const CUDA_SetMemory& value)
-        {
-            return stringify<Fields>(
-                boost::assign::tuple_list_of
-                ("context", stringify(value.context))
-                ("stream", stringify(value.stream))
-                ("time_begin", stringify(value.time_begin))
-                ("time_end", stringify(value.time_end))
-                ("size", stringify<ByteCount>(value.size))
-                );
-        }
-    };
-    
-    template <>
-    struct Stringify<CUDA_UnloadedModule>
-    {
-        static std::string impl(const CUDA_UnloadedModule& value)
-        {
-            return stringify<Fields>(
-                boost::assign::tuple_list_of
-                ("time", stringify(value.time))
-                ("handle", stringify(value.handle))
-                );
-        }
-    };
-    
-    template <>
     struct Stringify<CBTF_cuda_message>
     {
         static std::string impl(const CBTF_cuda_message& value)
         {
             switch (value.type)
             {
+            case CompletedExec:
+                return stringify(value.CBTF_cuda_message_u.completed_exec);
+            case CompletedXfer:
+                return stringify(value.CBTF_cuda_message_u.completed_xfer);
             case ContextInfo:
                 return stringify(value.CBTF_cuda_message_u.context_info);
-                
-            case CopiedMemory:
-                return stringify(value.CBTF_cuda_message_u.copied_memory);
-                
             case DeviceInfo:
                 return stringify(value.CBTF_cuda_message_u.device_info);
-                
-            case EnqueueRequest:
-                return stringify(value.CBTF_cuda_message_u.enqueue_request);
-                
-            case ExecutedKernel:
-                return stringify(value.CBTF_cuda_message_u.executed_kernel);
-                
-            case LoadedModule:
-                return stringify(value.CBTF_cuda_message_u.loaded_module);
-                
+            case EnqueueExec:
+                return stringify(value.CBTF_cuda_message_u.enqueue_exec);
+            case EnqueueXfer:
+                return stringify(value.CBTF_cuda_message_u.enqueue_xfer);
             case OverflowSamples:
                 return stringify(value.CBTF_cuda_message_u.overflow_samples);
-                
             case PeriodicSamples:
                 return stringify(value.CBTF_cuda_message_u.periodic_samples);
-                
-            case ResolvedFunction:
-                return stringify(value.CBTF_cuda_message_u.resolved_function);
-                
             case SamplingConfig:
                 return stringify(value.CBTF_cuda_message_u.sampling_config);
-                
-            case SetMemory:
-                return stringify(value.CBTF_cuda_message_u.set_memory);
-                
-            case UnloadedModule:
-                return stringify(value.CBTF_cuda_message_u.unloaded_module);
             }
             
             return std::string();
