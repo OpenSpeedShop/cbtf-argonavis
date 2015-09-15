@@ -52,13 +52,13 @@ namespace ArgoNavis { namespace CUDA {
         uint64_t size;
         
         /** Kind of data transfer performed. */
-        CopyKinds kind;
+        CopyKind kind;
         
         /** Kind of memory from which the data transfer was performed. */
-        MemoryKinds source_kind;
+        MemoryKind source_kind;
         
         /** Kind of memory to which the data transfer was performed. */
-        MemoryKinds destination_kind;
+        MemoryKind destination_kind;
         
         /** Was the data transfer asynchronous? */
         bool asynchronous;  
