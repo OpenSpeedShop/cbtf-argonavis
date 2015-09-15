@@ -129,11 +129,11 @@ void AddressAggregatorForCUDA::handleData(
         
         switch (cuda_message.type)
         {
-            
-        case EnqueueRequest:
+
+        case EnqueueExec:
             {
-                const CUDA_EnqueueRequest& msg = 
-                    cuda_message.CBTF_cuda_message_u.enqueue_request;
+                const CUDA_EnqueueExec& msg = 
+                    cuda_message.CBTF_cuda_message_u.enqueue_exec;
 
                 for (uint32_t i = msg.call_site;
                      (i < cuda_data.stack_traces.stack_traces_len) &&
@@ -146,7 +146,25 @@ void AddressAggregatorForCUDA::handleData(
                 }
             }
             break;
-            
+
+
+        case EnqueueXfer:
+            {
+                const CUDA_EnqueueXfer& msg = 
+                    cuda_message.CBTF_cuda_message_u.enqueue_xfer;
+
+                for (uint32_t i = msg.call_site;
+                     (i < cuda_data.stack_traces.stack_traces_len) &&
+                         (cuda_data.stack_traces.stack_traces_val[i] != 0);
+                     ++i)
+                {
+                    dm_addresses.updateAddressCounts(
+                        cuda_data.stack_traces.stack_traces_val[i], 1
+                        );
+                }
+            }
+            break;
+
         case OverflowSamples:
             {
                 const CUDA_OverflowSamples& msg =
