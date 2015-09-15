@@ -54,6 +54,19 @@ enum CUDA_CopyKind
 };
 
 /**
+ * Enumeration of the different memory kinds.
+ */
+enum CUDA_MemoryKind
+{     
+    InvalidMemoryKind = 0,
+    UnknownMemoryKind = 1,
+    Pageable = 2,
+    Pinned = 3,
+    Device = 4,
+    Array = 5
+};
+
+/**
  * Enumeration of the different types of messages that are encapsulated within
  * this collector's blobs. See the note on CBTF_cuda_data for more information.
  */
@@ -68,19 +81,6 @@ enum CUDA_MessageTypes
     OverflowSamples = 6,
     PeriodicSamples = 7,
     SamplingConfig = 8
-};
-
-/**
- * Enumeration of the different memory kinds.
- */
-enum CUDA_MemoryKind
-{     
-    InvalidMemoryKind = 0,
-    UnknownMemoryKind = 1,
-    Pageable = 2,
-    Pinned = 3,
-    Device = 4,
-    Array = 5
 };
 
 
