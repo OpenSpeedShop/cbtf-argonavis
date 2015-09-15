@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012,2013 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -61,18 +61,15 @@ enum CUDA_CopyKind
  */
 enum CUDA_MessageTypes
 {
-    ContextInfo = 0,
-    CopiedMemory = 1,
-    DeviceInfo = 2,
-    EnqueueRequest = 3,
-    ExecutedKernel = 4,
-    LoadedModule = 5,
+    CompletedExec = 0,
+    CompletedXfer = 1,
+    ContextInfo = 2,
+    DeviceInfo = 3,
+    EnqueueExec = 4,
+    EnqueueXfer = 5,
     OverflowSamples = 6,
     PeriodicSamples = 7,
-    ResolvedFunction = 8,
-    SamplingConfig = 9,
-    SetMemory = 10,
-    UnloadedModule = 11
+    SamplingConfig = 8
 };
 
 /**
@@ -86,16 +83,6 @@ enum CUDA_MemoryKind
     Pinned = 3,
     Device = 4,
     Array = 5
-};
-
-/**
- * Enumeration of the different request types enqueue by the CUDA driver.
- */
-enum CUDA_RequestTypes
-{
-    LaunchKernel = 0,
-    MemoryCopy = 1,
-    MemorySet = 2
 };
 
 
@@ -122,6 +109,91 @@ struct CUDA_EventDescription
 
 
 /**
+ * Message emitted when the CUDA driver completes a kernel execution.
+ */
+struct CUDA_CompletedExec
+{
+    /** Correlation ID of the kernel execution. */
+    uint32_t id;
+
+    /** Time at which the kernel execution began. */
+    CBTF_Protocol_Time time_begin;
+
+    /** Time at which the kernel execution ended. */
+    CBTF_Protocol_Time time_end;
+
+    /** CUDA context for which the kernel was executed. */
+    CBTF_Protocol_Address context;
+
+    /** CUDA stream for which the kernel was executed. */
+    CBTF_Protocol_Address stream;
+
+    /** Name of the kernel function being executed. */
+    string function<>;
+
+    /** Dimensions of the grid. */
+    int32_t grid[3];
+    
+    /** Dimensions of each block. */
+    int32_t block[3];
+
+    /** Cache preference used. */
+    CUDA_CachePreference cache_preference;
+
+    /** Registers required for each thread. */
+    uint16_t registers_per_thread;
+
+    /** Total amount (in bytes) of static shared memory reserved. */
+    int32_t static_shared_memory;
+
+    /** Total amount (in bytes) of dynamic shared memory reserved. */
+    int32_t dynamic_shared_memory;
+
+    /** Total amount (in bytes) of local memory reserved. */
+    int32_t local_memory;
+};
+
+
+
+/**
+ * Message emitted when the CUDA driver completes a data transfer.
+ */
+struct CUDA_CompletedXfer
+{
+    /** Correlation ID of the data transfer. */
+    uint32_t id;
+
+    /** Time at which the data transfer began. */
+    CBTF_Protocol_Time time_begin;
+    
+    /** Time at which the data transfer ended. */
+    CBTF_Protocol_Time time_end;
+
+    /** CUDA context for which the data was transferred. */
+    CBTF_Protocol_Address context;
+
+    /** CUDA stream for which the data was transferred. */
+    CBTF_Protocol_Address stream;
+    
+    /** Number of bytes being transferred. */
+    uint64_t size;
+
+    /** Kind of data transfer performed. */
+    CUDA_CopyKind kind;
+
+    /** Kind of memory from which the data transfer was performed. */
+    CUDA_MemoryKind source_kind;
+
+    /** Kind of memory to which the data transfer was performed. */
+    CUDA_MemoryKind destination_kind;
+
+    /** Was the data transfer asynchronous? */
+    bool asynchronous;  
+};
+
+
+
+/**
  * Message containing information about a CUDA context.
  */
 struct CUDA_ContextInfo
@@ -131,44 +203,6 @@ struct CUDA_ContextInfo
 
     /** CUDA device for this context. */
     uint32_t device;
-
-    /** Compute API (CUDA or OpenCL) being used in this context. */
-    string compute_api<>;
-};
-
-
-
-/**
- * Message emitted when the CUDA driver copied memory.
- */
-struct CUDA_CopiedMemory
-{
-    /** CUDA context for which the request was enqueued. */
-    CBTF_Protocol_Address context;
-
-    /** CUDA stream for which memory was copied. */
-    CBTF_Protocol_Address stream;
-
-    /** Time at which the memory copy began. */
-    CBTF_Protocol_Time time_begin;
-    
-    /** Time at which the memory copy ended. */
-    CBTF_Protocol_Time time_end;
-    
-    /** Number of bytes being copied. */
-    uint64_t size;
-
-    /** Kind of copy performed. */
-    CUDA_CopyKind kind;
-
-    /** Kind of memory from which the copy was performed. */
-    CUDA_MemoryKind source_kind;
-
-    /** Kind of memory to which the copy was performed. */
-    CUDA_MemoryKind destination_kind;
-
-    /** Was the copy asynchronous? */
-    bool asynchronous;  
 };
 
 
@@ -239,25 +273,19 @@ struct CUDA_DeviceInfo
 
 
 /**
- * Message emitted when the CUDA driver enqueues a request.
+ * Message emitted when the CUDA driver enqueues a kernel execution.
  */
-struct CUDA_EnqueueRequest
+struct CUDA_EnqueueExec
 {
-    /** Type of request that was enqueued. */
-    CUDA_RequestTypes type;
+    /** Correlation ID of the kernel execution. */
+    uint32_t id;
 
-    /** Time at which the request was enqueued. */
+    /** Time at which the kernel execution was enqueued. */
     CBTF_Protocol_Time time;
 
-    /** CUDA context for which the request was enqueued. */
-    CBTF_Protocol_Address context;
-
-    /** CUDA stream for which the request was enqueued. */
-    CBTF_Protocol_Address stream;
-
     /**
-     * Call site of the request. This is an index into the stack_traces array
-     * of the CBTF_cuda_data containing this message.
+     * Call site of the kernel execution. This is an index into the
+     * stack_traces array of the CBTF_cuda_data containing this message.
      */
     uint32_t call_site;
 };
@@ -265,62 +293,21 @@ struct CUDA_EnqueueRequest
 
 
 /**
- * Message emitted when the CUDA driver executed a kernel.
+ * Message emitted when the CUDA driver enqueues a data transfer.
  */
-struct CUDA_ExecutedKernel
+struct CUDA_EnqueueXfer
 {
-    /** CUDA context for which the request was enqueued. */
-    CBTF_Protocol_Address context;
+    /** Correlation ID of the data transfer. */
+    uint32_t id;
 
-    /** CUDA stream for which a kernel was executed. */
-    CBTF_Protocol_Address stream;
-
-    /** Time at which the kernel execution began. */
-    CBTF_Protocol_Time time_begin;
-
-    /** Time at which the kernel execution ended. */
-    CBTF_Protocol_Time time_end;
-
-    /** Name of the kernel function being executed. */
-    string function<>;
-
-    /** Dimensions of the grid. */
-    int32_t grid[3];
-    
-    /** Dimensions of each block. */
-    int32_t block[3];
-
-    /** Cache preference used. */
-    CUDA_CachePreference cache_preference;
-
-    /** Registers required for each thread. */
-    uint16_t registers_per_thread;
-
-    /** Total amount (in bytes) of static shared memory reserved. */
-    int32_t static_shared_memory;
-
-    /** Total amount (in bytes) of dynamic shared memory reserved. */
-    int32_t dynamic_shared_memory;
-
-    /** Total amount (in bytes) of local memory reserved. */
-    int32_t local_memory;
-};
-
-
-
-/**
- * Message emitted when the CUDA driver loads a module.
- */
-struct CUDA_LoadedModule
-{
-    /** Time at which the module was unloaded. */
+    /** Time at which the data transfer was enqueued. */
     CBTF_Protocol_Time time;
 
-    /** Name of the file containing the module that was loaded. */
-    CBTF_Protocol_FileName module;
-    
-    /** Handle within the CUDA driver of the loaded module .*/
-    CBTF_Protocol_Address handle;
+    /**
+     * Call site of the data transfer. This is an index into the
+     * stack_traces array of the CBTF_cuda_data containing this message.
+     */
+    uint32_t call_site;
 };
 
 
@@ -470,26 +457,6 @@ struct CUDA_PeriodicSamples
 
 
 /**
- * Message emitted when the CUDA driver resolves a function.
- */
-struct CUDA_ResolvedFunction
-{
-    /** Time at which the function was resolved. */
-    CBTF_Protocol_Time time;
-
-    /** Handle within the CUDA driver of the module containing the function. */
-    CBTF_Protocol_Address module_handle;
-    
-    /** Name of the function being resolved. */
-    string function<>;
-    
-    /** Handle within the CUDA driver of the resolved function. */
-    CBTF_Protocol_Address handle;    
-};
-
-
-
-/**
  * Message containing the event sampling configuration.
  */
 struct CUDA_SamplingConfig
@@ -507,60 +474,20 @@ struct CUDA_SamplingConfig
 
 
 /**
- * Message emitted when the CUDA driver set memory.
- */
-struct CUDA_SetMemory
-{
-    /** CUDA context for which the request was enqueued. */
-    CBTF_Protocol_Address context;
-
-    /** CUDA stream for which memory was set. */
-    CBTF_Protocol_Address stream;
-
-    /** Time at which the memory set began. */
-    CBTF_Protocol_Time time_begin;
-
-    /** Time at which the memory set ended. */
-    CBTF_Protocol_Time time_end;
-
-    /** Number of bytes being set. */
-    uint64_t size;
-};
-
-
-
-/**
- * Message emitted when the CUDA driver unloads a module.
- */
-struct CUDA_UnloadedModule
-{
-    /** Time at which the module was unloaded. */
-    CBTF_Protocol_Time time;
-
-    /** Handle within the CUDA driver of the unloaded module .*/
-    CBTF_Protocol_Address handle;
-};
-
-
-
-/**
  * Union of the different types of messages that are encapsulated within this
  * collector's blobs. See the note on CBTF_cuda_data for more information.
  */
 union CBTF_cuda_message switch (unsigned type)
 {
-    case      ContextInfo:      CUDA_ContextInfo context_info;
-    case     CopiedMemory:     CUDA_CopiedMemory copied_memory;
-    case       DeviceInfo:       CUDA_DeviceInfo device_info;
-    case   EnqueueRequest:   CUDA_EnqueueRequest enqueue_request;
-    case   SamplingConfig:   CUDA_SamplingConfig sampling_config;
-    case   ExecutedKernel:   CUDA_ExecutedKernel executed_kernel;
-    case     LoadedModule:     CUDA_LoadedModule loaded_module;
-    case  OverflowSamples:  CUDA_OverflowSamples overflow_samples;
-    case  PeriodicSamples:  CUDA_PeriodicSamples periodic_samples;
-    case ResolvedFunction: CUDA_ResolvedFunction resolved_function;
-    case        SetMemory:        CUDA_SetMemory set_memory;
-    case   UnloadedModule:   CUDA_UnloadedModule unloaded_module;
+    case   CompletedExec:   CUDA_CompletedExec completed_exec;
+    case   CompletedXfer:   CUDA_CompletedXfer completed_xfer;
+    case     ContextInfo:     CUDA_ContextInfo context_info;
+    case      DeviceInfo:      CUDA_DeviceInfo device_info;
+    case     EnqueueExec:     CUDA_EnqueueExec enqueue_exec;
+    case     EnqueueXfer:     CUDA_EnqueueXfer enqueue_xfer;
+    case OverflowSamples: CUDA_OverflowSamples overflow_samples;
+    case PeriodicSamples: CUDA_PeriodicSamples periodic_samples;
+    case  SamplingConfig:  CUDA_SamplingConfig sampling_config;
 
     default: void;
 };
@@ -570,15 +497,11 @@ union CBTF_cuda_message switch (unsigned type)
 /**
  * Structure of the blob containing our performance data.
  *
- * @note    The CUDA driver contains a separate loader that is used to load
- *          binary code modules onto the GPU, resolve symbols, and invoke
- *          functions (kernels). Additionally, there are multiple types of
- *          performance data generated by this collector. These issues lead
- *          to this collector's performance data blobs being significantly
- *          more complex than those of the typical collector. To facilitate
- *          maximum reuse of existing collector infrastructure, all of the
- *          different data generated by this collector is "packed" into one
- *          performance data blob type using a XDR discriminated union.
+ * @note    This collector generates multiple types of performance data, which
+ *          leads to its blobs being significantly more complex than those of
+ *          the typical collector. All of this data is "packed" into a single
+ *          performance data blob type via a XDR discriminated union in order
+ *          to facilitate maximum reuse of existing collector infrastructure.
  *
  * @sa http://en.wikipedia.org/wiki/Tagged_union
  */

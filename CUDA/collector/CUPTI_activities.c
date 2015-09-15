@@ -155,29 +155,6 @@ inline void add_context(TLS* tls, CUcontext context, CUstream stream,
         CUPTI_context_ptr_from_id(activity->contextId);
     
     message->device = activity->deviceId;
-    
-    switch (activity->computeApiKind)
-    {
-        
-    case CUPTI_ACTIVITY_COMPUTE_API_UNKNOWN:
-        message->compute_api = "Unknown";
-        break;
-        
-    case CUPTI_ACTIVITY_COMPUTE_API_CUDA:
-        message->compute_api = "CUDA";
-        break;
-        
-#if (CUPTI_API_VERSION == 2)
-    case CUPTI_ACTIVITY_COMPUTE_API_OPENCL:
-        message->compute_api = "OpenCL";
-        break;
-#endif
-        
-    default:
-        message->compute_api = "Invalid!";
-        break;
-        
-    }
 }
 
 
@@ -248,16 +225,18 @@ static void add_memcpy(TLS* tls, CUcontext context, CUstream stream,
 {
     CBTF_cuda_message* raw_message = TLS_add_message(tls);
     Assert(raw_message != NULL);
-    raw_message->type = CopiedMemory;
+    raw_message->type = CompletedXfer;
     
-    CUDA_CopiedMemory* message =
-        &raw_message->CBTF_cuda_message_u.copied_memory;
-    
-    message->context = (CBTF_Protocol_Address)context;
-    message->stream = (CBTF_Protocol_Address)stream;
-    
+    CUDA_CompletedXfer* message =
+        &raw_message->CBTF_cuda_message_u.completed_xfer;
+
+    message->id = activity->correlationId;
+
     message->time_begin = activity->start + TimeOffset;
     message->time_end = activity->end + TimeOffset;
+
+    message->context = (CBTF_Protocol_Address)context;
+    message->stream = (CBTF_Protocol_Address)stream;
     
     message->size = activity->bytes;
     
@@ -293,16 +272,18 @@ static void add_kernel(TLS* tls, CUcontext context, CUstream stream,
 {
     CBTF_cuda_message* raw_message = TLS_add_message(tls);
     Assert(raw_message != NULL);
-    raw_message->type = ExecutedKernel;
+    raw_message->type = CompletedExec;
     
-    CUDA_ExecutedKernel* message =
-        &raw_message->CBTF_cuda_message_u.executed_kernel;
+    CUDA_CompletedExec* message =
+        &raw_message->CBTF_cuda_message_u.completed_exec;
+
+    message->id = activity->correlationId;
+ 
+    message->time_begin = activity->start + TimeOffset;
+    message->time_end = activity->end + TimeOffset;
 
     message->context = (CBTF_Protocol_Address)context;
     message->stream = (CBTF_Protocol_Address)stream;
-
-    message->time_begin = activity->start + TimeOffset;
-    message->time_end = activity->end + TimeOffset;
     
     message->function = (char*)activity->name;
     

@@ -116,15 +116,13 @@ static void callback(void* userdata,
                     
                     CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
-                    raw_message->type = EnqueueRequest;
+                    raw_message->type = EnqueueExec;
                     
-                    CUDA_EnqueueRequest* message = 
-                        &raw_message->CBTF_cuda_message_u.enqueue_request;
-                    
-                    message->type = LaunchKernel;
+                    CUDA_EnqueueExec* message = 
+                        &raw_message->CBTF_cuda_message_u.enqueue_exec;
+
+                    message->id = cbdata->correlationId;
                     message->time = CBTF_GetTime();
-                    message->context = (CBTF_Protocol_Address)cbdata->context;
-                    message->stream = (CBTF_Protocol_Address)params->hStream;
                     message->call_site = TLS_add_current_call_site(tls);
                     
                     TLS_update_header_with_time(tls, message->time);
@@ -188,120 +186,13 @@ static void callback(void* userdata,
                     
                     CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
-                    raw_message->type = EnqueueRequest;
+                    raw_message->type = EnqueueXfer;
                     
-                    CUDA_EnqueueRequest* message = 
-                        &raw_message->CBTF_cuda_message_u.enqueue_request;
+                    CUDA_EnqueueXfer* message = 
+                        &raw_message->CBTF_cuda_message_u.enqueue_xfer;
                     
-                    message->type = MemoryCopy;
+                    message->id = cbdata->correlationId;
                     message->time = CBTF_GetTime();
-                    message->context = (CBTF_Protocol_Address)cbdata->context;
-                    message->stream = 0;
-                    
-                    switch (id)
-                    {
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpy2DAsync_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-                        
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync_v2:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpy2DAsync_v2_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpy3DAsync_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync_v2:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpy3DAsync_v2_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DPeerAsync:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpy3DPeerAsync_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyAtoHAsync_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync_v2:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyAtoHAsync_v2_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyDtoDAsync_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync_v2:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyDtoDAsync_v2_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyDtoHAsync_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync_v2:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyDtoHAsync_v2_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyHtoAAsync_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync_v2:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyHtoAAsync_v2_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoDAsync:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyHtoDAsync_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoDAsync_v2:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyHtoDAsync_v2_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyPeerAsync:
-                        message->stream = (CBTF_Protocol_Address)
-                            ((cuMemcpyPeerAsync_params*)
-                             cbdata->functionParams)->hStream;
-                        break;
-
-                    default:
-                        break;
-
-                    }
-
                     message->call_site = TLS_add_current_call_site(tls);
                     
                     TLS_update_header_with_time(tls, message->time);
