@@ -19,8 +19,6 @@
 /** @file Specification of the CUDA collector's blobs. */
 
 %#include "KrellInstitute/Messages/Address.h"
-%#include "KrellInstitute/Messages/File.h"
-%#include "KrellInstitute/Messages/Thread.h"
 %#include "KrellInstitute/Messages/Time.h"
 
 
