@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -16,37 +16,43 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-add_library(CUDA SHARED
-    AddressAggregatorForCUDA.cpp
-    StateManagementForCUDA.cpp
-    XDR.cpp
+add_library(argonavis-cuda SHARED
+    ArgoNavis/CUDA/BlobVisitor.hpp
+    ArgoNavis/CUDA/CachePreference.hpp
+    ArgoNavis/CUDA/CopyKind.hpp
+    ArgoNavis/CUDA/DataTransfer.hpp
+    ArgoNavis/CUDA/DataTransferVisitor.hpp
+    ArgoNavis/CUDA/Device.hpp
+    ArgoNavis/CUDA/KernelExecution.hpp
+    ArgoNavis/CUDA/KernelExecutionVisitor.hpp
+    ArgoNavis/CUDA/MemoryKind.hpp
+    ArgoNavis/CUDA/PerformanceData.hpp PerformanceData.cpp
+    ArgoNavis/CUDA/PeriodicSampleVisitor.hpp
+    ArgoNavis/CUDA/StackTrace.hpp
+    ArgoNavis/CUDA/Stringify.hpp
+    ArgoNavis/CUDA/Vector.hpp
+    DataTable.hpp DataTable.cpp
     )
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/libargonavis-base
     ${PROJECT_BINARY_DIR}/CUDA/messages
     ${Boost_INCLUDE_DIRS}
-    ${CBTF_INCLUDE_DIRS}
-    ${CBTF_KRELL_CORE_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
-    ${MRNet_INCLUDE_DIRS}
     )
 
-target_link_libraries(CUDA
+target_link_libraries(argonavis-cuda
     argonavis-base
     cbtf-messages-cuda
-    ${Boost_FILESYSTEM_LIBRARY}
-    ${Boost_REGEX_LIBRARY}
-    ${CBTF_LIBRARIES}
-    ${CBTF_KRELL_CORE_LIBRARIES}
     ${CBTF_KRELL_MESSAGES_LIBRARIES}
-    ${MRNet_LIBRARIES}
     )
 
-set_target_properties(CUDA PROPERTIES PREFIX "")
+set_target_properties(argonavis-cuda PROPERTIES VERSION 1.1.0)
 
-install(TARGETS CUDA
-    RUNTIME DESTINATION bin/KrellInstitute/Components
-    LIBRARY DESTINATION lib${LIB_SUFFIX}/KrellInstitute/Components
-    ARCHIVE DESTINATION lib${LIB_SUFFIX}/KrellInstitute/Components
+install(DIRECTORY ArgoNavis DESTINATION include)
+
+install(TARGETS argonavis-cuda
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib${LIB_SUFFIX}
+    ARCHIVE DESTINATION lib${LIB_SUFFIX}
     )

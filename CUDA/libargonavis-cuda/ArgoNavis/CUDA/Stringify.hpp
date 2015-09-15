@@ -1,0 +1,803 @@
+////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+//
+// This program is free software; you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation; either version 2 of the License, or (at your option) any later
+// version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+// details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+// Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+/** @file Declaration and definition of the stringify() function. */
+
+#pragma once
+
+#include <algorithm>
+#include <boost/assign/list_of.hpp>
+#include <boost/cstdint.hpp>
+#include <boost/format.hpp>
+#include <boost/tuple/tuple.hpp>
+#include <cmath>
+#include <cstdlib>
+#include <cxxabi.h>
+#include <list>
+#include <sstream>
+#include <string>
+#include <vector>
+
+namespace ArgoNavis { namespace CUDA { namespace Impl {
+
+    /**
+     * Implementation of the stringify() function. This template is used to
+     * circumvent the C++ prohibition against partial template specialization
+     * of functions.
+     */
+    template <typename T>
+    struct Stringify
+    {
+        static std::string impl(const T& value)
+        {
+            return boost::str(boost::format("%1%") % value);
+        }
+    };
+
+} } } // namespace ArgoNavis::CUDA::Impl 
+
+namespace ArgoNavis { namespace CUDA {
+    
+    /** Convert the specified value to a string. */
+    template <typename T>
+    std::string stringify(const T& value)
+    {
+        return Impl::Stringify<T>::impl(value);
+    }
+    
+} } // namespace ArgoNavis::CUDA
+    
+namespace ArgoNavis { namespace CUDA { namespace Impl {
+
+    /** Type of container used to store ordered fields (key/value pairs). */
+    typedef std::list<boost::tuples::tuple<std::string, std::string> > Fields;
+
+    /**
+     * Type representing a byte count. Its only reason for existence is to
+     * allow the Stringify<> template below to be specialized for byte counts
+     * versus other integer values.
+     */
+    class ByteCount
+    {
+    public:
+        ByteCount(const boost::uint64_t& value) : dm_value(value) { }
+        operator boost::uint64_t() const { return dm_value; }
+    private:
+        boost::uint64_t dm_value;
+    };
+        
+    /**
+     * Type representing a clock rate. Its only reason for existence is to
+     * allow the Stringify<> template below to be specialized for clock rates
+     * versus other integer values.
+     */
+    class ClockRate
+    {
+    public:
+        ClockRate(const boost::uint64_t& value) : dm_value(value) { }
+        operator boost::uint64_t() const { return dm_value; }
+    private:
+        boost::uint64_t dm_value;
+    };
+    
+    /**
+     * Type representing a function name. Its only reason for existence is to
+     * allow the Stringify<> template below to be specialized for function names
+     * versus other strings.
+     */
+    class FunctionName
+    {
+    public:
+        FunctionName(const char* value) : dm_value(value) { }
+        FunctionName(const std::string& value) : dm_value(value) { }
+        operator std::string() const { return dm_value; }
+    private:
+        std::string dm_value;
+    };
+    
+    template <>
+    struct Stringify<bool>
+    {
+        static std::string impl(const bool& value)
+        {
+            return value ? "true" : "false";
+        }
+    };
+    
+    template <>
+    struct Stringify<boost::uint64_t>
+    {
+        static std::string impl(const boost::uint64_t& value)
+        {
+            return boost::str(boost::format("%016X") % value);
+        }
+    };
+    
+    template <typename T>
+    struct Stringify<std::vector<T> >
+    {
+        static std::string impl(const std::vector<T>& value)
+        {
+            std::stringstream stream;
+            
+            stream << "[";
+            for (typename std::vector<T>::size_type 
+                     i = 0; i < value.size(); ++i)
+            {
+                stream << value[i];
+                if (i < (value.size() - 1))
+                {
+                    stream << ", ";
+                }
+            }
+            stream << "]";
+            
+            return stream.str();
+        }
+    };
+
+    template <>
+    struct Stringify<Fields>
+    {
+        static std::string impl(const Fields& value)
+        {
+            std::stringstream stream;
+            
+            int n = 0;
+            
+            for (Fields::const_iterator 
+                     i = value.begin(); i != value.end(); ++i)
+            {
+                n = std::max<int>(n, i->get<0>().size());
+            }
+            
+            for (Fields::const_iterator
+                     i = value.begin(); i != value.end(); ++i)
+            {
+                stream << "    ";
+                for (int j = 0; j < (n - i->get<0>().size()); ++j)
+                {
+                    stream << " ";
+                }
+                stream << i->get<0>() << " = " << i->get<1>() << std::endl;
+            }
+            
+            return stream.str();
+        }
+    };
+
+    template <>
+    struct Stringify<ByteCount>
+    {
+        static std::string impl(const ByteCount& value)
+        {
+            const struct { const double value; const char* label; } kUnits[] = {
+                { 1024.0 * 1024.0 * 1024.0 * 1024.0, "TB" },
+                {          1024.0 * 1024.0 * 1024.0, "GB" },
+                {                   1024.0 * 1024.0, "MB" },
+                {                            1024.0, "KB" },
+                {                               0.0, NULL } // End-Of-Table
+            };
+            
+            double x = static_cast<double>(value);
+            std::string label = "Bytes";
+            
+            for (int i = 0; kUnits[i].label != NULL; ++i)
+            {
+                if (static_cast<double>(value) >= kUnits[i].value)
+                {
+                    x = static_cast<double>(value) / kUnits[i].value;
+                    label = kUnits[i].label;
+                    break;
+                }
+            }
+            
+            return boost::str(
+                (x == std::floor(x)) ?
+                (boost::format("%1% %2%") % static_cast<uint64_t>(x) % label) :
+                (boost::format("%1$0.1f %2%") % x % label)
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<ClockRate>
+    {
+        static std::string impl(const ClockRate& value)
+        {
+            const struct { const double value; const char* label; } kUnits[] = {
+                { 1024.0 * 1024.0 * 1024.0 * 1024.0, "THz" },
+                {          1024.0 * 1024.0 * 1024.0, "GHz" },
+                {                   1024.0 * 1024.0, "MHz" },
+                {                            1024.0, "KHz" },
+                {                               0.0, NULL  } // End-Of-Table
+            };
+            
+            double x = static_cast<double>(value);
+            std::string label = "Hz";
+            
+            for (int i = 0; kUnits[i].label != NULL; ++i)
+            {
+                if (static_cast<double>(value) >= kUnits[i].value)
+                {
+                    x = static_cast<double>(value) / kUnits[i].value;
+                    label = kUnits[i].label;
+                    break;
+                }
+            }
+            
+            return boost::str(
+                (x == std::floor(x)) ?
+                (boost::format("%1% %2%") % static_cast<uint64_t>(x) % label) :
+                (boost::format("%1$0.1f %2%") % x % label)
+                );
+        }
+    };
+
+    template <>
+    struct Stringify<FunctionName>
+    {
+        static std::string impl(const FunctionName& value)
+        {
+            std::string retval = value;
+            
+            int status = -2;
+            char* demangled =  abi::__cxa_demangle(
+                retval.c_str(), NULL, NULL, &status
+                );
+            
+            if (demangled != NULL)
+            {
+                if (status == 0)
+                {
+                    retval = std::string(demangled);
+                }
+                free(demangled);
+            }
+            
+            return retval;
+        }
+    };
+
+    template <>
+    struct Stringify<CBTF_Protocol_FileName>
+    {
+        static std::string impl(const CBTF_Protocol_FileName& value)
+        {
+            return boost::str(boost::format("%1% (%2%)") % value.path % 
+                              stringify<boost::uint64_t>(value.checksum));
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_CachePreference>
+    {
+        static std::string impl(const CUDA_CachePreference& value)
+        {
+            switch (value)
+            {
+            case InvalidCachePreference: return "InvalidCachePreference";
+            case NoPreference: return "NoPreference";
+            case PreferShared: return "PreferShared";
+            case PreferCache: return "PreferCache";
+            case PreferEqual: return "PreferEqual";
+            }
+            return "?";
+        }
+    };
+
+    template <>
+    struct Stringify<CUDA_CopyKind>
+    {
+        static std::string impl(const CUDA_CopyKind& value)
+        {
+            switch (value)
+            {
+            case InvalidCopyKind: return "InvalidCopyKind";
+            case UnknownCopyKind: return "UnknownCopyKind";
+            case HostToDevice: return "HostToDevice";
+            case DeviceToHost: return "DeviceToHost";
+            case HostToArray: return "HostToArray";
+            case ArrayToHost: return "ArrayToHost";
+            case ArrayToArray: return "ArrayToArray";
+            case ArrayToDevice: return "ArrayToDevice";
+            case DeviceToArray: return "DeviceToArray";
+            case DeviceToDevice: return "DeviceToDevice";
+            case HostToHost: return "HostToHost";
+            }
+            return "?";
+        }
+    };
+
+    template <>
+    struct Stringify<CUDA_MemoryKind>
+    {
+        static std::string impl(const CUDA_MemoryKind& value)
+        {
+            switch (value)
+            {
+            case InvalidMemoryKind: return "InvalidMemoryKind";
+            case UnknownMemoryKind: return "UnknownMemoryKind";
+            case Pageable: return "Pageable";
+            case Pinned: return "Pinned";
+            case Device: return "Device";
+            case Array: return "Array";
+            }
+            return "?";
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_MessageTypes>
+    {
+        static std::string impl(const CUDA_MessageTypes& value)
+        {
+            switch (value)
+            {
+            case ContextInfo: return "ContextInfo";
+            case CopiedMemory: return "CopiedMemory";
+            case DeviceInfo: return "DeviceInfo";
+            case EnqueueRequest: return "EnqueueRequest";
+            case ExecutedKernel: return "ExecutedKernel";
+            case LoadedModule: return "LoadedModule";
+            case OverflowSamples: return "OverflowSamples";
+            case PeriodicSamples: return "PeriodicSamples";
+            case ResolvedFunction: return "ResolvedFunction";
+            case SamplingConfig: return "SamplingConfig";
+            case SetMemory: return "SetMemory";
+            case UnloadedModule: return "UnloadedModule";
+            }
+            return "?";
+        }
+    };
+
+    template <>
+    struct Stringify<CUDA_RequestTypes>
+    {
+        static std::string impl(const CUDA_RequestTypes& value)
+        {
+            switch (value)
+            {
+            case LaunchKernel: return "LaunchKernel";
+            case MemoryCopy: return "MemoryCopy";
+            case MemorySet: return "MemorySet";
+            }
+            return "?";
+        }
+    };
+
+    template<>
+    struct Stringify<CUDA_EventDescription>
+    {
+        static std::string impl(const CUDA_EventDescription& value)
+        {
+            return (value.threshold == 0) ? 
+                std::string(value.name) :
+                boost::str(boost::format("%1% (threshold=%2%)") %
+                           value.name % value.threshold);
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_ContextInfo>
+    {
+        static std::string impl(const CUDA_ContextInfo& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("context", stringify(value.context))
+                ("device", stringify(value.device))
+                ("compute_api", stringify(value.compute_api))
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_CopiedMemory>
+    {
+        static std::string impl(const CUDA_CopiedMemory& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("context", stringify(value.context))
+                ("stream", stringify(value.stream))
+                ("time_begin", stringify(value.time_begin))
+                ("time_end", stringify(value.time_end))
+                ("size", stringify<ByteCount>(value.size))
+                ("kind", stringify(value.kind))
+                ("source_kind", stringify(value.source_kind))
+                ("destination_kind", stringify(value.destination_kind))
+                ("asynchronous", stringify<bool>(value.asynchronous))
+                );
+        }
+    };
+
+    template <>
+    struct Stringify<CUDA_DeviceInfo>
+    {
+        static std::string impl(const CUDA_DeviceInfo& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("device", stringify(value.device))
+                ("name", stringify(value.name))
+                ("compute_capability",
+                 stringify<std::vector<boost::uint32_t> >(
+                     boost::assign::list_of
+                     (value.compute_capability[0])
+                     (value.compute_capability[1])
+                     ))
+                ("max_grid",
+                 stringify<std::vector<boost::uint32_t> >(
+                     boost::assign::list_of
+                     (value.max_grid[0])
+                     (value.max_grid[1])
+                     (value.max_grid[2])
+                     ))
+                ("max_block",
+                 stringify<std::vector<boost::uint32_t> >(
+                     boost::assign::list_of
+                     (value.max_block[0])
+                     (value.max_block[1])
+                     (value.max_block[2])
+                     ))
+                ("global_memory_bandwidth", 
+                 stringify<ByteCount>(
+                     1024ULL * value.global_memory_bandwidth
+                     ) + "/Second")
+                ("global_memory_size",
+                 stringify<ByteCount>(value.global_memory_size))
+                ("constant_memory_size",
+                 stringify<ByteCount>(value.constant_memory_size))
+                ("l2_cache_size", stringify<ByteCount>(value.l2_cache_size))
+                ("threads_per_warp", stringify(value.threads_per_warp))
+                ("core_clock_rate", 
+                 stringify<ClockRate>(1024ULL * value.core_clock_rate))
+                ("memcpy_engines", stringify(value.memcpy_engines))
+                ("multiprocessors", stringify(value.multiprocessors))
+                ("max_ipc", stringify(value.max_ipc))
+                ("max_warps_per_multiprocessor",
+                 stringify(value.max_warps_per_multiprocessor))
+                ("max_blocks_per_multiprocessor",
+                 stringify(value.max_blocks_per_multiprocessor))
+                ("max_registers_per_block",
+                 stringify(value.max_registers_per_block))
+                ("max_shared_memory_per_block",
+                 stringify<ByteCount>(value.max_shared_memory_per_block))
+                ("max_threads_per_block",
+                 stringify(value.max_threads_per_block))
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_EnqueueRequest>
+    {
+        static std::string impl(const CUDA_EnqueueRequest& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("type", stringify(value.type))
+                ("time", stringify(value.time))
+                ("context", stringify(value.context))
+                ("stream", stringify(value.stream))
+                ("call_site", stringify(value.call_site))
+                );
+        }
+    };
+
+    template <>
+    struct Stringify<CUDA_ExecutedKernel>
+    {
+        static std::string impl(const CUDA_ExecutedKernel& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("context", stringify(value.context))
+                ("stream", stringify(value.stream))
+                ("time_begin", stringify(value.time_begin))
+                ("time_end", stringify(value.time_end))
+                ("function", stringify<FunctionName>(value.function))
+                ("grid", 
+                 stringify<std::vector<boost::int32_t> >(
+                     boost::assign::list_of
+                     (value.grid[0])
+                     (value.grid[1])
+                     (value.grid[2])
+                     ))
+                ("block",
+                 stringify<std::vector<boost::int32_t> >(
+                     boost::assign::list_of
+                     (value.block[0])
+                     (value.block[1])
+                     (value.block[2])
+                     ))
+                ("cache_preference", stringify(value.cache_preference))
+                ("registers_per_thread", stringify(value.registers_per_thread))
+                ("static_shared_memory", 
+                 stringify<ByteCount>(value.static_shared_memory))
+                ("dynamic_shared_memory",
+                 stringify<ByteCount>(value.dynamic_shared_memory))
+                ("local_memory", stringify<ByteCount>(value.local_memory))
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_LoadedModule>
+    {
+        static std::string impl(const CUDA_LoadedModule& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("time", stringify(value.time))
+                ("module", stringify(value.module))
+                ("handle", stringify(value.handle))
+                );
+        }
+    };
+  
+    template <>
+    struct Stringify<CUDA_OverflowSamples>
+    {
+        static std::string impl(const CUDA_OverflowSamples& value)
+        {
+            std::stringstream stream;
+            
+            stream << stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("time_begin", stringify(value.time_begin))
+                ("time_end", stringify(value.time_end))
+                );
+            
+            stream << std::endl << "    pcs = ";
+            for (u_int i = 0; i < value.pcs.pcs_len; ++i)
+            {
+                if ((i % 4) == 0)
+                {
+                    stream << std::endl << (boost::format("[%1$4d] ") % i);
+                }
+                
+                stream << stringify(value.pcs.pcs_val[i]) << " ";
+            }
+            if ((value.pcs.pcs_len % 4) != 0)
+            {
+                stream << std::endl;
+            }
+            
+            stream << std::endl << "    counts = ";
+            for (u_int i = 0; i < value.counts.counts_len; ++i)
+            {
+                if ((i % 4) == 0)
+                {
+                    stream << std::endl << (boost::format("[%1$4d] ") % i);
+                }
+                
+                stream << stringify(value.counts.counts_val[i]) << " ";
+            }
+            if ((value.counts.counts_len % 4) != 0)
+            {
+                stream << std::endl;
+            }
+
+            return stream.str();
+        }
+    };
+        
+    template <>
+    struct Stringify<CUDA_PeriodicSamples>
+    {
+        static std::string impl(const CUDA_PeriodicSamples& value)
+        {
+            static int N[4] = { 0, 2, 3, 8 };
+            
+            std::stringstream stream;
+            stream << "    deltas = " << std::endl;
+            
+            for (u_int i = 0; i < value.deltas.deltas_len;)
+            {
+                boost::uint8_t* ptr = &value.deltas.deltas_val[i];
+                
+                boost::uint64_t delta = 0;
+                boost::uint8_t encoding = ptr[0] >> 6;
+                if (encoding < 3)
+                {
+                    delta = static_cast<boost::uint64_t>(ptr[0]) & 0x3F;
+                }
+                else
+                {
+                    delta = 0;
+                }            
+                for (int j = 0; j < N[encoding]; ++j)
+                {
+                    delta <<= 8;
+                    delta |= static_cast<boost::uint64_t>(ptr[1 + j]);
+                }
+                
+                std::stringstream bytes;
+                for (int j = 0; j < (1 + N[encoding]); ++j)
+                {
+                    bytes << (boost::format("%02X ") % 
+                              static_cast<unsigned int>(ptr[j]));
+                }
+                
+                stream << (boost::format("    [%4d] %-27s (%s)") %
+                           i % bytes.str() % stringify(delta)) << std::endl;
+                
+                i += 1 + N[encoding];
+            }
+            
+            return stream.str();
+        }
+    };
+
+    template <>
+    struct Stringify<CUDA_ResolvedFunction>
+    {
+        static std::string impl(const CUDA_ResolvedFunction& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("time", stringify(value.time))
+                ("module_handle", stringify(value.module_handle))
+                ("function", stringify<FunctionName>(value.function))
+                ("handle", stringify(value.handle))
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_SamplingConfig>
+    {
+        static std::string impl(const CUDA_SamplingConfig& value)
+        {
+            Fields fields = 
+                boost::assign::tuple_list_of
+                ("interval", stringify(value.interval));
+            
+            for (u_int i = 0; i < value.events.events_len; ++i)
+            {
+                fields.push_back(
+                    boost::tuples::tuple<std::string, std::string>(
+                        boost::str(boost::format("event %1%") % i),
+                        stringify(value.events.events_val[i])
+                        )
+                    );
+            }
+            
+            return stringify(fields);
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_SetMemory>
+    {
+        static std::string impl(const CUDA_SetMemory& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("context", stringify(value.context))
+                ("stream", stringify(value.stream))
+                ("time_begin", stringify(value.time_begin))
+                ("time_end", stringify(value.time_end))
+                ("size", stringify<ByteCount>(value.size))
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_UnloadedModule>
+    {
+        static std::string impl(const CUDA_UnloadedModule& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("time", stringify(value.time))
+                ("handle", stringify(value.handle))
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<CBTF_cuda_message>
+    {
+        static std::string impl(const CBTF_cuda_message& value)
+        {
+            switch (value.type)
+            {
+            case ContextInfo:
+                return stringify(value.CBTF_cuda_message_u.context_info);
+                
+            case CopiedMemory:
+                return stringify(value.CBTF_cuda_message_u.copied_memory);
+                
+            case DeviceInfo:
+                return stringify(value.CBTF_cuda_message_u.device_info);
+                
+            case EnqueueRequest:
+                return stringify(value.CBTF_cuda_message_u.enqueue_request);
+                
+            case ExecutedKernel:
+                return stringify(value.CBTF_cuda_message_u.executed_kernel);
+                
+            case LoadedModule:
+                return stringify(value.CBTF_cuda_message_u.loaded_module);
+                
+            case OverflowSamples:
+                return stringify(value.CBTF_cuda_message_u.overflow_samples);
+                
+            case PeriodicSamples:
+                return stringify(value.CBTF_cuda_message_u.periodic_samples);
+                
+            case ResolvedFunction:
+                return stringify(value.CBTF_cuda_message_u.resolved_function);
+                
+            case SamplingConfig:
+                return stringify(value.CBTF_cuda_message_u.sampling_config);
+                
+            case SetMemory:
+                return stringify(value.CBTF_cuda_message_u.set_memory);
+                
+            case UnloadedModule:
+                return stringify(value.CBTF_cuda_message_u.unloaded_module);
+            }
+            
+            return std::string();
+        }
+    };
+    
+    template <>
+    struct Stringify<CBTF_cuda_data>
+    {
+        static std::string impl(const CBTF_cuda_data& value)
+        {
+            std::stringstream stream;
+            
+            for (u_int i = 0; i < value.messages.messages_len; ++i)
+            {
+                const CBTF_cuda_message& msg = value.messages.messages_val[i];
+                    
+                stream << std::endl
+                       << (boost::format("[%1$3d] %2%") % i % 
+                           stringify(static_cast<CUDA_MessageTypes>(msg.type))) 
+                       << std::endl << std::endl << stringify(msg);
+            }
+            
+            stream << std::endl << "stack_traces = ";
+            for (u_int i = 0, n = 0;
+                 i < value.stack_traces.stack_traces_len;
+                 ++i, ++n)
+            {
+                if (((n % 4) == 0) ||
+                    ((i > 0) && 
+                     (value.stack_traces.stack_traces_val[i - 1] == 0)))
+                {
+                    stream << std::endl << (boost::format("[%1$4d] ") % i);
+                    n = 0;
+                }
+                
+                stream << stringify(value.stack_traces.stack_traces_val[i])
+                       << " ";
+            }
+            stream << std::endl;
+            
+            return stream.str();
+        }
+    };
+    
+} } } // namespace ArgoNavis::CUDA::Impl 
