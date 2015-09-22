@@ -24,10 +24,10 @@
 #include <string>
 #include <vector>
 
+#include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
 #include <ArgoNavis/CUDA/Device.hpp>
-#include <ArgoNavis/CUDA/StackTrace.hpp>
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
 
@@ -56,7 +56,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         const Base::TimeInterval& interval() const;
 
         /** Call sites of all known CUDA requests. */
-        const std::vector<StackTrace>& sites() const;
+        const std::vector<Base::StackTrace>& sites() const;
 
     private:
 
@@ -70,7 +70,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         Base::TimeInterval dm_interval;
         
         /** Call sites of all known CUDA requests. */
-        std::vector<StackTrace> dm_sites;
+        std::vector<Base::StackTrace> dm_sites;
 
     }; // class DataTable
 

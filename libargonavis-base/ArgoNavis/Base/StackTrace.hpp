@@ -24,7 +24,7 @@
 
 #include <ArgoNavis/Base/Address.hpp>
 
-namespace ArgoNavis { namespace CUDA {
+namespace ArgoNavis { namespace Base {
 
     /**
      * Ordered list of addresses representing the function call sequence at a
@@ -36,6 +36,6 @@ namespace ArgoNavis { namespace CUDA {
      *
      * @sa    http://en.wikipedia.org/wiki/Stack_trace
      */
-    typedef std::vector<Base::Address> StackTrace;
+    typedef std::vector<Address> StackTrace;
     
-} } // namespace ArgoNavis::CUDA
+} } // namespace ArgoNavis::Base

@@ -35,6 +35,7 @@ add_library(argonavis-base SHARED
     ArgoNavis/Base/MappingVisitor.hpp
     ArgoNavis/Base/Raise.hpp
     ArgoNavis/Base/Resolver.hpp Resolver.cpp
+    ArgoNavis/Base/StackTrace.hpp
     ArgoNavis/Base/Statement.hpp Statement.cpp
     ArgoNavis/Base/StatementVisitor.hpp
     ArgoNavis/Base/ThreadName.hpp ThreadName.cpp

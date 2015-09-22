@@ -29,6 +29,7 @@
 #include <KrellInstitute/Messages/DataHeader.h>
 
 #include <ArgoNavis/Base/BlobVisitor.hpp>
+#include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/ThreadVisitor.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
@@ -37,7 +38,6 @@
 #include <ArgoNavis/CUDA/Device.hpp>
 #include <ArgoNavis/CUDA/KernelExecutionVisitor.hpp>
 #include <ArgoNavis/CUDA/PeriodicSampleVisitor.hpp>
-#include <ArgoNavis/CUDA/StackTrace.hpp>
 
 namespace ArgoNavis { namespace CUDA {
 
@@ -105,7 +105,7 @@ namespace ArgoNavis { namespace CUDA {
         const Base::TimeInterval& interval() const;
 
         /** Call sites of all known CUDA requests. */
-        const std::vector<StackTrace>& sites() const;
+        const std::vector<Base::StackTrace>& sites() const;
 
         /**
          * Visit the (raw) performance data blobs for the given thread.
