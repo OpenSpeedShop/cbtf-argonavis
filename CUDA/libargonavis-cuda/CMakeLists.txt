@@ -34,7 +34,7 @@ add_library(argonavis-cuda SHARED
     DataTable.hpp DataTable.cpp
     )
 
-include_directories(
+target_include_directories(argonavis-cuda PUBLIC
     ${PROJECT_SOURCE_DIR}/libargonavis-base
     ${PROJECT_BINARY_DIR}/CUDA/messages
     ${Boost_INCLUDE_DIRS}

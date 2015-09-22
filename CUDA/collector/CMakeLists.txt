@@ -36,10 +36,8 @@ set(SOURCES
 #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--unresolved-symbols=report-all -Wl,--warn-unresolved-symbols -Wl,--warn-once")
 
 add_library(cuda-collector-monitor-fileio SHARED ${SOURCES})
-add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
-add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
 
-include_directories(
+target_include_directories(cuda-collector-monitor-fileio PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
@@ -59,6 +57,16 @@ target_link_libraries(cuda-collector-monitor-fileio
     ${CUPTI_LIBRARIES}
     )
 
+add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
+
+target_include_directories(cuda-collector-monitor-mrnet PUBLIC
+    ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${CBTF_INCLUDE_DIRS}
+    ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
+    ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
+    ${CUPTI_INCLUDE_DIRS}
+    )
+
 target_link_libraries(cuda-collector-monitor-mrnet
     cbtf-messages-cuda
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
@@ -69,6 +77,16 @@ target_link_libraries(cuda-collector-monitor-mrnet
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUPTI_LIBRARIES}
+    )
+
+add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
+
+target_include_directories(cuda-collector-monitor-mrnet-mpi PUBLIC
+    ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${CBTF_INCLUDE_DIRS}
+    ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
+    ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
+    ${CUPTI_INCLUDE_DIRS}
     )
 
 target_link_libraries(cuda-collector-monitor-mrnet-mpi
@@ -84,8 +102,28 @@ target_link_libraries(cuda-collector-monitor-mrnet-mpi
     )
 
 if(PAPI_FOUND)
-    add_definitions(-DPAPI_FOUND)
-    include_directories(${PAPI_INCLUDE_DIRS})
+
+    set_target_properties(
+        cuda-collector-monitor-fileio
+        cuda-collector-monitor-mrnet
+        cuda-collector-monitor-mrnet-mpi
+        PROPERTIES COMPILE_DEFINITIONS PAPI_FOUND
+        )
+
+    target_include_directories(cuda-collector-monitor-fileio PUBLIC
+        ${PAPI_INCLUDE_DIRS}
+        )
+    target_include_directories(cuda-collector-monitor-mrnet PUBLIC
+        ${PAPI_INCLUDE_DIRS}
+        )
+    target_include_directories(cuda-collector-monitor-mrnet-mpi PUBLIC
+        ${PAPI_INCLUDE_DIRS}
+        )
+
+    target_link_libraries(cuda-collector-monitor-fileio
+        ${CBTF_KRELL_SERVICES_TIMER_SHARED_LIBRARY}
+        ${PAPI_SHARED_LIBRARIES}
+        )
     target_link_libraries(cuda-collector-monitor-mrnet
         ${CBTF_KRELL_SERVICES_TIMER_SHARED_LIBRARY}
         ${PAPI_SHARED_LIBRARIES}
@@ -93,14 +131,15 @@ if(PAPI_FOUND)
     target_link_libraries(cuda-collector-monitor-mrnet-mpi
         ${CBTF_KRELL_SERVICES_TIMER_SHARED_LIBRARY}
         ${PAPI_SHARED_LIBRARIES}
-        )  
+        )
+
 endif()
 
 set_target_properties(
     cuda-collector-monitor-fileio
     cuda-collector-monitor-mrnet
     cuda-collector-monitor-mrnet-mpi
-    PROPERTIES PREFIX "" VERSION 1.1.0
+    PROPERTIES PREFIX ""
     )
 
 install(

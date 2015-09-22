@@ -47,7 +47,7 @@ add_library(argonavis-base SHARED
     SymbolTable.hpp SymbolTable.cpp
     )
 
-include_directories(
+target_include_directories(argonavis-base PUBLIC
     ${Boost_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     )
@@ -59,14 +59,18 @@ target_link_libraries(argonavis-base
     ${CBTF_KRELL_MESSAGES_LIBRARIES}
     )
 
-set_target_properties(argonavis-base PROPERTIES VERSION 1.1.0)
-
 add_executable(test-base test.cpp)
+
+target_include_directories(test-base PUBLIC
+    ${Boost_INCLUDE_DIRS}
+    )
 
 target_link_libraries(test-base
     argonavis-base
     ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
     )
+
+set_target_properties(argonavis-base PROPERTIES VERSION 1.1.0)
 
 install(DIRECTORY ArgoNavis DESTINATION include)
 

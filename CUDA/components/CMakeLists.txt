@@ -22,7 +22,7 @@ add_library(CUDA SHARED
     XDR.cpp
     )
 
-include_directories(
+target_include_directories(CUDA PUBLIC
     ${PROJECT_SOURCE_DIR}/libargonavis-base
     ${PROJECT_BINARY_DIR}/CUDA/messages
     ${Boost_INCLUDE_DIRS}
