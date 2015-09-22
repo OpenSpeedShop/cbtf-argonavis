@@ -78,8 +78,8 @@ namespace ArgoNavis { namespace CUDA {
         const std::vector<std::string>& counters() const;
         
         /**
-         * Counts for all sampled hardware performance counters between the
-         * specified time interval.
+         * Counts for all sampled hardware performance counters for the given
+         * thread between the specified time interval.
          *
          * @note    The name of the counter corresponding to any particular
          *          count in the returned vector can be found by using that
@@ -89,10 +89,12 @@ namespace ArgoNavis { namespace CUDA {
          *          the hardware performance counter sample times, the counts
          *          provided are estimates based on the nearest samples.
          *
+         * @param thread      Name of thread for which to get counts.
          * @param interval    Time interval over which to get counts.
          * @return            Counts over the specified time interval.
          */
         std::vector<boost::uint64_t> counts(
+            const Base::ThreadName& thread,
             const Base::TimeInterval& interval
             ) const;
         

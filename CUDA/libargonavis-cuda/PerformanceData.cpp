@@ -77,6 +77,7 @@ const std::vector<std::string>& PerformanceData::counters() const
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 std::vector<boost::uint64_t> PerformanceData::counts(
+    const ThreadName& thread,
     const TimeInterval& interval
     ) const
 {
