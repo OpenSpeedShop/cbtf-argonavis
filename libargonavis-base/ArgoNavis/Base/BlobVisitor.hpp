@@ -25,7 +25,7 @@
 
 #include <KrellInstitute/Messages/Blob.h>
 
-namespace ArgoNavis { namespace CUDA {
+namespace ArgoNavis { namespace Base {
 
     /**
      * Type of function invoked when visiting CBTF_Protocol_Blob objects. Used
@@ -43,4 +43,4 @@ namespace ArgoNavis { namespace CUDA {
         bool (const boost::shared_ptr<CBTF_Protocol_Blob>&)
         > BlobVisitor;
     
-} } // namespace ArgoNavis::CUDA
+} } // namespace ArgoNavis::Base

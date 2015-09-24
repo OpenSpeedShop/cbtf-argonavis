@@ -19,6 +19,7 @@
 
 add_library(argonavis-base SHARED
     ArgoNavis/Base/Address.hpp
+    ArgoNavis/Base/AddressVisitor.hpp
     ArgoNavis/Base/AddressBitmap.hpp AddressBitmap.cpp
     ArgoNavis/Base/AddressRange.hpp
     ArgoNavis/Base/AddressSet.hpp AddressSet.cpp

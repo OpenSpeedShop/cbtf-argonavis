@@ -17,7 +17,6 @@
 ################################################################################
 
 add_library(argonavis-cuda SHARED
-    ArgoNavis/CUDA/AddressVisitor.hpp
     ArgoNavis/CUDA/BlobVisitor.hpp
     ArgoNavis/CUDA/CachePreference.hpp
     ArgoNavis/CUDA/CopyKind.hpp

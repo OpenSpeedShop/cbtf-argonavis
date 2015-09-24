@@ -28,13 +28,13 @@
 #include <KrellInstitute/Messages/CUDA_data.h>
 #include <KrellInstitute/Messages/DataHeader.h>
 
+#include <ArgoNavis/Base/AddressVisitor.hpp>
 #include <ArgoNavis/Base/BlobVisitor.hpp>
 #include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/ThreadVisitor.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
-#include <ArgoNavis/CUDA/AddressVisitor.hpp>
 #include <ArgoNavis/CUDA/DataTransferVisitor.hpp>
 #include <ArgoNavis/CUDA/Device.hpp>
 #include <ArgoNavis/CUDA/KernelExecutionVisitor.hpp>
@@ -61,7 +61,7 @@ namespace ArgoNavis { namespace CUDA {
          * @param visitor    Visitor invoked for each PC address.
          */
         static void visitPCs(const CBTF_cuda_data& message,
-                             AddressVisitor& visitor);
+                             Base::AddressVisitor& visitor);
 
         /** Construct empty performance data. */
         PerformanceData();
@@ -124,7 +124,7 @@ namespace ArgoNavis { namespace CUDA {
          * @param visitor     Visitor invoked for each performance data blob.
          */
         void visitBlobs(const Base::ThreadName& thread,
-                        BlobVisitor& visitor) const;
+                        Base::BlobVisitor& visitor) const;
 
         /**
          * Visit those data transfers within the given thread whose request-
