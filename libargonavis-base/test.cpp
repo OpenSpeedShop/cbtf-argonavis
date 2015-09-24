@@ -734,8 +734,8 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     BOOST_CHECK_GT(function3, function2);
     BOOST_CHECK_NE(function3, function4);
 
-    BOOST_CHECK(!equivalent(function1, function2));
-    BOOST_CHECK(equivalent(function3, function4));
+    BOOST_CHECK(!ArgoNavis::Base::equivalent(function1, function2));
+    BOOST_CHECK(ArgoNavis::Base::equivalent(function3, function4));
 
     functions.clear();
     linked_object.visitFunctions(
@@ -775,8 +775,8 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     BOOST_CHECK_GT(statement3, statement2);
     BOOST_CHECK_NE(statement3, statement4);
 
-    BOOST_CHECK(!equivalent(statement1, statement2));
-    BOOST_CHECK(equivalent(statement3, statement4));
+    BOOST_CHECK(!ArgoNavis::Base::equivalent(statement1, statement2));
+    BOOST_CHECK(ArgoNavis::Base::equivalent(statement3, statement4));
 
     statements.clear();
     linked_object.visitStatements(
@@ -1029,7 +1029,7 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     // loop information, and the equivalent() check below would fail.
     //
     
-    BOOST_CHECK(equivalent(
+    BOOST_CHECK(ArgoNavis::Base::equivalent(
         LinkedObject(static_cast<CBTF_Protocol_SymbolTable>(linked_object)),
         linked_object
         ));
@@ -1059,8 +1059,8 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     BOOST_CHECK_GT(loop3, loop2);
     BOOST_CHECK_NE(loop1, loop3);
 
-    BOOST_CHECK(!equivalent(loop1, loop2));
-    BOOST_CHECK(equivalent(loop1, loop3));
+    BOOST_CHECK(!ArgoNavis::Base::equivalent(loop1, loop2));
+    BOOST_CHECK(ArgoNavis::Base::equivalent(loop1, loop3));
 
     loops.clear();
     linked_object.visitLoops(
@@ -1298,9 +1298,9 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     BOOST_CHECK((clone < linked_object) || (linked_object < clone));
     BOOST_CHECK_NE(clone, linked_object);
 
-    BOOST_CHECK(equivalent(clone, linked_object));
+    BOOST_CHECK(ArgoNavis::Base::equivalent(clone, linked_object));
     Function function5(clone, "_Z2f5RKf");
-    BOOST_CHECK(!equivalent(clone, linked_object));
+    BOOST_CHECK(!ArgoNavis::Base::equivalent(clone, linked_object));
 }
 
 

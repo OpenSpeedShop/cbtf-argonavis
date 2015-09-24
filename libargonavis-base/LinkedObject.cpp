@@ -46,7 +46,7 @@ namespace {
     template <typename T>
     bool containsEquivalent(const T& entity, const T& x, bool& contains)
     {
-        contains |= equivalent(x, entity);
+        contains |= ArgoNavis::Base::equivalent(x, entity);
         return !contains;
     }
     

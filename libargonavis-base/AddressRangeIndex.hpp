@@ -84,7 +84,7 @@ namespace ArgoNavis { namespace Base { namespace Impl {
                     >
                 >,
             boost::multi_index::ordered_non_unique<
-                typename AddressRangeIndexRow::range_begin
+                AddressRangeIndexRow::range_begin
                 >
             >
         > AddressRangeIndex;
