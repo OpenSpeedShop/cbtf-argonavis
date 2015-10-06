@@ -27,6 +27,7 @@
 #include <iostream>
 #include <string>
 
+#include <KrellInstitute/Messages/DataHeader.h>
 #include <KrellInstitute/Messages/Thread.h>
 
 namespace ArgoNavis { namespace Base {
@@ -47,16 +48,26 @@ namespace ArgoNavis { namespace Base {
         /**
          * Construct a thread name from its individual fields.
          *
-         * @param host    Name of the host on which this thread is located.
-         * @param pid     Identifier for the process containing this thread.
-         * @param tid     POSIX thread identifier for this thread.
-         * @param rank    MPI rank of the process containing this thread.
+         * @param host        Name of the host on which this thread is located.
+         * @param pid         Identifier for the process containing this thread.
+         * @param tid         POSIX thread identifier for this thread.
+         * @param mpi_rank    MPI rank of the process containing this thread.
+         * @param omp_rank    OpenMP rank of this thread.
          */
         ThreadName(const std::string& host, boost::uint64_t pid,
                    const boost::optional<boost::uint64_t>& tid =
                        boost::optional<boost::uint64_t>(),
-                   const boost::optional<boost::uint32_t>& rank =
+                   const boost::optional<boost::uint32_t>& mpi_rank =
+                       boost::optional<boost::uint32_t>(),
+                   const boost::optional<boost::uint32_t>& omp_rank =
                        boost::optional<boost::uint32_t>());
+
+        /**
+         * Construct a thread name from a CBTF_DataHeader.
+         *
+         * @param message    Message containing this thread name.
+         */
+        ThreadName(const CBTF_DataHeader& message);
 
         /**
          * Construct a thread name from a CBTF_Protocol_ThreadName.
@@ -66,9 +77,22 @@ namespace ArgoNavis { namespace Base {
         ThreadName(const CBTF_Protocol_ThreadName& message);
 
         /**
+         * Type conversion to a CBTF_DataHeader.
+         *
+         * @return    Message containing this thread name.
+         *
+         * @note    All fields within the returned message that are not part of
+         *          the thread name (e.g. "experiment") are zero-initialized.
+         */
+        operator CBTF_DataHeader() const;
+
+        /**
          * Type conversion to a CBTF_Protocol_ThreadName.
          *
          * @return    Message containing this thread name.
+         *
+         * @note    All fields within the returned message that are not part of
+         *          the thread name (e.g. "experiment") are zero-initialized.
          */
         operator CBTF_Protocol_ThreadName() const;
 
@@ -116,9 +140,15 @@ namespace ArgoNavis { namespace Base {
         }
 
         /** Get the MPI rank of the process containing this thread. */
-        const boost::optional<boost::uint32_t>& rank() const
+        const boost::optional<boost::uint32_t>& mpi_rank() const
         {
-            return dm_rank;
+            return dm_mpi_rank;
+        }
+
+        /** Get the OpenMP rank of this thread. */
+        const boost::optional<boost::uint32_t>& omp_rank() const
+        {
+            return dm_omp_rank;
         }
 
     private:
@@ -133,7 +163,10 @@ namespace ArgoNavis { namespace Base {
         boost::optional<boost::uint64_t> dm_tid;
 
         /** MPI rank of the process containing this thread. */
-        boost::optional<boost::uint32_t> dm_rank;
+        boost::optional<boost::uint32_t> dm_mpi_rank;
+
+        /** OpenMP rank of this thread. */
+        boost::optional<boost::uint32_t> dm_omp_rank;
         
     }; // class ThreadName
         
