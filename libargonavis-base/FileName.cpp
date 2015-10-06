@@ -99,6 +99,7 @@ FileName::operator boost::filesystem::path() const
 FileName::operator CBTF_Protocol_FileName() const
 {
     CBTF_Protocol_FileName message;
+    memset(&message, 0, sizeof(message));
     
     message.path = strdup(dm_path.c_str());
     message.checksum = dm_checksum;

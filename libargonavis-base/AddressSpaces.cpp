@@ -23,6 +23,7 @@
 #include <boost/bind.hpp>
 #include <boost/ref.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <cstring>
 #include <set>
 
 #include <ArgoNavis/Base/AddressSpaces.hpp>
@@ -112,6 +113,7 @@ AddressSpaces::operator CBTF_Protocol_AttachedToThreads() const
     }
 
     CBTF_Protocol_AttachedToThreads message;
+    memset(&message, 0, sizeof(message));
 
     message.threads.names.names_len = threads.size();
     message.threads.names.names_val =

@@ -20,6 +20,7 @@
 /** @file Definition of the SymbolTable class. */
 
 #include <algorithm>
+#include <cstring>
 
 #include "SymbolTable.hpp"
 
@@ -90,6 +91,7 @@ SymbolTable::SymbolTable(const CBTF_Protocol_SymbolTable& message) :
 SymbolTable::operator CBTF_Protocol_SymbolTable() const
 {
     CBTF_Protocol_SymbolTable message;
+    memset(&message, 0, sizeof(message));
 
     message.linked_object = dm_file;
 

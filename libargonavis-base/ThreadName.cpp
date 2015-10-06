@@ -100,7 +100,6 @@ ThreadName::ThreadName(const CBTF_Protocol_ThreadName& message) :
 ThreadName::operator CBTF_DataHeader() const
 {
     CBTF_DataHeader message;
-
     memset(&message, 0, sizeof(message));
 
     strncpy(message.host, dm_host.c_str(), sizeof(message.host) - 1);
@@ -119,7 +118,6 @@ ThreadName::operator CBTF_DataHeader() const
 ThreadName::operator CBTF_Protocol_ThreadName() const
 {
     CBTF_Protocol_ThreadName message;
-
     memset(&message, 0, sizeof(message));
 
     message.host = strdup(dm_host.c_str());

@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <boost/cstdint.hpp>
 #include <cstdlib>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 
@@ -84,6 +85,8 @@ AddressBitmap::operator CBTF_Protocol_AddressBitmap() const
     boost::uint64_t size = std::max<boost::uint64_t>(1, ((width - 1) / 8) + 1);
 
     CBTF_Protocol_AddressBitmap message;
+    memset(&message, 0, sizeof(message));
+
     message.range = dm_range;
     message.bitmap.data.data_len = size;
     message.bitmap.data.data_val = reinterpret_cast<uint8_t*>(malloc(size));
