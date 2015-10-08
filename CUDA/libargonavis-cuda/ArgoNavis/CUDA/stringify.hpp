@@ -33,6 +33,12 @@
 #include <string>
 #include <vector>
 
+#include <KrellInstitute/Messages/CUDA_data.h>
+
+#include <ArgoNavis/CUDA/CachePreference.hpp>
+#include <ArgoNavis/CUDA/CopyKind.hpp>
+#include <ArgoNavis/CUDA/MemoryKind.hpp>
+
 namespace ArgoNavis { namespace CUDA { namespace Impl {
 
     /**
@@ -331,7 +337,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             return "?";
         }
     };
-    
+
     template <>
     struct Stringify<CUDA_MessageTypes>
     {
@@ -709,5 +715,32 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             return stream.str();
         }
     };
-    
+
+    template <>
+    struct Stringify<CachePreference>
+    {
+        static std::string impl(const CachePreference& value)
+        {
+            return stringify(static_cast<CUDA_CachePreference>(value));
+        }
+    };
+
+    template <>
+    struct Stringify<CopyKind>
+    {
+        static std::string impl(const CopyKind& value)
+        {
+            return stringify(static_cast<CUDA_CopyKind>(value));
+        }
+    };
+
+    template <>
+    struct Stringify<MemoryKind>
+    {
+        static std::string impl(const MemoryKind& value)
+        {
+            return stringify(static_cast<CUDA_MemoryKind>(value));
+        }
+    };
+        
 } } } // namespace ArgoNavis::CUDA::Impl 
