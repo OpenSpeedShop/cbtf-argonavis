@@ -57,20 +57,10 @@ PerformanceData::PerformanceData() :
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void PerformanceData::applyMessage(const CBTF_DataHeader& header,
-                                   const CBTF_cuda_data& message)
-{
-    // ...
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
 void PerformanceData::applyMessage(const ThreadName& thread,
                                    const CBTF_cuda_data& message)
 {
-    // ...
+    dm_data_table->process(thread, message);
 }
 
 

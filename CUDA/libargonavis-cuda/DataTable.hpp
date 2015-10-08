@@ -46,6 +46,10 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Construct an empty data table. */
         DataTable();
 
+        /** Process the performance data contained within the given message. */
+        void process(const Base::ThreadName& thread,
+                     const CBTF_cuda_data& message);
+
         /** Names of all sampled hardware performance counters. */
         const std::vector<std::string>& counters() const;
 
@@ -59,6 +63,44 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         const std::vector<Base::StackTrace>& sites() const;
 
     private:
+
+        /** Process a CUDA_CompletedExec message. */
+        void process(const Base::ThreadName& thread,
+                     const struct CUDA_CompletedExec& message);
+
+        /** Process a CUDA_CompletedXfer message. */
+        void process(const Base::ThreadName& thread,
+                     const struct CUDA_CompletedXfer& message);
+
+        /** Process a CUDA_ContextInfo message. */
+        void process(const Base::ThreadName& thread,
+                     const struct CUDA_ContextInfo& message);
+
+        /** Process a CUDA_DeviceInfo message. */
+        void process(const Base::ThreadName& thread,
+                     const struct CUDA_DeviceInfo& message);
+        
+        /** Process a CUDA_EnqueueExec message. */
+        void process(const Base::ThreadName& thread,
+                     const struct CUDA_EnqueueExec& message,
+                     const struct CBTF_cuda_data& data);
+
+        /** Process a CUDA_EnqueueXfer message. */
+        void process(const Base::ThreadName& thread,
+                     const struct CUDA_EnqueueXfer& message,
+                     const struct CBTF_cuda_data& data);
+        
+        /** Process a CUDA_OverflowSamples message. */
+        void process(const Base::ThreadName& thread,
+                     const struct CUDA_OverflowSamples& message);
+        
+        /** Process a CUDA_PeriodicSamples message. */
+        void process(const Base::ThreadName& thread,
+                     const struct CUDA_PeriodicSamples& message);
+        
+        /** Process a CUDA_SamplingConfig message. */
+        void process(const Base::ThreadName& thread,
+                     const struct CUDA_SamplingConfig& message);
 
         /** Names of all sampled hardware performance counters. */
         std::vector<std::string> dm_counters;

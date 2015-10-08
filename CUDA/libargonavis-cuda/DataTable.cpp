@@ -40,6 +40,60 @@ DataTable::DataTable() :
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const CBTF_cuda_data& message)
+{
+    for (u_int i = 0; i < data.messages.messages_len; ++i)
+    {
+        const CBTF_cuda_message& message = data.messages.messages_val[i];
+        
+        switch (message.type)
+        {
+
+        case CompletedExec:
+            process(thread, message.CBTF_cuda_message_u.completed_exec);
+            break;
+
+        case CompletedXfer:
+            process(thread, message.CBTF_cuda_message_u.completed_xfer);
+            break;
+
+        case ContextInfo:
+            process(thread, message.CBTF_cuda_message_u.context_info);
+            break;
+            
+        case DeviceInfo:
+            process(message.CBTF_cuda_message_u.device_info);
+            break;
+
+        case EnqueueExec:
+            process(thread, message.CBTF_cuda_message_u.enqueue_exec, data);
+            break;
+
+        case EnqueueXfer:
+            process(thread, message.CBTF_cuda_message_u.enqueue_xfer, data);
+            break;
+
+        case OverflowSamples:
+            process(thread, message.CBTF_cuda_message_u.overflow_samples);
+            break;
+
+        case PeriodicSamples:
+            process(thread, message.CBTF_cuda_message_u.periodic_samples);
+            break;
+            
+        case SamplingConfig:
+            process(thread, message.CBTF_cuda_message_u.sampling_config);
+            break;
+            
+        }
+    }
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const std::vector<std::string>& DataTable::counters() const
 {
     return dm_counters;
@@ -70,4 +124,87 @@ const TimeInterval& DataTable::interval() const
 const std::vector<StackTrace>& DataTable::sites() const
 {
     return dm_sites;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const struct CUDA_CompletedExec& message)
+{
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const struct CUDA_CompletedXfer& message)
+{
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const struct CUDA_ContextInfo& message)
+{
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const struct CUDA_DeviceInfo& message)
+{
+}
+
+        
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const struct CUDA_EnqueueExec& message,
+                        const struct CBTF_cuda_data& data)
+{
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const struct CUDA_EnqueueXfer& message,
+                        const struct CBTF_cuda_data& data)
+{
+}
+
+
+        
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const struct CUDA_OverflowSamples& message)
+{
+}
+
+
+        
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const struct CUDA_PeriodicSamples& message)
+{
+}
+
+
+        
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const Base::ThreadName& thread,
+                        const struct CUDA_SamplingConfig& message)
+{
 }

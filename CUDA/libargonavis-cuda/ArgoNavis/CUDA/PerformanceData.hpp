@@ -69,15 +69,6 @@ namespace ArgoNavis { namespace CUDA {
         /**
          * Apply (add) the performance data contained within the given message.
          *
-         * @param header     Header for this data.
-         * @param message    Message containing the performance data.
-         */
-        void applyMessage(const CBTF_DataHeader& header,
-                          const CBTF_cuda_data& message);
-
-        /**
-         * Apply (add) the performance data contained within the given message.
-         *
          * @param thread     Name of the thread containing this data.
          * @param message    Message containing the performance data.
          */
