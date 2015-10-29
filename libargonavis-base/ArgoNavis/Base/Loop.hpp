@@ -120,7 +120,7 @@ namespace ArgoNavis { namespace Base {
          *
          * @return    Linked object containing this loop.
          */
-        LinkedObject getLinkedObject() const;
+        LinkedObject parent() const;
         
         /**
          * Get the head address of this loop.
@@ -132,7 +132,7 @@ namespace ArgoNavis { namespace Base {
          *          absolute address from the address space of a specific
          *          process.
          */
-        Address getHeadAddress() const;
+        Address head() const;
         
         /**
          * Get the address ranges associated with this loop. An empty set

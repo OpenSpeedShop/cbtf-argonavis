@@ -116,7 +116,7 @@ void Statement::add(const std::set<AddressRange>& ranges)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-LinkedObject Statement::getLinkedObject() const
+LinkedObject Statement::parent() const
 {
     return LinkedObject(dm_symbol_table);
 }
@@ -125,7 +125,7 @@ LinkedObject Statement::getLinkedObject() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-FileName Statement::getFile() const
+FileName Statement::file() const
 {
     return dm_symbol_table->statements().fields(dm_unique_identifier).dm_file;
 }
@@ -134,7 +134,7 @@ FileName Statement::getFile() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-unsigned int Statement::getLine() const
+unsigned int Statement::line() const
 {
     return dm_symbol_table->statements().fields(dm_unique_identifier).dm_line;
 }
@@ -143,7 +143,7 @@ unsigned int Statement::getLine() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-unsigned int Statement::getColumn() const
+unsigned int Statement::column() const
 {
     return dm_symbol_table->statements().fields(dm_unique_identifier).dm_column;
 }
@@ -216,17 +216,17 @@ Statement::Statement(const Impl::SymbolTable::Handle& symbol_table,
 bool ArgoNavis::Base::equivalent(const Statement& first,
                                  const Statement& second)
 {
-    if (first.getLine() != second.getLine())
+    if (first.line() != second.line())
     {
         return false;
     }
 
-    if (first.getColumn() != second.getColumn())
+    if (first.column() != second.column())
     {
         return false;
     }
 
-    if (first.getFile() != second.getFile())
+    if (first.file() != second.file())
     {
         return false;
     }

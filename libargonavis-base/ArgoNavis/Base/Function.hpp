@@ -113,21 +113,21 @@ namespace ArgoNavis { namespace Base {
          *
          * @return    Linked object containing this function.
          */
-        LinkedObject getLinkedObject() const;
+        LinkedObject parent() const;
         
         /**
          * Get the mangled name of this function.
          *
          * @return    Mangled name of this function.
          */
-        std::string getMangledName() const;
+        std::string mangled() const;
         
         /**
          * Get the demangled name of this function.
          *
          * @return       Demangled name of this function.
          */
-        std::string getDemangledName() const;
+        std::string demangled() const;
 
         /**
          * Get the address ranges associated with this function. An empty set

@@ -39,7 +39,8 @@ using namespace ArgoNavis::Base;
 Function::Function(const LinkedObject& linked_object, const std::string& name) :
     dm_symbol_table(linked_object.dm_symbol_table),
     dm_unique_identifier(dm_symbol_table->functions().add(
-                             Impl::SymbolTable::FunctionFields(name)))
+                             Impl::SymbolTable::FunctionFields(name)
+                             ))
 {
 }
 
@@ -111,7 +112,7 @@ void Function::add(const std::set<AddressRange>& ranges)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-LinkedObject Function::getLinkedObject() const
+LinkedObject Function::parent() const
 {
     return LinkedObject(dm_symbol_table);
 }
@@ -120,7 +121,7 @@ LinkedObject Function::getLinkedObject() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-std::string Function::getMangledName() const
+std::string Function::mangled() const
 {
     return dm_symbol_table->functions().fields(dm_unique_identifier).dm_name;
 }
@@ -134,22 +135,22 @@ std::string Function::getMangledName() const
 //
 // http://gcc.gnu.org/onlinedocs/libstdc++/libstdc++-html-USERS-4.3/a01696.html
 //------------------------------------------------------------------------------
-std::string Function::getDemangledName() const
+std::string Function::demangled() const
 {
-    std::string mangled = getMangledName();
+    std::string name = mangled();
     
     int status = 0;
-    char* raw = abi::__cxa_demangle(mangled.c_str(), NULL, 0, &status);
+    char* raw = abi::__cxa_demangle(name.c_str(), NULL, 0, &status);
     
     if (status != 0)
     {
-        return mangled;
+        return name;
     }
     
-    std::string demangled(raw);
+    std::string result(raw);
     free(raw);
     
-    return demangled;
+    return result;
 }
 
 
@@ -233,7 +234,7 @@ Function::Function(const Impl::SymbolTable::Handle& symbol_table,
 //------------------------------------------------------------------------------
 bool ArgoNavis::Base::equivalent(const Function& first, const Function& second)
 {
-    if (first.getMangledName() != second.getMangledName())
+    if (first.mangled() != second.mangled())
     {
         return false;
     }

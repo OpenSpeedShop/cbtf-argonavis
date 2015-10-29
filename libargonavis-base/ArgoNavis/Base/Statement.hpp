@@ -121,28 +121,28 @@ namespace ArgoNavis { namespace Base {
          *
          * @return    Linked object containing this statement.
          */
-        LinkedObject getLinkedObject() const;
+        LinkedObject parent() const;
         
         /**
          * Get the name of this statement's source file.
          *
          * @return    Name of this statement's source file.
          */
-        FileName getFile() const;
+        FileName file() const;
         
         /**
          * Get the line number of this statement.
          *
          * @return    Line number of this statement.
          */
-        unsigned int getLine() const;
+        unsigned int line() const;
 
         /**
          * Get the column number of this statement.
          *
          * @return    Column number of this statement.
          */
-        unsigned int getColumn() const;
+        unsigned int column() const;
 
         /**
          * Get the address ranges associated with this statement. An empty set

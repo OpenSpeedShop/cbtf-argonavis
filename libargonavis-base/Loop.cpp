@@ -38,7 +38,8 @@ using namespace ArgoNavis::Base;
 Loop::Loop(const LinkedObject& linked_object, const Address& head) :
     dm_symbol_table(linked_object.dm_symbol_table),
     dm_unique_identifier(dm_symbol_table->loops().add(
-                             Impl::SymbolTable::LoopFields(head)))
+                             Impl::SymbolTable::LoopFields(head)
+                             ))
 {
 }
 
@@ -110,7 +111,7 @@ void Loop::add(const std::set<AddressRange>& ranges)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-LinkedObject Loop::getLinkedObject() const
+LinkedObject Loop::parent() const
 {
     return LinkedObject(dm_symbol_table);
 }
@@ -119,7 +120,7 @@ LinkedObject Loop::getLinkedObject() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-Address Loop::getHeadAddress() const
+Address Loop::head() const
 {
     return dm_symbol_table->loops().fields(dm_unique_identifier).dm_head;
 }
@@ -205,7 +206,7 @@ Loop::Loop(const Impl::SymbolTable::Handle& symbol_table,
 //------------------------------------------------------------------------------
 bool ArgoNavis::Base::equivalent(const Loop& first, const Loop& second)
 {
-    if (first.getHeadAddress() != second.getHeadAddress())
+    if (first.head() != second.head())
     {
         return false;
     }

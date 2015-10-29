@@ -720,9 +720,9 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     Function function1(linked_object, "_Z2f1RKf");
 
     BOOST_CHECK_EQUAL(Function(function1), function1);
-    BOOST_CHECK_EQUAL(function1.getLinkedObject(), linked_object);
-    BOOST_CHECK_EQUAL(function1.getMangledName(), "_Z2f1RKf");
-    BOOST_CHECK_EQUAL(function1.getDemangledName(), "f1(float const&)");
+    BOOST_CHECK_EQUAL(function1.parent(), linked_object);
+    BOOST_CHECK_EQUAL(function1.mangled(), "_Z2f1RKf");
+    BOOST_CHECK_EQUAL(function1.demangled(), "f1(float const&)");
     BOOST_CHECK(function1.ranges().empty());
 
     Function function2(linked_object, "_Z2f2RKf");
@@ -757,11 +757,11 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
                          FileName("/path/to/nonexistent/source/file"), 1, 1);
 
     BOOST_CHECK_EQUAL(Statement(statement1), statement1);
-    BOOST_CHECK_EQUAL(statement1.getLinkedObject(), linked_object);
-    BOOST_CHECK_EQUAL(statement1.getFile(),
+    BOOST_CHECK_EQUAL(statement1.parent(), linked_object);
+    BOOST_CHECK_EQUAL(statement1.file(),
                       FileName("/path/to/nonexistent/source/file"));
-    BOOST_CHECK_EQUAL(statement1.getLine(), 1);
-    BOOST_CHECK_EQUAL(statement1.getColumn(), 1);
+    BOOST_CHECK_EQUAL(statement1.line(), 1);
+    BOOST_CHECK_EQUAL(statement1.column(), 1);
     BOOST_CHECK(statement1.ranges().empty());
 
     Statement statement2(linked_object,
@@ -1047,8 +1047,8 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     Loop loop1(linked_object, Address(13));
 
     BOOST_CHECK_EQUAL(Loop(loop1), loop1);
-    BOOST_CHECK_EQUAL(loop1.getLinkedObject(), linked_object);
-    BOOST_CHECK_EQUAL(loop1.getHeadAddress(), Address(13));
+    BOOST_CHECK_EQUAL(loop1.parent(), linked_object);
+    BOOST_CHECK_EQUAL(loop1.head(), Address(13));
     BOOST_CHECK(loop1.ranges().empty());
 
     Loop loop2(linked_object, Address(0));
