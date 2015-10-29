@@ -133,6 +133,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each thread contained
          *                   within these address spaces.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitThreads(const ThreadVisitor& visitor) const;
 
@@ -141,6 +144,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each linked object contained
          *                   within these address spaces.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitLinkedObjects(const LinkedObjectVisitor& visitor) const;
         
@@ -151,6 +157,9 @@ namespace ArgoNavis { namespace Base {
          * @param thread     Name of the thread to be found.
          * @param visitor    Visitor invoked for each linked object contained
          *                   within these address spaces mapped by that thread.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitLinkedObjects(const ThreadName& thread,
                                 const LinkedObjectVisitor& visitor) const;
@@ -160,6 +169,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each mapping contained
          *                   within these address spaces.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitMappings(const MappingVisitor& visitor) const;
 
@@ -171,6 +183,9 @@ namespace ArgoNavis { namespace Base {
          * @param visitor    Visitor invoked for each mapping contained
          *                   within these address spaces mapped by that
          *                   thread.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitMappings(const ThreadName& thread,
                            const MappingVisitor& visitor) const;
@@ -187,6 +202,9 @@ namespace ArgoNavis { namespace Base {
          *                    within these address spaces mapped by that
          *                    thread and interesecting that address range
          *                    and time interval.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitMappings(const ThreadName& thread,
                            const AddressRange& range,

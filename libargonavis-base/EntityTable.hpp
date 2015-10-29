@@ -141,11 +141,7 @@ namespace ArgoNavis { namespace Base { namespace Impl {
             return dm_entities[uid].first;
         }
         
-        /**
-         * Get the size of this table.
-         *
-         * @return    Size of this table.
-         */
+        /** Get the size of this table. */
         EntityUID size() const
         {
             return dm_entities.size();
@@ -160,6 +156,9 @@ namespace ArgoNavis { namespace Base { namespace Impl {
          * @param symbol_table    Symbol table containing this table.
          * @param visitor         Visitor invoked for each entity
          *                        contained within this table.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         template <typename E, typename V>
         void visit(const boost::shared_ptr<SymbolTable>& symbol_table,
@@ -187,6 +186,9 @@ namespace ArgoNavis { namespace Base { namespace Impl {
          * @param symbol_table    Symbol table containing this table.
          * @param visitor         Visitor invoked for each entity
          *                        contained within this table.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          *
          * @todo    The current implementation of AddressSet is not efficient
          *          at storing a single AddressRange. Once that inadequacy is
@@ -237,6 +239,9 @@ namespace ArgoNavis { namespace Base { namespace Impl {
          * @param symbol_table    Symbol table containing this table.
          * @param visitor         Visitor invoked for each entity
          *                        contained within this table.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          *
          * @todo    The current implementation of AddressSet does not provide
          *          an interface for visiting the address ranges in the set.

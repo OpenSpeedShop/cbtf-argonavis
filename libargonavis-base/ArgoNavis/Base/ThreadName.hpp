@@ -62,18 +62,10 @@ namespace ArgoNavis { namespace Base {
                    const boost::optional<boost::uint32_t>& omp_rank =
                        boost::optional<boost::uint32_t>());
 
-        /**
-         * Construct a thread name from a CBTF_DataHeader.
-         *
-         * @param message    Message containing this thread name.
-         */
+        /** Construct a thread name from a CBTF_DataHeader. */
         ThreadName(const CBTF_DataHeader& message);
 
-        /**
-         * Construct a thread name from a CBTF_Protocol_ThreadName.
-         *
-         * @param message    Message containing this thread name.
-         */
+        /** Construct a thread name from a CBTF_Protocol_ThreadName. */
         ThreadName(const CBTF_Protocol_ThreadName& message);
 
         /**
@@ -96,29 +88,13 @@ namespace ArgoNavis { namespace Base {
          */
         operator CBTF_Protocol_ThreadName() const;
 
-        /**
-         * Type conversion to a string.
-         *
-         * @return    String describing the named thread.
-         */
+        /** Type conversion to a string. */
         operator std::string() const;
         
-        /**
-         * Is this thread name less than another one?
-         *
-         * @param other    Thread name to be compared.
-         * @return         Boolean "true" if this thread name is less than the
-         *                 thread name to be compared, or "false" otherwise.
-         */
+        /** Is this thread name less than another one? */
         bool operator<(const ThreadName& other) const;
 
-        /**
-         * Is this thread name equal to another one?
-         *
-         * @param other    Thread name to be compared.
-         * @return         Boolean "true" if the thread names are equal,
-         *                 or "false" otherwise.
-         */
+        /** Is this thread name equal to another one? */
         bool operator==(const ThreadName& other) const;
 
         /** Get the name of the host on which this thread is located. */
@@ -170,13 +146,7 @@ namespace ArgoNavis { namespace Base {
         
     }; // class ThreadName
         
-    /**
-     * Redirect a thread name to an output stream.
-     *
-     * @param stream    Destination output stream.
-     * @param name      Thread name to be redirected.
-     * @return          Destination output stream.
-     */
+    /** Redirect a thread name to an output stream. */
     std::ostream& operator<<(std::ostream& stream, const ThreadName& name);
             
 } } // namespace ArgoNavis::Base

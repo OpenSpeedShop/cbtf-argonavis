@@ -78,22 +78,10 @@ namespace ArgoNavis { namespace Base {
          */
         operator std::string() const;
 
-        /**
-         * Is this statement less than another one?
-         *
-         * @param other    Statement to be compared.
-         * @return         Boolean "true" if this statement is less than the
-         *                 statement to be compared, or "false" otherwise.
-         */
+        /** Is this statement less than another one? */
         bool operator<(const Statement& other) const;
 
-        /**
-         * Is this statement equal to another one?
-         *
-         * @param other    Statement to be compared.
-         * @return         Boolean "true" if the statements are equal,
-         *                 or "false" otherwise.
-         */
+        /** Is this statement equal to another one? */
         bool operator==(const Statement& other) const;
 
         /**
@@ -116,32 +104,16 @@ namespace ArgoNavis { namespace Base {
          */
         void add(const std::set<AddressRange>& ranges);
 
-        /**
-         * Get the linked object containing this statement.
-         *
-         * @return    Linked object containing this statement.
-         */
+        /** Get the linked object containing this statement. */
         LinkedObject parent() const;
         
-        /**
-         * Get the name of this statement's source file.
-         *
-         * @return    Name of this statement's source file.
-         */
+        /** Get the name of this statement's source file. */
         FileName file() const;
         
-        /**
-         * Get the line number of this statement.
-         *
-         * @return    Line number of this statement.
-         */
+        /** Get the line number of this statement. */
         unsigned int line() const;
 
-        /**
-         * Get the column number of this statement.
-         *
-         * @return    Column number of this statement.
-         */
+        /** Get the column number of this statement. */
         unsigned int column() const;
 
         /**
@@ -162,6 +134,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each function containing
          *                   this statement.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitFunctions(const FunctionVisitor& visitor) const;
 
@@ -170,6 +145,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each loop containing
          *                   this statement.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitLoops(const LoopVisitor& visitor) const;
 

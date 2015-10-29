@@ -77,22 +77,10 @@ namespace ArgoNavis { namespace Base {
          */
         operator std::string() const;
         
-        /**
-         * Is this loop less than another one?
-         *
-         * @param other    Loop to be compared.
-         * @return         Boolean "true" if this loop is less than the
-         *                 loop to be compared, or "false" otherwise.
-         */
+        /** Is this loop less than another one? */
         bool operator<(const Loop& other) const;
 
-        /**
-         * Is this loop equal to another one?
-         *
-         * @param other    Loop to be compared.
-         * @return         Boolean "true" if the loops are equal,
-         *                 or "false" otherwise.
-         */
+        /** Is this loop equal to another one? */
         bool operator==(const Loop& other) const;
 
         /**
@@ -115,23 +103,10 @@ namespace ArgoNavis { namespace Base {
          */
         void add(const std::set<AddressRange>& ranges);
 
-        /**
-         * Get the linked object containing this loop.
-         *
-         * @return    Linked object containing this loop.
-         */
+        /** Get the linked object containing this loop. */
         LinkedObject parent() const;
         
-        /**
-         * Get the head address of this loop.
-         *
-         * @return    Head address of this loop.
-         *
-         * @note    The address specified is relative to the beginning of
-         *          the linked object containing this loop rather than an
-         *          absolute address from the address space of a specific
-         *          process.
-         */
+        /** Get the head address of this loop. */
         Address head() const;
         
         /**
@@ -151,6 +126,9 @@ namespace ArgoNavis { namespace Base {
          * Visit the definitions of this loop.
          *
          * @param visitor    Visitor invoked for each defintion of this loop.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitDefinitions(const StatementVisitor& visitor) const;
 
@@ -159,6 +137,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each function containing
          *                   this loop.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitFunctions(const FunctionVisitor& visitor) const;
 
@@ -167,6 +148,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each statement associated 
          *                   with this loop.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitStatements(const StatementVisitor& visitor) const;
 

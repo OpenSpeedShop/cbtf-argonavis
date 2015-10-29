@@ -47,57 +47,25 @@ namespace ArgoNavis { namespace Base {
 	
     public:
 
-        /**
-         * Construct a file name from the file's full path.
-         *
-         * @param path    Full path of the named file.
-         */
+        /** Construct a file name from the file's full path. */
         FileName(const boost::filesystem::path& path);
 
-        /**
-         * Construct a file name from a CBTF_Protocol_FileName.
-         *
-         * @param message    Message containing this file name.
-         */
+        /** Construct a file name from a CBTF_Protocol_FileName. */
         FileName(const CBTF_Protocol_FileName& message);
 
-        /**
-         * Type conversion to a Boost.Filesystem path.
-         *
-         * @return    Full path of the named file.
-         */
+        /** Type conversion to a Boost.Filesystem path. */
         operator boost::filesystem::path() const;
 
-        /**
-         * Type conversion to a CBTF_Protocol_FileName.
-         *
-         * @return    Message containing this file name.
-         */
+        /** Type conversion to a CBTF_Protocol_FileName. */
         operator CBTF_Protocol_FileName() const;
 
-        /**
-         * Type conversion to a string.
-         *
-         * @return    String describing the named file.
-         */
+        /** Type conversion to a string. */
         operator std::string() const;
 
-        /**
-         * Is this file name less than another one?
-         *
-         * @param other    File name to be compared.
-         * @return         Boolean "true" if this file name is less than the
-         *                 file name to be compared, or "false" otherwise.
-         */
+        /** Is this file name less than another one? */
         bool operator<(const FileName& other) const;
 
-        /**
-         * Is this file name equal to another one?
-         *
-         * @param other    File name to be compared.
-         * @return         Boolean "true" if the file names are equal,
-         *                 or "false" otherwise.
-         */
+        /** Is this file name equal to another one? */
         bool operator==(const FileName& other) const;
         
         /** Get the full path of the named file. */
@@ -122,13 +90,7 @@ namespace ArgoNavis { namespace Base {
         
     }; // class FileName
 
-    /**
-     * Redirect a file name to an output stream.
-     *
-     * @param stream    Destination output stream.
-     * @param name      File name to be redirected.
-     * @return          Destination output stream.
-     */
+    /** Redirect a file name to an output stream. */
     std::ostream& operator<<(std::ostream& stream, const FileName& name);
 
 } } // namespace ArgoNavis::Base

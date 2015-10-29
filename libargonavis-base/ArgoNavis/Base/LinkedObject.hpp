@@ -89,22 +89,10 @@ namespace ArgoNavis { namespace Base {
          */
         operator std::string() const;
 
-        /**
-         * Is this linked object less than another one?
-         *
-         * @param other    Linked object to be compared.
-         * @return         Boolean "true" if this linked object is less than the
-         *                 linked object to be compared, or "false" otherwise.
-         */
+        /** Is this linked object less than another one? */
         bool operator<(const LinkedObject& other) const;
 
-        /**
-         * Is this linked object equal to another one?
-         *
-         * @param other    Linked object to be compared.
-         * @return         Boolean "true" if the linked objects are equal,
-         *                 or "false" otherwise.
-         */
+        /** Is this linked object equal to another one? */
         bool operator==(const LinkedObject& other) const;
 
         /**
@@ -114,11 +102,7 @@ namespace ArgoNavis { namespace Base {
          */
         LinkedObject clone() const;
 
-        /**
-         * Get the name of this linked object's file.
-         *
-         * @return    Name of this linked object's file.
-         */
+        /** Get the name of this linked object's file. */
         FileName file() const;
 
         /**
@@ -126,6 +110,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each function
          *                   contained within this linked object.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitFunctions(const FunctionVisitor& visitor) const;
 
@@ -137,9 +124,12 @@ namespace ArgoNavis { namespace Base {
          * @param visitor    Visitor invoked for each function contained within
          *                   this linked object intersecting that address range.
          *
-         * @note    The addresses specified must be relative to the beginning of
-         *          this linked object rather than an absolute address from the
-         *          address space of a specific process.
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
+         *
+         * @note    The addresses specified must be relative to the beginning
+         *          of this linked object rather than an absolute address from
+         *          the address space of a specific process.
          */
         void visitFunctions(const AddressRange& range,
                             const FunctionVisitor& visitor) const;
@@ -149,6 +139,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each loop contained
          *                   within this linked object.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitLoops(const LoopVisitor& visitor) const;
         
@@ -160,9 +153,12 @@ namespace ArgoNavis { namespace Base {
          * @param visitor    Visitor invoked for each loop contained within this
          *                   linked object intersecting that address range.
          *
-         * @note    The addresses specified must be relative to the beginning of
-         *          this linked object rather than an absolute address from the
-         *          address space of a specific process.
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
+         *
+         * @note    The addresses specified must be relative to the beginning
+         *          of this linked object rather than an absolute address from
+         *          the address space of a specific process.
          */
         void visitLoops(const AddressRange& range,
                         const LoopVisitor& visitor) const;
@@ -172,6 +168,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each statement
          *                   contained within this linked object.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitStatements(const StatementVisitor& visitor) const;
         
@@ -183,9 +182,12 @@ namespace ArgoNavis { namespace Base {
          * @param visitor    Visitor invoked for each statement contained within
          *                   this linked object intersecting that address range.
          *
-         * @note    The addresses specified must be relative to the beginning of
-         *          this linked object rather than an absolute address from the
-         *          address space of a specific process.
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
+         *
+         * @note    The addresses specified must be relative to the beginning
+         *          of this linked object rather than an absolute address from
+         *          the address space of a specific process.
          */
         void visitStatements(const AddressRange& range,
                              const StatementVisitor& vistor) const;
