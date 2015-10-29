@@ -343,13 +343,13 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     // and visitMappings queries.
     //
     
-    address_spaces.loadLinkedObject(
+    address_spaces.load(
         thread1, linked_object1, AddressRange(0, 7)
         );
-    address_spaces.loadLinkedObject(
+    address_spaces.load(
         thread1, linked_object2, AddressRange(13, 27)
         );
-    address_spaces.loadLinkedObject(
+    address_spaces.load(
         thread1, linked_object3, AddressRange(13, 113), Time(13)
         );
     
@@ -400,9 +400,9 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     // and visitMappings queries.
     //
 
-    address_spaces.unloadLinkedObject(thread1, linked_object1);
-    address_spaces.unloadLinkedObject(thread1, linked_object2, Time(7));
-    address_spaces.unloadLinkedObject(thread1, linked_object3, Time(27));
+    address_spaces.unload(thread1, linked_object1);
+    address_spaces.unload(thread1, linked_object2, Time(7));
+    address_spaces.unload(thread1, linked_object3, Time(27));
     
     linked_objects.clear();
     address_spaces.visitLinkedObjects(
@@ -466,7 +466,7 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     group_message.linkedobjects.linkedobjects_val[0].time_begin = 13;
     group_message.linkedobjects.linkedobjects_val[0].time_end = 27 + 1;
 
-    address_spaces.applyMessage(group_message);
+    address_spaces.apply(group_message);
 
     linked_objects.clear();
     address_spaces.visitLinkedObjects(
@@ -533,8 +533,8 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     unloaded_message.time = Time::TheEnd();
     unloaded_message.linked_object = linked_object4.getFile();
     
-    address_spaces.applyMessage(loaded_message);
-    address_spaces.applyMessage(unloaded_message);
+    address_spaces.apply(loaded_message);
+    address_spaces.apply(unloaded_message);
 
     linked_objects.clear();
     address_spaces.visitLinkedObjects(
@@ -791,20 +791,20 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     addresses = boost::assign::list_of
         (AddressRange(0, 7))
         (AddressRange(13, 27));
-    function1.addAddressRanges(addresses);
+    function1.add(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(113, 127));
-    function2.addAddressRanges(addresses);
+    function2.add(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(7, 13))
         (AddressRange(213, 227));
-    function3.addAddressRanges(addresses);
+    function3.add(addresses);
     
     addresses = boost::assign::list_of
         (AddressRange(57, 63));
-    function4.addAddressRanges(addresses);
+    function4.add(addresses);
     
     BOOST_CHECK(!function1.getAddressRanges().empty());
     BOOST_CHECK(!function2.getAddressRanges().empty());
@@ -851,19 +851,19 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     addresses = boost::assign::list_of
         (AddressRange(0, 7))
         (AddressRange(113, 127));
-    statement1.addAddressRanges(addresses);
+    statement1.add(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(13, 27));
-    statement2.addAddressRanges(addresses);
+    statement2.add(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(75, 100));
-    statement3.addAddressRanges(addresses);
+    statement3.add(addresses);
     
     addresses = boost::assign::list_of
         (AddressRange(213, 227));
-    statement4.addAddressRanges(addresses);
+    statement4.add(addresses);
 
     BOOST_CHECK(!statement1.getAddressRanges().empty());
     BOOST_CHECK(!statement2.getAddressRanges().empty());
@@ -1074,16 +1074,16 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
 
     addresses = boost::assign::list_of
         (AddressRange(13, 27));
-    loop1.addAddressRanges(addresses);
+    loop1.add(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(0, 7))
         (AddressRange(110, 130));
-    loop2.addAddressRanges(addresses);
+    loop2.add(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(13, 100));
-    loop3.addAddressRanges(addresses);
+    loop3.add(addresses);
 
     BOOST_CHECK(!loop1.getAddressRanges().empty());
     BOOST_CHECK(!loop2.getAddressRanges().empty());

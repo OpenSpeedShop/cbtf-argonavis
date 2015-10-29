@@ -107,7 +107,7 @@ Statement Statement::clone(LinkedObject& linked_object) const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void Statement::addAddressRanges(const std::set<AddressRange>& ranges)
+void Statement::add(const std::set<AddressRange>& ranges)
 {
     dm_symbol_table->statements().add(dm_unique_identifier, ranges);
 }

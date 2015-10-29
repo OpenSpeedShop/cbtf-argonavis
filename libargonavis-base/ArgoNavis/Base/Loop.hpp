@@ -113,7 +113,7 @@ namespace ArgoNavis { namespace Base {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        void addAddressRanges(const std::set<AddressRange>& ranges);
+        void add(const std::set<AddressRange>& ranges);
 
         /**
          * Get the linked object containing this loop.

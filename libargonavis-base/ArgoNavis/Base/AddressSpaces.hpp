@@ -76,7 +76,7 @@ namespace ArgoNavis { namespace Base {
          *
          * @param message    Message describing an initial linked objects list.
          */
-        void applyMessage(const CBTF_Protocol_LinkedObjectGroup& message);
+        void apply(const CBTF_Protocol_LinkedObjectGroup& message);
         
         /**
          * Apply the given message, describing the load of a linked object,
@@ -84,7 +84,7 @@ namespace ArgoNavis { namespace Base {
          *
          * @param message    Message describing a loaded linked object.
          */
-        void applyMessage(const CBTF_Protocol_LoadedLinkedObject& message);
+        void apply(const CBTF_Protocol_LoadedLinkedObject& message);
 
         /**
          * Apply the given message, describing the unload of a linked object,
@@ -92,7 +92,7 @@ namespace ArgoNavis { namespace Base {
          *
          * @param message    Message describing an unloaded linked object.
          */
-        void applyMessage(const CBTF_Protocol_UnloadedLinkedObject& message);
+        void apply(const CBTF_Protocol_UnloadedLinkedObject& message);
 
         /**
          * Apply the given message, describing the symbol table of a linked
@@ -100,7 +100,7 @@ namespace ArgoNavis { namespace Base {
          *
          * @param message    Message describing a linked object's symbol table.
          */
-        void applyMessage(const CBTF_Protocol_SymbolTable& message);
+        void apply(const CBTF_Protocol_SymbolTable& message);
 
         /**
          * Load the given linked object into the address space of a single
@@ -111,12 +111,10 @@ namespace ArgoNavis { namespace Base {
          * @param range            Address range of this linked object.
          * @param when             Time when this linked object was loaded.
          */
-        void loadLinkedObject(
-            const ThreadName& thread,
-            const LinkedObject& linked_object,
-            const AddressRange& range,
-            const Time& when = Time::TheBeginning()
-            );
+        void load(const ThreadName& thread,
+                  const LinkedObject& linked_object,
+                  const AddressRange& range,
+                  const Time& when = Time::TheBeginning());
         
         /**
          * Unload the given linked object from the address space of a single
@@ -126,11 +124,9 @@ namespace ArgoNavis { namespace Base {
          * @param linked_object    Linked object to be unloaded.
          * @param when             Time when this linked object was unloaded.
          */
-        void unloadLinkedObject(
-            const ThreadName& thread,
-            const LinkedObject& linked_object,
-            const Time& when = Time::TheEnd()
-            );
+        void unload(const ThreadName& thread,
+                    const LinkedObject& linked_object,
+                    const Time& when = Time::TheEnd());
         
         /**
          * Visit the threads contained within these address spaces.

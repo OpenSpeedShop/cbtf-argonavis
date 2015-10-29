@@ -192,7 +192,7 @@ AddressSpaces::operator std::vector<CBTF_Protocol_LinkedObjectGroup>() const
 // Existing linked objects are used when found and new linked objects are added
 // as necessary.
 //------------------------------------------------------------------------------
-void AddressSpaces::applyMessage(const CBTF_Protocol_LinkedObjectGroup& message)
+void AddressSpaces::apply(const CBTF_Protocol_LinkedObjectGroup& message)
 {
     for (u_int i = 0; i < message.linkedobjects.linkedobjects_len; ++i)
     {
@@ -224,15 +224,13 @@ void AddressSpaces::applyMessage(const CBTF_Protocol_LinkedObjectGroup& message)
 // Iterate over each thread in the given CBTF_Protocol_LoadedLinkedObject and
 // call loadLinkedObject() with values provided in the message.
 //------------------------------------------------------------------------------
-void AddressSpaces::applyMessage(
-    const CBTF_Protocol_LoadedLinkedObject& message
-    )
+void AddressSpaces::apply(const CBTF_Protocol_LoadedLinkedObject& message)
 {
     for (u_int i = 0; i < message.threads.names.names_len; ++i)
     {
-        loadLinkedObject(ThreadName(message.threads.names.names_val[i]),
-                         LinkedObject(message.linked_object),
-                         message.range, message.time);
+        load(ThreadName(message.threads.names.names_val[i]),
+             LinkedObject(message.linked_object),
+             message.range, message.time);
     }
 }
 
@@ -242,15 +240,13 @@ void AddressSpaces::applyMessage(
 // Iterate over each thread in the given CBTF_Protocol_UnloadedLinkedObject and
 // call unloadLinkedObject() with values provided in the message.
 //------------------------------------------------------------------------------
-void AddressSpaces::applyMessage(
-    const CBTF_Protocol_UnloadedLinkedObject& message
-    )
+void AddressSpaces::apply(const CBTF_Protocol_UnloadedLinkedObject& message)
 {
     for (u_int i = 0; i < message.threads.names.names_len; ++i)
     {
-        unloadLinkedObject(ThreadName(message.threads.names.names_val[i]),
-                           LinkedObject(message.linked_object),
-                           message.time);
+        unload(ThreadName(message.threads.names.names_val[i]),
+               LinkedObject(message.linked_object),
+               message.time);
     }
 }
 
@@ -263,7 +259,7 @@ void AddressSpaces::applyMessage(
 // is somewhat complicated because not only does the (indexed) list of linked
 // objects need to be updated, but all of the relevant mappings as well.
 //------------------------------------------------------------------------------
-void AddressSpaces::applyMessage(const CBTF_Protocol_SymbolTable& message)
+void AddressSpaces::apply(const CBTF_Protocol_SymbolTable& message)
 {
     FileName file = message.linked_object;
     
@@ -300,10 +296,10 @@ void AddressSpaces::applyMessage(const CBTF_Protocol_SymbolTable& message)
 // Existing linked objects are used when found and new linked objects are added
 // as necessary.
 //------------------------------------------------------------------------------
-void AddressSpaces::loadLinkedObject(const ThreadName& thread,
-                                     const LinkedObject& linked_object,
-                                     const AddressRange& range,
-                                     const Time& when)
+void AddressSpaces::load(const ThreadName& thread,
+                         const LinkedObject& linked_object,
+                         const AddressRange& range,
+                         const Time& when)
 {
     std::map<FileName, LinkedObject>::const_iterator i = 
         dm_linked_objects.find(linked_object.getFile());
@@ -327,9 +323,9 @@ void AddressSpaces::loadLinkedObject(const ThreadName& thread,
 // being unloaded, and that have an end time that is the last possible time, and
 // update those end times to be the given time.
 //------------------------------------------------------------------------------
-void AddressSpaces::unloadLinkedObject(const ThreadName& thread,
-                                       const LinkedObject& linked_object,
-                                       const Time& when)
+void AddressSpaces::unload(const ThreadName& thread,
+                           const LinkedObject& linked_object,
+                           const Time& when)
 {
     for (MappingIndex::nth_index<2>::type::iterator
              i = dm_mappings.get<2>().lower_bound(

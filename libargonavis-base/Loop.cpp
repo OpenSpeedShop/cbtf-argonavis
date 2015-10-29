@@ -101,7 +101,7 @@ Loop Loop::clone(LinkedObject& linked_object) const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void Loop::addAddressRanges(const std::set<AddressRange>& ranges)
+void Loop::add(const std::set<AddressRange>& ranges)
 {
     dm_symbol_table->loops().add(dm_unique_identifier, ranges);
 }

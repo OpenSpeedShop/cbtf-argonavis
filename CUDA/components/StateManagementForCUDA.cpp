@@ -169,7 +169,7 @@ void StateManagementForCUDA::handleInitialLinkedObjects(
     const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
     )
 {
-    dm_address_spaces.applyMessage(*message);
+    dm_address_spaces.apply(*message);
 }
 
 
@@ -180,7 +180,7 @@ void StateManagementForCUDA::handleLoadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
     )
 {
-    dm_address_spaces.applyMessage(*message);
+    dm_address_spaces.apply(*message);
 }
 
 
@@ -241,5 +241,5 @@ void StateManagementForCUDA::handleUnloadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
     )
 {
-    dm_address_spaces.applyMessage(*message);
+    dm_address_spaces.apply(*message);
 }

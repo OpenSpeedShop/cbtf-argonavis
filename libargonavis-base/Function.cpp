@@ -102,7 +102,7 @@ Function Function::clone(LinkedObject& linked_object) const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void Function::addAddressRanges(const std::set<AddressRange>& ranges)
+void Function::add(const std::set<AddressRange>& ranges)
 {
     dm_symbol_table->functions().add(dm_unique_identifier, ranges);
 }
