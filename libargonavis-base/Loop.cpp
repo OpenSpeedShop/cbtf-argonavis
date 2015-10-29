@@ -128,7 +128,7 @@ Address Loop::getHeadAddress() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-std::set<AddressRange> Loop::getAddressRanges() const
+std::set<AddressRange> Loop::ranges() const
 {
     return dm_symbol_table->loops().addresses(dm_unique_identifier);
 }
@@ -210,10 +210,10 @@ bool ArgoNavis::Base::equivalent(const Loop& first, const Loop& second)
         return false;
     }
     
-    if (first.getAddressRanges() != second.getAddressRanges())
+    if (first.ranges() != second.ranges())
     {
         return false;
-    }    
+    }
     
     return true;
 }

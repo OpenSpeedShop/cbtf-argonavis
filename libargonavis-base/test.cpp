@@ -723,7 +723,7 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     BOOST_CHECK_EQUAL(function1.getLinkedObject(), linked_object);
     BOOST_CHECK_EQUAL(function1.getMangledName(), "_Z2f1RKf");
     BOOST_CHECK_EQUAL(function1.getDemangledName(), "f1(float const&)");
-    BOOST_CHECK(function1.getAddressRanges().empty());
+    BOOST_CHECK(function1.ranges().empty());
 
     Function function2(linked_object, "_Z2f2RKf");
     Function function3(linked_object, "_Z2f3RKf");
@@ -762,7 +762,7 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
                       FileName("/path/to/nonexistent/source/file"));
     BOOST_CHECK_EQUAL(statement1.getLine(), 1);
     BOOST_CHECK_EQUAL(statement1.getColumn(), 1);
-    BOOST_CHECK(statement1.getAddressRanges().empty());
+    BOOST_CHECK(statement1.ranges().empty());
 
     Statement statement2(linked_object,
                          FileName("/path/to/nonexistent/source/file"), 20, 1);
@@ -806,10 +806,10 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
         (AddressRange(57, 63));
     function4.add(addresses);
     
-    BOOST_CHECK(!function1.getAddressRanges().empty());
-    BOOST_CHECK(!function2.getAddressRanges().empty());
-    BOOST_CHECK(!function3.getAddressRanges().empty());
-    BOOST_CHECK(!function4.getAddressRanges().empty());
+    BOOST_CHECK(!function1.ranges().empty());
+    BOOST_CHECK(!function2.ranges().empty());
+    BOOST_CHECK(!function3.ranges().empty());
+    BOOST_CHECK(!function4.ranges().empty());
 
     //
     // Test the LinkedObject::visitFunctions(<address_range>) query.
@@ -865,10 +865,10 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
         (AddressRange(213, 227));
     statement4.add(addresses);
 
-    BOOST_CHECK(!statement1.getAddressRanges().empty());
-    BOOST_CHECK(!statement2.getAddressRanges().empty());
-    BOOST_CHECK(!statement3.getAddressRanges().empty());
-    BOOST_CHECK(!statement4.getAddressRanges().empty());
+    BOOST_CHECK(!statement1.ranges().empty());
+    BOOST_CHECK(!statement2.ranges().empty());
+    BOOST_CHECK(!statement3.ranges().empty());
+    BOOST_CHECK(!statement4.ranges().empty());
 
     //
     // Test the LinkedObject::visitStatements(<address-range>) query.
@@ -1049,7 +1049,7 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     BOOST_CHECK_EQUAL(Loop(loop1), loop1);
     BOOST_CHECK_EQUAL(loop1.getLinkedObject(), linked_object);
     BOOST_CHECK_EQUAL(loop1.getHeadAddress(), Address(13));
-    BOOST_CHECK(loop1.getAddressRanges().empty());
+    BOOST_CHECK(loop1.ranges().empty());
 
     Loop loop2(linked_object, Address(0));
     Loop loop3(loop1.clone(linked_object));
@@ -1085,9 +1085,9 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
         (AddressRange(13, 100));
     loop3.add(addresses);
 
-    BOOST_CHECK(!loop1.getAddressRanges().empty());
-    BOOST_CHECK(!loop2.getAddressRanges().empty());
-    BOOST_CHECK(!loop3.getAddressRanges().empty());
+    BOOST_CHECK(!loop1.ranges().empty());
+    BOOST_CHECK(!loop2.ranges().empty());
+    BOOST_CHECK(!loop3.ranges().empty());
 
     //
     // Test the LinkedObject::visitLoops(<address_range>) query.

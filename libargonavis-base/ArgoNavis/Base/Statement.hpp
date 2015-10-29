@@ -155,7 +155,7 @@ namespace ArgoNavis { namespace Base {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        std::set<AddressRange> getAddressRanges() const;
+        std::set<AddressRange> ranges() const;
 
         /**
          * Visit the functions containing this statement.

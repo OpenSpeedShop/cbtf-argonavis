@@ -156,7 +156,7 @@ std::string Function::getDemangledName() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-std::set<AddressRange> Function::getAddressRanges() const
+std::set<AddressRange> Function::ranges() const
 {
     return dm_symbol_table->functions().addresses(dm_unique_identifier);
 }
@@ -238,7 +238,7 @@ bool ArgoNavis::Base::equivalent(const Function& first, const Function& second)
         return false;
     }
 
-    if (first.getAddressRanges() != second.getAddressRanges())
+    if (first.ranges() != second.ranges())
     {
         return false;
     }    

@@ -152,7 +152,7 @@ unsigned int Statement::getColumn() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-std::set<AddressRange> Statement::getAddressRanges() const
+std::set<AddressRange> Statement::ranges() const
 {
     return dm_symbol_table->statements().addresses(dm_unique_identifier);
 }
@@ -231,7 +231,7 @@ bool ArgoNavis::Base::equivalent(const Statement& first,
         return false;
     }
 
-    if (first.getAddressRanges() != second.getAddressRanges())
+    if (first.ranges() != second.ranges())
     {
         return false;
     }
