@@ -119,7 +119,7 @@ namespace ArgoNavis { namespace Base {
          *
          * @return    Name of this linked object's file.
          */
-        FileName getFile() const;
+        FileName file() const;
 
         /**
          * Visit the functions contained within this linked object.

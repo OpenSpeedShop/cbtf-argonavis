@@ -460,7 +460,7 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
             malloc(sizeof(CBTF_Protocol_LinkedObject))
             );
     group_message.linkedobjects.linkedobjects_val[0].linked_object =
-        linked_object5.getFile();
+        linked_object5.file();
     group_message.linkedobjects.linkedobjects_val[0].range.begin = 0;
     group_message.linkedobjects.linkedobjects_val[0].range.end = 7 + 1;
     group_message.linkedobjects.linkedobjects_val[0].time_begin = 13;
@@ -475,7 +475,7 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     for (std::set<LinkedObject>::const_iterator
              i = linked_objects.begin(); i != linked_objects.end(); ++i)
     {
-        if (i->getFile() == linked_object5.getFile())
+        if (i->file() == linked_object5.file())
         {
             linked_object5 = *i;
         }
@@ -520,7 +520,7 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     loaded_message.time = 13;
     loaded_message.range.begin = 213;
     loaded_message.range.end = 227 + 1;
-    loaded_message.linked_object = linked_object4.getFile();
+    loaded_message.linked_object = linked_object4.file();
     
     CBTF_Protocol_UnloadedLinkedObject unloaded_message;
 
@@ -531,7 +531,7 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
             );
     unloaded_message.threads.names.names_val[0] = thread1;
     unloaded_message.time = Time::TheEnd();
-    unloaded_message.linked_object = linked_object4.getFile();
+    unloaded_message.linked_object = linked_object4.file();
     
     address_spaces.apply(loaded_message);
     address_spaces.apply(unloaded_message);
@@ -543,7 +543,7 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     for (std::set<LinkedObject>::const_iterator
              i = linked_objects.begin(); i != linked_objects.end(); ++i)
     {
-        if (i->getFile() == linked_object4.getFile())
+        if (i->file() == linked_object4.file())
         {
             linked_object4 = *i;
         }
@@ -685,7 +685,7 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     LinkedObject linked_object(FileName("/path/to/nonexistent/dso"));
     
     BOOST_CHECK_EQUAL(LinkedObject(linked_object), linked_object);
-    BOOST_CHECK_EQUAL(linked_object.getFile(),
+    BOOST_CHECK_EQUAL(linked_object.file(),
                       FileName("/path/to/nonexistent/dso"));
 
     //

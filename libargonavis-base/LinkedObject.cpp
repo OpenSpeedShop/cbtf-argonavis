@@ -186,9 +186,9 @@ LinkedObject LinkedObject::clone() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-FileName LinkedObject::getFile() const
+FileName LinkedObject::file() const
 {
-    return dm_symbol_table->getFile();
+    return dm_symbol_table->file();
 }
 
 
@@ -293,7 +293,7 @@ bool ArgoNavis::Base::equivalent(const LinkedObject& first,
                                  const LinkedObject& second)
 {
     // Are the two linked object's files different?
-    if (first.getFile() != second.getFile())
+    if (first.file() != second.file())
     {
         return false;
     }

@@ -124,7 +124,7 @@ namespace ArgoNavis { namespace Base { namespace Impl {
          *
          * @return    Name of this symbol table's linked object file.
          */
-        const FileName& getFile() const
+        const FileName& file() const
         {
             return dm_file;
         }

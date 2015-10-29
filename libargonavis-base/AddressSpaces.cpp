@@ -52,7 +52,7 @@ namespace {
                                    bool& contains)
     {
         contains |= ((thread == x_thread) &&
-                     (linked_object.getFile() == x_linked_object.getFile()) &&
+                     (linked_object.file() == x_linked_object.file()) &&
                      (range == x_range) &&
                      (interval == x_interval));
         return !contains;
@@ -173,7 +173,7 @@ AddressSpaces::operator std::vector<CBTF_Protocol_LinkedObjectGroup>() const
             CBTF_Protocol_LinkedObject& subentry = 
                 entry.linkedobjects.linkedobjects_val[n];
             
-            subentry.linked_object = j->dm_linked_object.getFile();
+            subentry.linked_object = j->dm_linked_object.file();
             subentry.range = j->dm_range;
             subentry.time_begin = j->dm_interval.begin();
             subentry.time_end = j->dm_interval.end() + 1;
@@ -302,12 +302,12 @@ void AddressSpaces::load(const ThreadName& thread,
                          const Time& when)
 {
     std::map<FileName, LinkedObject>::const_iterator i = 
-        dm_linked_objects.find(linked_object.getFile());
+        dm_linked_objects.find(linked_object.file());
     
     if (i == dm_linked_objects.end())
     {
         i = dm_linked_objects.insert(
-            std::make_pair(linked_object.getFile(), linked_object)
+            std::make_pair(linked_object.file(), linked_object)
             ).first;
     }
     
