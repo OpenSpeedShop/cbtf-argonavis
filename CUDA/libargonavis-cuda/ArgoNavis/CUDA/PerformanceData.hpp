@@ -72,8 +72,8 @@ namespace ArgoNavis { namespace CUDA {
          * @param thread     Name of the thread containing this data.
          * @param message    Message containing the performance data.
          */
-        void applyMessage(const Base::ThreadName& thread,
-                          const CBTF_cuda_data& message);
+        void apply(const Base::ThreadName& thread,
+                   const CBTF_cuda_data& message);
         
         /** Names of all sampled hardware performance counters. */
         const std::vector<std::string>& counters() const;
@@ -113,6 +113,9 @@ namespace ArgoNavis { namespace CUDA {
          *
          * @param thread      Name of thread for the visitation.
          * @param visitor     Visitor invoked for each performance data blob.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitBlobs(const Base::ThreadName& thread,
                         Base::BlobVisitor& visitor) const;
@@ -124,6 +127,9 @@ namespace ArgoNavis { namespace CUDA {
          * @param thread      Name of thread for the visitation.
          * @param interval    Time interval for the visitation.
          * @param visitor     Visitor invoked for each data transfer.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitDataTransfers(const Base::ThreadName& thread,
                                 const Base::TimeInterval& interval,
@@ -136,6 +142,9 @@ namespace ArgoNavis { namespace CUDA {
          * @param thread      Name of thread for the visitation.
          * @param interval    Time interval for the visitation.
          * @param visitor     Visitor invoked for each kernel execution.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitKernelExecutions(const Base::ThreadName& thread,
                                    const Base::TimeInterval& interval,
@@ -144,6 +153,9 @@ namespace ArgoNavis { namespace CUDA {
         /**
          * Visit those hardware performance counter periodic samples within the
          * given thread whose sample time is within the specified time interval.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          *
          * @note    The name of the counter corresponding to any particular
          *          count in the vector passed into the visitor can be found
@@ -163,6 +175,9 @@ namespace ArgoNavis { namespace CUDA {
          *
          * @param visitor    Visitor invoked for each thread containing
          *                   performance data.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitThreads(const Base::ThreadVisitor& visitor) const;
 

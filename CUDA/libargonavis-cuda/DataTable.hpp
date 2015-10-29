@@ -38,6 +38,7 @@
 #include <ArgoNavis/CUDA/KernelExecution.hpp>
 
 #include "EventTable.hpp"
+#include "PartialEventTable.hpp"
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
 
@@ -53,25 +54,55 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Type of handle (smart pointer) to a data table. */
         typedef boost::shared_ptr<DataTable> Handle;
 
+        /** Structure containing per-thread data. */
+        struct PerThreadData
+        {
+            /** Table of this thread's data transfers. */
+            EventTable<DataTransfer> dm_data_transfers;
+            
+            /** Table of this thread's kernel executions. */
+            EventTable<KernelExecution> dm_kernel_executions;
+            
+            // ...
+        };
+
         /** Construct an empty data table. */
         DataTable();
 
         /** Process the performance data contained within the given message. */
         void process(const Base::ThreadName& thread,
                      const CBTF_cuda_data& message);
-
+        
         /** Names of all sampled hardware performance counters. */
-        const std::vector<std::string>& counters() const;
+        const std::vector<std::string>& counters() const
+        {
+            return dm_counters;
+        }
 
         /** Information about all known CUDA devices. */
-        const std::vector<Device>& devices() const;
+        const std::vector<Device>& devices() const
+        {
+            return dm_devices;
+        }
 
         /** Smallest time interval containing this performance data. */
-        const Base::TimeInterval& interval() const;
+        const Base::TimeInterval& interval() const
+        {
+            return dm_interval;
+        }
 
         /** Call sites of all known CUDA requests. */
-        const std::vector<Base::StackTrace>& sites() const;
+        const std::vector<Base::StackTrace>& sites() const
+        {
+            return dm_sites;
+        }
 
+        /** Access the per-thread data for all known threads. */
+        const std::map<Base::ThreadName, PerThreadData>& threads() const
+        {
+            return dm_threads;
+        }
+        
     private:
 
         /** Structure containing per-host data. */
@@ -88,81 +119,59 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         {
             /** Device ID for each known context address. */
             std::map<Base::Address, boost::uint32_t> dm_known_contexts;
-            
-            /**
-             * Data transfers, indexed by their correlation ID, for which
-             * either the enqueue or completion record hasn't been seen yet.
-             */
-            std::map<boost::uint32_t, DataTransfer> dm_data_transfers;
-            
-            /**
-             * Kernel executions, indexed by their correlation ID, for which
-             * either the enqueue or completion record hasn't been seen yet.
-             */
-            std::map<boost::uint32_t, KernelExecution> dm_kernel_executions;
+
+            /** Table of this process' partial data transfers. */
+            PartialEventTable<DataTransfer> dm_partial_data_transfers;
+
+            /** Table of this process' partial kernel executions. */
+            PartialEventTable<KernelExecution> dm_partial_kernel_executions;
 
             // ...
         };
         
-        /** Structure containing per-thread data. */
-        struct PerThreadData
-        {
-            /** Table of this thread's data transfers. */
-            EventTable<DataTransfer> dm_data_transfers;
-            
-            /** Table of this thread's kernel executions. */
-            EventTable<KernelExecution> dm_kernel_executions;
+        /** Access the per-host data for the specified thread. */
+        PerHostData& accessPerHostData(const Base::ThreadName& thread);
 
-            // ...
-
-        };
-
-        /** Get the per-host data for the specified thread. */
-        PerHostData& host(const Base::ThreadName& thread);
-
-        /** Get the per-process data for the specified thread. */
-        PerProcessData& process(const Base::ThreadName& thread);
+        /** Access the per-process data for the specified thread. */
+        PerProcessData& accessPerProcessData(const Base::ThreadName& thread);
         
-        /** Get the per-process data for the specified thread. */
-        PerThreadData& thread(const Base::ThreadName& thread);
+        /** Access the per-thread data for the specified thread. */
+        PerThreadData& accessPerThreadData(const Base::ThreadName& thread);
         
         /** Process a CUDA_CompletedExec message. */
-        void process(const Base::ThreadName& thread,
-                     const struct CUDA_CompletedExec& message);
+        void process(const CUDA_CompletedExec& message,
+                     PerProcessData& per_process);
 
         /** Process a CUDA_CompletedXfer message. */
-        void process(const Base::ThreadName& thread,
-                     const struct CUDA_CompletedXfer& message);
+        void process(const CUDA_CompletedXfer& message,
+                     PerProcessData& per_process);
 
         /** Process a CUDA_ContextInfo message. */
-        void process(const Base::ThreadName& thread,
-                     const struct CUDA_ContextInfo& message);
-
+        void process(const CUDA_ContextInfo& message);
+        
         /** Process a CUDA_DeviceInfo message. */
-        void process(const Base::ThreadName& thread,
-                     const struct CUDA_DeviceInfo& message);
+        void process(const CUDA_DeviceInfo& message);
         
         /** Process a CUDA_EnqueueExec message. */
-        void process(const Base::ThreadName& thread,
-                     const struct CUDA_EnqueueExec& message,
-                     const struct CBTF_cuda_data& data);
-
+        void process(const CUDA_EnqueueExec& message,
+                     const CBTF_cuda_data& data,
+                     const Base::ThreadName& thread,
+                     PerProcessData& per_process);
+        
         /** Process a CUDA_EnqueueXfer message. */
-        void process(const Base::ThreadName& thread,
-                     const struct CUDA_EnqueueXfer& message,
-                     const struct CBTF_cuda_data& data);
+        void process(const CUDA_EnqueueXfer& message,
+                     const CBTF_cuda_data& data,
+                     const Base::ThreadName& thread,
+                     PerProcessData& per_process);
         
         /** Process a CUDA_OverflowSamples message. */
-        void process(const Base::ThreadName& thread,
-                     const struct CUDA_OverflowSamples& message);
+        void process(const CUDA_OverflowSamples& message);
         
         /** Process a CUDA_PeriodicSamples message. */
-        void process(const Base::ThreadName& thread,
-                     const struct CUDA_PeriodicSamples& message);
+        void process(const CUDA_PeriodicSamples& message);
         
         /** Process a CUDA_SamplingConfig message. */
-        void process(const Base::ThreadName& thread,
-                     const struct CUDA_SamplingConfig& message);
+        void process(const CUDA_SamplingConfig& message);
 
         /** Names of all sampled hardware performance counters. */
         std::vector<std::string> dm_counters;

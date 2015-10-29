@@ -27,8 +27,9 @@
 namespace ArgoNavis { namespace CUDA { namespace Impl {
 
     /**
-     * Table of events (kernel executions, data transfers, etc.) contained
-     * within a data table. ...
+     * Table of completed events (kernel executions, data transfers, etc.)
+     * contained within a data table. Completed events are those for which
+     * both the enqueue and completion record have been seen.
      *
      * @tparam T    Type containing the information for the events.
      */
@@ -38,17 +39,13 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
     public:
 
-        /** Construct an empty event table. */
+        /** Construct an empty completed event table. */
         EventTable() :
             dm_events()
         {
         }
 
-        /**
-         * Add a new event to this table.
-         *
-         * @param event    Information for the new event.
-         */
+        /** Add a new completed event to this table. */
         void add(const T& event)
         {
             // ...
@@ -62,6 +59,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
          * @param interval    Time interval to be found.
          * @param visitor     Visitor invoked for each event
          *                    contained within this table.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         template <typename V>
         void visit(const Base::TimeInterval& interval, const V& visitor) const
@@ -71,9 +71,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
     private:
 
-        /** ... */
+        /** Completed events indexed by their time interval. */
         std::map<Base::TimeInterval, T> dm_events;
 
-    }; // class EventTable
+    }; // class EventTable<T>
 
 } } } // namespace ArgoNavis::CUDA::Impl

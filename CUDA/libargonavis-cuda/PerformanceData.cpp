@@ -24,6 +24,7 @@
 
 using namespace ArgoNavis::Base;
 using namespace ArgoNavis::CUDA;
+using namespace ArgoNavis::CUDA::Impl;
 
 
 
@@ -57,8 +58,8 @@ PerformanceData::PerformanceData() :
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void PerformanceData::applyMessage(const ThreadName& thread,
-                                   const CBTF_cuda_data& message)
+void PerformanceData::apply(const ThreadName& thread,
+                            const CBTF_cuda_data& message)
 {
     dm_data_table->process(thread, message);
 }
@@ -137,7 +138,15 @@ void PerformanceData::visitDataTransfers(
     DataTransferVisitor& visitor
     ) const
 {
-    // ...
+    std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
+        dm_data_table->threads().find(thread);
+    
+    if (i != dm_data_table->threads().end())
+    {
+        i->second.dm_data_transfers.visit<DataTransferVisitor>(
+            interval, visitor
+            );
+    }
 }
 
 
@@ -150,7 +159,15 @@ void PerformanceData::visitKernelExecutions(
     KernelExecutionVisitor& visitor
     ) const
 {
-    // ...
+    std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
+        dm_data_table->threads().find(thread);
+    
+    if (i != dm_data_table->threads().end())
+    {
+        i->second.dm_kernel_executions.visit<KernelExecutionVisitor>(
+            interval, visitor
+            );
+    }
 }
 
 
@@ -163,7 +180,13 @@ void PerformanceData::visitPeriodicSamples(
     const PeriodicSampleVisitor& visitor
     )
 {
-    // ...
+    std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
+        dm_data_table->threads().find(thread);
+    
+    if (i != dm_data_table->threads().end())
+    {
+        // ...
+    }
 }
 
 
@@ -172,5 +195,14 @@ void PerformanceData::visitPeriodicSamples(
 //------------------------------------------------------------------------------
 void PerformanceData::visitThreads(const ThreadVisitor& visitor) const
 {
-    // ...
+    bool terminate = false;
+
+    for (std::map<ThreadName, DataTable::PerThreadData>::const_iterator
+             i = dm_data_table->threads().begin(),
+             i_end = dm_data_table->threads().end();
+         !terminate && (i != i_end);
+         ++i)
+    {
+        terminate |= !visitor(i->first);
+    }
 }
