@@ -20,14 +20,24 @@
 
 #pragma once
 
+#include <boost/cstdint.hpp>
 #include <boost/shared_ptr.hpp>
+#include <map>
 #include <string>
 #include <vector>
 
+#include <KrellInstitute/Messages/CUDA_data.h>
+
+#include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/StackTrace.hpp>
+#include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
+#include <ArgoNavis/CUDA/DataTransfer.hpp>
 #include <ArgoNavis/CUDA/Device.hpp>
+#include <ArgoNavis/CUDA/KernelExecution.hpp>
+
+#include "EventTable.hpp"
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
 
@@ -64,6 +74,58 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
     private:
 
+        /** Structure containing per-host data. */
+        struct PerHostData
+        {
+            /** Index in dm_devices for each known device ID. */
+            std::map<
+                boost::uint32_t, std::vector<Device>::size_type
+                > dm_known_devices;
+        };
+        
+        /** Structure containing per-process data. */
+        struct PerProcessData
+        {
+            /** Device ID for each known context address. */
+            std::map<Base::Address, boost::uint32_t> dm_known_contexts;
+            
+            /**
+             * Data transfers, indexed by their correlation ID, for which
+             * either the enqueue or completion record hasn't been seen yet.
+             */
+            std::map<boost::uint32_t, DataTransfer> dm_data_transfers;
+            
+            /**
+             * Kernel executions, indexed by their correlation ID, for which
+             * either the enqueue or completion record hasn't been seen yet.
+             */
+            std::map<boost::uint32_t, KernelExecution> dm_kernel_executions;
+
+            // ...
+        };
+        
+        /** Structure containing per-thread data. */
+        struct PerThreadData
+        {
+            /** Table of this thread's data transfers. */
+            EventTable<DataTransfer> dm_data_transfers;
+            
+            /** Table of this thread's kernel executions. */
+            EventTable<KernelExecution> dm_kernel_executions;
+
+            // ...
+
+        };
+
+        /** Get the per-host data for the specified thread. */
+        PerHostData& host(const Base::ThreadName& thread);
+
+        /** Get the per-process data for the specified thread. */
+        PerProcessData& process(const Base::ThreadName& thread);
+        
+        /** Get the per-process data for the specified thread. */
+        PerThreadData& thread(const Base::ThreadName& thread);
+        
         /** Process a CUDA_CompletedExec message. */
         void process(const Base::ThreadName& thread,
                      const struct CUDA_CompletedExec& message);
@@ -114,6 +176,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Call sites of all known CUDA requests. */
         std::vector<Base::StackTrace> dm_sites;
 
+        /** Per-host data for all known hosts. */
+        std::map<Base::ThreadName, PerHostData> dm_hosts;
+
+        /** Per-process data for all known processes. */
+        std::map<Base::ThreadName, PerProcessData> dm_processes;
+
+        /** Per-thread data for all known threads. */
+        std::map<Base::ThreadName, PerThreadData> dm_threads;
+        
     }; // class DataTable
 
 } } } // namespace ArgoNavis::CUDA::Impl

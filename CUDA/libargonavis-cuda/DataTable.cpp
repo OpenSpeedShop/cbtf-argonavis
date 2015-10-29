@@ -32,7 +32,10 @@ DataTable::DataTable() :
     dm_counters(),
     dm_devices(),
     dm_interval(),
-    dm_sites()
+    dm_sites(),
+    dm_hosts(),
+    dm_processes(),
+    dm_threads()
 {
 }
 
@@ -43,47 +46,47 @@ DataTable::DataTable() :
 void DataTable::process(const Base::ThreadName& thread,
                         const CBTF_cuda_data& message)
 {
-    for (u_int i = 0; i < data.messages.messages_len; ++i)
+    for (u_int i = 0; i < message.messages.messages_len; ++i)
     {
-        const CBTF_cuda_message& message = data.messages.messages_val[i];
+        const CBTF_cuda_message& raw = message.messages.messages_val[i];
         
-        switch (message.type)
+        switch (raw.type)
         {
-
+            
         case CompletedExec:
-            process(thread, message.CBTF_cuda_message_u.completed_exec);
+            process(thread, raw.CBTF_cuda_message_u.completed_exec);
             break;
-
+            
         case CompletedXfer:
-            process(thread, message.CBTF_cuda_message_u.completed_xfer);
+            process(thread, raw.CBTF_cuda_message_u.completed_xfer);
             break;
 
         case ContextInfo:
-            process(thread, message.CBTF_cuda_message_u.context_info);
+            process(thread, raw.CBTF_cuda_message_u.context_info);
             break;
             
         case DeviceInfo:
-            process(message.CBTF_cuda_message_u.device_info);
+            process(thread, raw.CBTF_cuda_message_u.device_info);
             break;
 
         case EnqueueExec:
-            process(thread, message.CBTF_cuda_message_u.enqueue_exec, data);
+            process(thread, raw.CBTF_cuda_message_u.enqueue_exec, message);
             break;
 
         case EnqueueXfer:
-            process(thread, message.CBTF_cuda_message_u.enqueue_xfer, data);
+            process(thread, raw.CBTF_cuda_message_u.enqueue_xfer, message);
             break;
 
         case OverflowSamples:
-            process(thread, message.CBTF_cuda_message_u.overflow_samples);
+            process(thread, raw.CBTF_cuda_message_u.overflow_samples);
             break;
 
         case PeriodicSamples:
-            process(thread, message.CBTF_cuda_message_u.periodic_samples);
+            process(thread, raw.CBTF_cuda_message_u.periodic_samples);
             break;
             
         case SamplingConfig:
-            process(thread, message.CBTF_cuda_message_u.sampling_config);
+            process(thread, raw.CBTF_cuda_message_u.sampling_config);
             break;
             
         }
@@ -102,8 +105,12 @@ const std::vector<std::string>& DataTable::counters() const
 
 
 //------------------------------------------------------------------------------
+// The fully qualfified name below when referring to Device should NOT be
+// required since we are using the ArgoNavis::CUDA namespace above. But GCC
+// 4.8.2 was complaining that the template paramter was invalid if the fully
+// qualified name wasn't used. So for now...
 //------------------------------------------------------------------------------
-const std::vector<Device>& DataTable::devices() const
+const std::vector<ArgoNavis::CUDA::Device>& DataTable::devices() const
 {
     return dm_devices;
 }
@@ -130,9 +137,64 @@ const std::vector<StackTrace>& DataTable::sites() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+DataTable::PerHostData& DataTable::host(const ThreadName& thread)
+{
+    ThreadName key(thread.host(), 0 /* Dummy PID */);
+    
+    std::map<ThreadName, PerHostData>::iterator i = dm_hosts.find(key);
+    
+    if (i == dm_hosts.end())
+    {
+        i = dm_hosts.insert(std::make_pair(key, PerHostData())).first;
+    }
+    
+    return i->second;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+DataTable::PerProcessData& DataTable::process(const ThreadName& thread)
+{
+    ThreadName key(thread.host(), thread.pid());
+
+    std::map<ThreadName, PerProcessData>::iterator i = dm_processes.find(key);
+    
+    if (i == dm_processes.end())
+    {
+        i = dm_processes.insert(std::make_pair(key, PerProcessData())).first;
+    }
+    
+    return i->second;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+DataTable::PerThreadData& DataTable::thread(const ThreadName& thread)
+{
+    ThreadName key(thread);
+
+    std::map<ThreadName, PerThreadData>::iterator i = dm_threads.find(key);
+    
+    if (i == dm_threads.end())
+    {
+        i = dm_threads.insert(std::make_pair(key, PerThreadData())).first;
+    }
+    
+    return i->second;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void DataTable::process(const Base::ThreadName& thread,
                         const struct CUDA_CompletedExec& message)
 {
+    // ...
 }
 
 
@@ -142,6 +204,7 @@ void DataTable::process(const Base::ThreadName& thread,
 void DataTable::process(const Base::ThreadName& thread,
                         const struct CUDA_CompletedXfer& message)
 {
+    // ...
 }
 
 
@@ -151,6 +214,7 @@ void DataTable::process(const Base::ThreadName& thread,
 void DataTable::process(const Base::ThreadName& thread,
                         const struct CUDA_ContextInfo& message)
 {
+    // ...
 }
 
 
@@ -160,9 +224,10 @@ void DataTable::process(const Base::ThreadName& thread,
 void DataTable::process(const Base::ThreadName& thread,
                         const struct CUDA_DeviceInfo& message)
 {
+    // ...
 }
 
-        
+
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -170,6 +235,7 @@ void DataTable::process(const Base::ThreadName& thread,
                         const struct CUDA_EnqueueExec& message,
                         const struct CBTF_cuda_data& data)
 {
+    // ...
 }
 
 
@@ -180,6 +246,7 @@ void DataTable::process(const Base::ThreadName& thread,
                         const struct CUDA_EnqueueXfer& message,
                         const struct CBTF_cuda_data& data)
 {
+    // ...
 }
 
 
@@ -189,6 +256,7 @@ void DataTable::process(const Base::ThreadName& thread,
 void DataTable::process(const Base::ThreadName& thread,
                         const struct CUDA_OverflowSamples& message)
 {
+    // ...
 }
 
 
@@ -198,6 +266,7 @@ void DataTable::process(const Base::ThreadName& thread,
 void DataTable::process(const Base::ThreadName& thread,
                         const struct CUDA_PeriodicSamples& message)
 {
+    // ...
 }
 
 
@@ -207,4 +276,5 @@ void DataTable::process(const Base::ThreadName& thread,
 void DataTable::process(const Base::ThreadName& thread,
                         const struct CUDA_SamplingConfig& message)
 {
+    // ...
 }

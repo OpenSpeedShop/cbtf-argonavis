@@ -30,6 +30,7 @@ add_library(argonavis-cuda SHARED
     ArgoNavis/CUDA/stringify.hpp
     ArgoNavis/CUDA/Vector.hpp
     DataTable.hpp DataTable.cpp
+    EventTable.hpp
     )
 
 target_include_directories(argonavis-cuda PUBLIC
