@@ -81,7 +81,97 @@ namespace {
         default: return kInvalidMemoryKind;
         }
     }
-   
+
+    /** Convert a CUDA_CompletedExec into a (partial) KernelExecution. */
+    KernelExecution convert(const CUDA_CompletedExec& message)
+    {    
+        KernelExecution event;
+
+        event.time_begin = message.time_begin;
+        event.time_end = message.time_end;
+        event.function = message.function;
+        event.grid = Vector3u(message.grid[0],
+                              message.grid[1],
+                              message.grid[2]);
+        event.block = Vector3u(message.block[0],
+                               message.block[1],
+                               message.block[2]);
+        event.cache_preference = convert(message.cache_preference);
+        event.registers_per_thread = message.registers_per_thread;
+        event.static_shared_memory = message.static_shared_memory;
+        event.dynamic_shared_memory = message.dynamic_shared_memory;
+        event.local_memory = message.local_memory;
+
+        return event;
+    }
+
+    /** Convert a CUDA_CompletedXfer into a (partial) DataTransfer. */
+    DataTransfer convert(const CUDA_CompletedXfer& message)
+    {
+        DataTransfer event;
+
+        event.time_begin = message.time_begin;
+        event.time_end = message.time_end;
+        event.size = message.size;
+        event.kind = convert(message.kind);
+        event.source_kind = convert(message.source_kind);
+        event.destination_kind = convert(message.destination_kind);
+        event.asynchronous = message.asynchronous;
+        
+        return event;
+    }
+    
+    /** Convert a CUDA_DeviceInfo into a Device. */
+    ArgoNavis::CUDA::Device convert(const CUDA_DeviceInfo& message)
+    {
+        ArgoNavis::CUDA::Device device;
+
+        device.name = message.name;
+        device.compute_capability = Vector2u(message.compute_capability[0],
+                                             message.compute_capability[1]);
+        device.max_grid = Vector3u(message.max_grid[0],
+                                   message.max_grid[1],
+                                   message.max_grid[2]);
+        device.max_block = Vector3u(message.max_block[0],
+                                    message.max_block[1],
+                                    message.max_block[2]);
+        device.global_memory_bandwidth = message.global_memory_bandwidth;
+        device.global_memory_size = message.global_memory_size;
+        device.constant_memory_size = message.constant_memory_size;
+        device.l2_cache_size = message.l2_cache_size;
+        device.threads_per_warp = message.threads_per_warp;
+        device.core_clock_rate = message.core_clock_rate;
+        device.memcpy_engines = message.memcpy_engines;
+        device.multiprocessors = message.multiprocessors;
+        device.max_ipc = message.max_ipc;
+        device.max_warps_per_multiprocessor = 
+            message.max_warps_per_multiprocessor;
+        device.max_blocks_per_multiprocessor = 
+            message.max_blocks_per_multiprocessor;
+        device.max_registers_per_block = message.max_registers_per_block;
+        device.max_shared_memory_per_block = 
+            message.max_shared_memory_per_block;
+        device.max_threads_per_block = message.max_threads_per_block;
+
+        return device;        
+    }
+
+    /** Convert a CUDA_EnqueueExec into a (partial) KernelExecution. */
+    KernelExecution convert(const CUDA_EnqueueExec& message)
+    {    
+        KernelExecution event;
+        event.time = message.time;
+        return event;
+    }
+
+    /** Convert a CUDA_EnqueueXfer into a (partial) DataTransfer. */
+    DataTransfer convert(const CUDA_EnqueueXfer& message)
+    {
+        DataTransfer event;
+        event.time = message.time;
+        return event;
+    }
+    
 } // namespace <anonymous>
 
 
@@ -126,11 +216,11 @@ void DataTable::process(const Base::ThreadName& thread,
             break;
 
         case ContextInfo:
-            process(raw.CBTF_cuda_message_u.context_info);
+            process(raw.CBTF_cuda_message_u.context_info, per_process);
             break;
             
         case DeviceInfo:
-            process(raw.CBTF_cuda_message_u.device_info);
+            process(raw.CBTF_cuda_message_u.device_info, per_host, per_process);
             break;
 
         case EnqueueExec:
@@ -220,34 +310,55 @@ DataTable::PerThreadData& DataTable::accessPerThreadData(
 
 
 //------------------------------------------------------------------------------
+// Construct a stack trace containing all frames for the given call site, then
+// search the known call sites for that stack trace. The existing call site is
+// reused if it is found. Otherwise the stack trace is added to the known call
+// sites.
+//
+// Note that a linear search is currently employed here because the number of
+// unique CUDA call sites is expected to be low. If that ends up not being the
+// case, and performance is inadequate, a hash of each stack trace could be
+// computed and used to accelerate this search.
+//------------------------------------------------------------------------------
+size_t DataTable::findSite(boost::uint32_t site, const CBTF_cuda_data& data)
+{
+    StackTrace trace;
+    for (boost::uint32_t i = site;
+         (i < data.stack_traces.stack_traces_len) &&
+             (data.stack_traces.stack_traces_val[i] != 0);
+         ++i)
+    {
+        trace.push_back(data.stack_traces.stack_traces_val[i]);
+    }
+    
+    std::vector<StackTrace>::size_type i;
+
+    for (i = 0; i < dm_sites.size(); ++i)
+    {
+        if (dm_sites[i] == trace)
+        {
+            break;
+        }
+    }
+    
+    if (i == dm_sites.size())
+    {
+        dm_sites.push_back(trace);
+    }
+
+    return i;
+}
+
+
+
+//------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 void DataTable::process(const struct CUDA_CompletedExec& message,
                         PerProcessData& per_process)
 {
-    KernelExecution event;
-
-    // event.device = ???
-    event.time_begin = message.time_begin;
-    event.time_end = message.time_end;
-    event.function = message.function;
-    event.grid = Vector3u(message.grid[0], message.grid[1], message.grid[2]);
-    event.block = Vector3u(
-        message.block[0], message.block[1], message.block[2]
-        );
-    event.cache_preference = convert(message.cache_preference);
-    event.registers_per_thread = message.registers_per_thread;
-    event.static_shared_memory = message.static_shared_memory;
-    event.dynamic_shared_memory = message.dynamic_shared_memory;
-    event.local_memory = message.local_memory;
-
-    PartialEventTable<KernelExecution>::Completion completion = 
-        per_process.dm_partial_kernel_executions.completed(message.id, event);
-    
-    if (completion)
-    {
-        PerThreadData& per_thread = accessPerThreadData(completion->first);
-        per_thread.dm_kernel_executions.add(completion->second);
-    }
+    process(per_process.dm_partial_kernel_executions.addCompleted(
+                message.id, convert(message), message.context
+                ));
 }
 
 
@@ -257,43 +368,50 @@ void DataTable::process(const struct CUDA_CompletedExec& message,
 void DataTable::process(const struct CUDA_CompletedXfer& message,
                         PerProcessData& per_process)
 {
-    DataTransfer event;
+    process(per_process.dm_partial_data_transfers.addCompleted(
+                message.id, convert(message), message.context
+                ));
+}
 
-    // event.device = ???
-    event.time_begin = message.time_begin;
-    event.time_end = message.time_end;
-    event.size = message.size;
-    event.kind = convert(message.kind);
-    event.source_kind = convert(message.source_kind);
-    event.destination_kind = convert(message.destination_kind);
-    event.asynchronous = message.asynchronous;
 
-    PartialEventTable<DataTransfer>::Completion completion = 
-        per_process.dm_partial_data_transfers.completed(message.id, event);
-    
-    if (completion)
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const struct CUDA_ContextInfo& message,
+                        PerProcessData& per_process)
+{
+    process(per_process.dm_partial_data_transfers.addContext(
+                message.context, message.device
+                ));    
+    process(per_process.dm_partial_kernel_executions.addContext(
+                message.context, message.device
+                ));
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const struct CUDA_DeviceInfo& message,
+                        PerHostData& per_host,
+                        PerProcessData& per_process)
+{
+    if (per_host.dm_known_devices.find(message.device) != 
+        per_host.dm_known_devices.end())
     {
-        PerThreadData& per_thread = accessPerThreadData(completion->first);
-        per_thread.dm_data_transfers.add(completion->second);
+        return;
     }
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-void DataTable::process(const struct CUDA_ContextInfo& message)
-{
-    // ...
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-void DataTable::process(const struct CUDA_DeviceInfo& message)
-{
-    // ...
+    per_host.dm_known_devices.insert(message.device);
+    
+    CUDA::Device device = convert(message);
+    dm_devices.push_back(device);
+    
+    process(per_process.dm_partial_data_transfers.addContext(
+                message.device, dm_devices.size()
+                ));
+    process(per_process.dm_partial_kernel_executions.addContext(
+                message.device, dm_devices.size()
+                ));
 }
 
 
@@ -305,21 +423,12 @@ void DataTable::process(const struct CUDA_EnqueueExec& message,
                         const Base::ThreadName& thread,
                         PerProcessData& per_process)
 {
-    KernelExecution event;
+    KernelExecution event = convert(message);
+    event.call_site = findSite(message.call_site, data);
     
-    event.time = message.time;
-    // event.call_site = ???
-    
-    PartialEventTable<KernelExecution>::Completion completion = 
-        per_process.dm_partial_kernel_executions.enqueue(
-            thread, message.id, event
-            );
-    
-    if (completion)
-    {
-        PerThreadData& per_thread = accessPerThreadData(completion->first);
-        per_thread.dm_kernel_executions.add(completion->second);
-    }
+    process(per_process.dm_partial_kernel_executions.addEnqueue(
+                message.id, event, thread
+                ));
 }
 
 
@@ -331,21 +440,12 @@ void DataTable::process(const struct CUDA_EnqueueXfer& message,
                         const Base::ThreadName& thread,
                         PerProcessData& per_process)
 {
-    DataTransfer event;
+    DataTransfer event = convert(message);
+    event.call_site = findSite(message.call_site, data);
 
-    event.time = message.time;
-    // event.call_site = ???
-    
-    PartialEventTable<DataTransfer>::Completion completion = 
-        per_process.dm_partial_data_transfers.enqueue(
-            thread, message.id, event
-            );
-    
-    if (completion)
-    {
-        PerThreadData& per_thread = accessPerThreadData(completion->first);
-        per_thread.dm_data_transfers.add(completion->second);
-    }
+    process(per_process.dm_partial_data_transfers.addEnqueue(
+                message.id, event, thread
+                ));
 }
 
 
@@ -373,4 +473,44 @@ void DataTable::process(const struct CUDA_PeriodicSamples& message)
 void DataTable::process(const CUDA_SamplingConfig& message)
 {
     // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(
+    const PartialEventTable<DataTransfer>::Completions& completions
+    )
+{
+    for (PartialEventTable<DataTransfer>::Completions::const_iterator
+             i = completions.begin(); i != completions.end(); ++i)
+    {
+        PerThreadData& per_thread = accessPerThreadData(i->first);
+        per_thread.dm_data_transfers.add(i->second);
+        
+        dm_interval |= i->second.time;
+        dm_interval |= i->second.time_begin;
+        dm_interval |= i->second.time_end;
+    }
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(
+    const PartialEventTable<KernelExecution>::Completions& completions
+    )
+{
+    for (PartialEventTable<KernelExecution>::Completions::const_iterator
+             i = completions.begin(); i != completions.end(); ++i)
+    {
+        PerThreadData& per_thread = accessPerThreadData(i->first);
+        per_thread.dm_kernel_executions.add(i->second);
+        
+        dm_interval |= i->second.time;
+        dm_interval |= i->second.time_begin;
+        dm_interval |= i->second.time_end;
+    }
 }

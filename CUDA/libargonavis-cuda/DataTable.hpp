@@ -23,6 +23,7 @@
 #include <boost/cstdint.hpp>
 #include <boost/shared_ptr.hpp>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -62,8 +63,6 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             
             /** Table of this thread's kernel executions. */
             EventTable<KernelExecution> dm_kernel_executions;
-            
-            // ...
         };
 
         /** Construct an empty data table. */
@@ -108,25 +107,18 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Structure containing per-host data. */
         struct PerHostData
         {
-            /** Index in dm_devices for each known device ID. */
-            std::map<
-                boost::uint32_t, std::vector<Device>::size_type
-                > dm_known_devices;
+            /** Device ID for all known devices. */
+            std::set<boost::uint32_t> dm_known_devices;
         };
         
         /** Structure containing per-process data. */
         struct PerProcessData
         {
-            /** Device ID for each known context address. */
-            std::map<Base::Address, boost::uint32_t> dm_known_contexts;
-
             /** Table of this process' partial data transfers. */
             PartialEventTable<DataTransfer> dm_partial_data_transfers;
 
             /** Table of this process' partial kernel executions. */
             PartialEventTable<KernelExecution> dm_partial_kernel_executions;
-
-            // ...
         };
         
         /** Access the per-host data for the specified thread. */
@@ -137,6 +129,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         
         /** Access the per-thread data for the specified thread. */
         PerThreadData& accessPerThreadData(const Base::ThreadName& thread);
+
+        /** Find the given call site in (or add it to) the known call sites. */
+        size_t findSite(boost::uint32_t site, const CBTF_cuda_data& data);
         
         /** Process a CUDA_CompletedExec message. */
         void process(const CUDA_CompletedExec& message,
@@ -147,10 +142,13 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                      PerProcessData& per_process);
 
         /** Process a CUDA_ContextInfo message. */
-        void process(const CUDA_ContextInfo& message);
+        void process(const CUDA_ContextInfo& message,
+                     PerProcessData& per_process);
         
         /** Process a CUDA_DeviceInfo message. */
-        void process(const CUDA_DeviceInfo& message);
+        void process(const CUDA_DeviceInfo& message,
+                     PerHostData& per_host,
+                     PerProcessData& per_process);
         
         /** Process a CUDA_EnqueueExec message. */
         void process(const CUDA_EnqueueExec& message,
@@ -172,6 +170,16 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         
         /** Process a CUDA_SamplingConfig message. */
         void process(const CUDA_SamplingConfig& message);
+
+        /** Process a DataTransfer event completions. */
+        void process(
+            const PartialEventTable<DataTransfer>::Completions& completions
+            );
+
+        /** Process a KernelExecution event completions. */
+        void process(
+            const PartialEventTable<KernelExecution>::Completions& completions
+            );
 
         /** Names of all sampled hardware performance counters. */
         std::vector<std::string> dm_counters;

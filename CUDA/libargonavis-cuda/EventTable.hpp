@@ -21,6 +21,7 @@
 #pragma once
 
 #include <map>
+#include <utility>
 
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
@@ -29,7 +30,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     /**
      * Table of completed events (kernel executions, data transfers, etc.)
      * contained within a data table. Completed events are those for which
-     * both the enqueue and completion record have been seen.
+     * all needed messages (e.g. enqueue, completion) have been seen.
      *
      * @tparam T    Type containing the information for the events.
      */
@@ -48,9 +49,13 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Add a new completed event to this table. */
         void add(const T& event)
         {
-            // ...
+            dm_events.insert(
+                std::make_pair(
+                    Base::TimeInterval(event.time_begin, event.time_end), event
+                    )
+                );
         }
-
+        
         /**
          * Visit the events in this table intersecting an address range.
          *
@@ -66,7 +71,26 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         template <typename V>
         void visit(const Base::TimeInterval& interval, const V& visitor) const
         {
-            // ...
+            bool terminate = false;
+
+            typename std::map<Base::TimeInterval, T>::const_iterator i =
+                dm_events.lower_bound(interval.begin());
+
+            if (i != dm_events.begin())
+            {
+                --i;
+            }
+
+            typename std::map<Base::TimeInterval, T>::const_iterator i_end =
+                dm_events.upper_bound(interval.end());
+            
+            for (; !terminate && (i != i_end); ++i)
+            {
+                if (i->first.intersects(interval))
+                {
+                    terminate |= !visitor(i->second);
+                }
+            }
         }
 
     private:

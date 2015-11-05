@@ -21,69 +21,122 @@
 #pragma once
 
 #include <boost/cstdint.hpp>
-#include <boost/optional.hpp>
 #include <map>
+#include <stddef.h>
 #include <utility>
+#include <vector>
 
+#include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
-
+    
     /**
      * Table of partial events (kernel executions, data transfers, etc.)
      * contained within a data table. Partial events are those for which
-     * either the enqueue or completion record has been seen. Not both.
+     * all needed messages (e.g. enqueue, completion) haven't been seen.
      *
      * @tparam T    Type containing the information for the events.
      */
     template <typename T>
     class PartialEventTable
     {
-
+        
     public:
-
+        
         /**
-         * Type used to indicate if an event was completed and, if so, the
-         * thread in which the event occured and information for the event.
+         * Type used to return event completions. Each completion includes the
+         * thread in which the event occurred and information for that event.
          */
-        typedef boost::optional<std::pair<Base::ThreadName, T> > Completion;
+        typedef std::vector<std::pair<Base::ThreadName, T> > Completions;
         
         /** Construct an empty partial event table. */
         PartialEventTable() :
+            dm_contexts(),
+            dm_devices(),
             dm_events(),
             dm_threads()
         {
         }
-
+        
         /**
-         * ...
+         * Add information about a context.
          *
-         * @param thread    ...
-         * @param id        ...
-         * @param event     ...
-         * @return          ...
+         * @param context    Address of the context.
+         * @param device     ID of the device for this context.
+         * @return           Any events which are completed by this addition.
          */
-        Completion enqueue(const Base::ThreadName& thread,
-                           boost::uint32_t id, const T& event)
+        Completions addContext(const Base::Address& context,
+                               boost::uint32_t device)
         {
+            Completions completions;
+            
             // ...
+            
+            return completions;
         }
         
         /**
-         * ...
+         * Add information about a device.
          *
-         * @param thread    ...
-         * @param id        ...
-         * @param event     ...
-         * @return          ...
+         * @param device    ID of the device.
+         * @param index     Index within DataTable::dm_devices of this device.
+         * @return          Any events which are completed by this addition.
          */
-        Completion completed(boost::uint32_t id, const T& event)
+        Completions addDevice(boost::uint32_t device, std::size_t index)
         {
+            Completions completions;
+            
             // ...
+            
+            return completions;
+        }
+        
+        /**
+         * Add the enqueue of an event.
+         *
+         * @param id        Correlation ID of the event.
+         * @param event     Partial information for this event.
+         * @param thread    Thread in which this event occurred.
+         * @return          Any events which are completed by this addition.
+         */
+        Completions addEnqueue(boost::uint32_t id, const T& event,
+                               const Base::ThreadName& thread)
+        {
+            Completions completions;
+            
+            // ...
+            
+            return completions;
+        }
+        
+        /**
+         * Add the completion of an event.
+         *
+         * @param id         Correlation ID of the event.
+         * @param event      Partial information for this event.
+         * @param context    Address of the context for this event.
+         * @return           Any events which are completed by this addition.
+         */
+        Completions addCompleted(boost::uint32_t id, const T& event,
+                                 const Base::Address& context)
+            
+        {
+            Completions completions;
+            
+            // ...
+            
+            return completions;
         }
         
     private:
+        
+        /** Device ID for each known context address. */
+        std::map<Base::Address, boost::uint32_t> dm_contexts;
 
+        /** Index within DataTable::dm_devices for each known device ID. */
+        std::map<boost::uint32_t, std::size_t> dm_devices;
+        
         /** Partial event for each known correlation ID. */
         std::map<boost::uint32_t, T> dm_events;
 
