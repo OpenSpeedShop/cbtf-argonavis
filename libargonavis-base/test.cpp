@@ -790,20 +790,20 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
 
     addresses = boost::assign::list_of
         (AddressRange(0, 7))
-        (AddressRange(13, 27));
+        (AddressRange(13, 27)).convert_to_container<std::set<AddressRange> >();
     function1.addAddressRanges(addresses);
 
     addresses = boost::assign::list_of
-        (AddressRange(113, 127));
+        (AddressRange(113, 127)).convert_to_container<std::set<AddressRange> >();
     function2.addAddressRanges(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(7, 13))
-        (AddressRange(213, 227));
+        (AddressRange(213, 227)).convert_to_container<std::set<AddressRange> >();
     function3.addAddressRanges(addresses);
     
     addresses = boost::assign::list_of
-        (AddressRange(57, 63));
+        (AddressRange(57, 63)).convert_to_container<std::set<AddressRange> >();
     function4.addAddressRanges(addresses);
     
     BOOST_CHECK(!function1.getAddressRanges().empty());
@@ -850,19 +850,19 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
 
     addresses = boost::assign::list_of
         (AddressRange(0, 7))
-        (AddressRange(113, 127));
+        (AddressRange(113, 127)).convert_to_container<std::set<AddressRange> >();
     statement1.addAddressRanges(addresses);
 
     addresses = boost::assign::list_of
-        (AddressRange(13, 27));
+        (AddressRange(13, 27)).convert_to_container<std::set<AddressRange> >();
     statement2.addAddressRanges(addresses);
 
     addresses = boost::assign::list_of
-        (AddressRange(75, 100));
+        (AddressRange(75, 100)).convert_to_container<std::set<AddressRange> >();
     statement3.addAddressRanges(addresses);
     
     addresses = boost::assign::list_of
-        (AddressRange(213, 227));
+        (AddressRange(213, 227)).convert_to_container<std::set<AddressRange> >();
     statement4.addAddressRanges(addresses);
 
     BOOST_CHECK(!statement1.getAddressRanges().empty());
@@ -1073,16 +1073,16 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     //
 
     addresses = boost::assign::list_of
-        (AddressRange(13, 27));
+        (AddressRange(13, 27)).convert_to_container<std::set<AddressRange> >();
     loop1.addAddressRanges(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(0, 7))
-        (AddressRange(110, 130));
+        (AddressRange(110, 130)).convert_to_container<std::set<AddressRange> >();
     loop2.addAddressRanges(addresses);
 
     addresses = boost::assign::list_of
-        (AddressRange(13, 100));
+        (AddressRange(13, 100)).convert_to_container<std::set<AddressRange> >();
     loop3.addAddressRanges(addresses);
 
     BOOST_CHECK(!loop1.getAddressRanges().empty());
