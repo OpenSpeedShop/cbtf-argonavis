@@ -426,7 +426,7 @@ void DataTable::process(const struct CUDA_EnqueueExec& message,
     KernelExecution event = convert(message);
     event.call_site = findSite(message.call_site, data);
     
-    process(per_process.dm_partial_kernel_executions.addEnqueue(
+    process(per_process.dm_partial_kernel_executions.addEnqueued(
                 message.id, event, thread
                 ));
 }
@@ -443,7 +443,7 @@ void DataTable::process(const struct CUDA_EnqueueXfer& message,
     DataTransfer event = convert(message);
     event.call_site = findSite(message.call_site, data);
 
-    process(per_process.dm_partial_data_transfers.addEnqueue(
+    process(per_process.dm_partial_data_transfers.addEnqueued(
                 message.id, event, thread
                 ));
 }
