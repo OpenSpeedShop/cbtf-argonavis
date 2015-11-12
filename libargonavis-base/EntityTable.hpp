@@ -167,8 +167,8 @@ namespace ArgoNavis { namespace Base { namespace Impl {
             E entity(symbol_table, 0);
             bool terminate = false;
             
-            for (EntityUID i = 0, iEnd = dm_entities.size();
-                 !terminate && (i != iEnd); 
+            for (EntityUID i = 0, i_end = dm_entities.size();
+                 !terminate && (i != i_end); 
                  ++i)
             {
                 entity.dm_unique_identifier = i;
@@ -213,10 +213,10 @@ namespace ArgoNavis { namespace Base { namespace Impl {
                 --i;
             }
             
-            AddressRangeIndex::nth_index<1>::type::const_iterator iEnd = 
+            AddressRangeIndex::nth_index<1>::type::const_iterator i_end = 
                 dm_index.get<1>().upper_bound(range.end());
             
-            for (; !terminate && (i != iEnd); ++i)
+            for (; !terminate && (i != i_end); ++i)
             {
                 if (i->dm_range.intersects(range) &&
                     (i->dm_uid < visited.size()) &&
@@ -272,10 +272,10 @@ namespace ArgoNavis { namespace Base { namespace Impl {
                     --i;
                 }
                 
-                AddressRangeIndex::nth_index<1>::type::const_iterator iEnd = 
+                AddressRangeIndex::nth_index<1>::type::const_iterator i_end = 
                     dm_index.get<1>().upper_bound(range.end());
                 
-                for (; !terminate && (i != iEnd); ++i)
+                for (; !terminate && (i != i_end); ++i)
                 {
                     if (i->dm_range.intersects(range) &&
                         (i->dm_uid < visited.size()) &&

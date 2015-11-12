@@ -107,7 +107,9 @@ AddressSpaces::operator CBTF_Protocol_AttachedToThreads() const
     std::set<ThreadName> threads;
     
     for (MappingIndex::const_iterator
-             i = dm_mappings.begin(), iEnd = dm_mappings.end(); i != iEnd; ++i)
+             i = dm_mappings.begin(), i_end = dm_mappings.end();
+         i != i_end;
+         ++i)
     {
         threads.insert(i->dm_thread);
     }
@@ -142,7 +144,9 @@ AddressSpaces::operator std::vector<CBTF_Protocol_LinkedObjectGroup>() const
     std::set<ThreadName> threads;
 
     for (MappingIndex::const_iterator
-             i = dm_mappings.begin(), iEnd = dm_mappings.end(); i != iEnd; ++i)
+             i = dm_mappings.begin(), i_end = dm_mappings.end();
+         i != i_end;
+         ++i)
     {
         threads.insert(i->dm_thread);
     }
@@ -331,10 +335,10 @@ void AddressSpaces::unload(const ThreadName& thread,
              i = dm_mappings.get<2>().lower_bound(
                  boost::make_tuple(thread, linked_object)
                  ),
-             iEnd = dm_mappings.get<2>().upper_bound(
+             i_end = dm_mappings.get<2>().upper_bound(
                  boost::make_tuple(thread, linked_object)
                  );
-         i != iEnd;
+         i != i_end;
          ++i)
     {
         if (i->dm_interval.end() == Time::TheEnd())
@@ -357,8 +361,8 @@ void AddressSpaces::visitThreads(const ThreadVisitor& visitor) const
     std::set<ThreadName> visited;
     
     for (MappingIndex::const_iterator
-             i = dm_mappings.begin(), iEnd = dm_mappings.end();
-         !terminate && (i != iEnd);
+             i = dm_mappings.begin(), i_end = dm_mappings.end();
+         !terminate && (i != i_end);
          ++i)
     {
         if (visited.find(i->dm_thread) == visited.end())
@@ -378,8 +382,8 @@ void AddressSpaces::visitLinkedObjects(const LinkedObjectVisitor& visitor) const
     bool terminate = false;
 
     for (std::map<FileName, LinkedObject>::const_iterator
-             i = dm_linked_objects.begin(), iEnd = dm_linked_objects.end();
-         !terminate && (i != iEnd);
+             i = dm_linked_objects.begin(), i_end = dm_linked_objects.end();
+         !terminate && (i != i_end);
          ++i)
     {
         terminate |= !visitor(i->second);
@@ -398,8 +402,8 @@ void AddressSpaces::visitLinkedObjects(const ThreadName& thread,
 
     for (MappingIndex::nth_index<0>::type::const_iterator
              i = dm_mappings.get<0>().lower_bound(thread),
-             iEnd = dm_mappings.get<0>().upper_bound(thread);
-         !terminate && (i != iEnd);
+             i_end = dm_mappings.get<0>().upper_bound(thread);
+         !terminate && (i != i_end);
          ++i)
     {
         if (visited.find(i->dm_linked_object) == visited.end())
@@ -419,8 +423,8 @@ void AddressSpaces::visitMappings(const MappingVisitor& visitor) const
     bool terminate = false;
 
     for (MappingIndex::const_iterator
-             i = dm_mappings.begin(), iEnd = dm_mappings.end();
-         !terminate && (i != iEnd);
+             i = dm_mappings.begin(), i_end = dm_mappings.end();
+         !terminate && (i != i_end);
          ++i)
     {
         terminate |= !visitor(i->dm_thread, i->dm_linked_object,
@@ -439,8 +443,8 @@ void AddressSpaces::visitMappings(const ThreadName& thread,
 
     for (MappingIndex::nth_index<0>::type::const_iterator
              i = dm_mappings.get<0>().lower_bound(thread),
-             iEnd = dm_mappings.get<0>().upper_bound(thread);
-         !terminate && (i != iEnd);
+             i_end = dm_mappings.get<0>().upper_bound(thread);
+         !terminate && (i != i_end);
          ++i)
     {
         terminate |= !visitor(i->dm_thread, i->dm_linked_object,
@@ -461,8 +465,8 @@ void AddressSpaces::visitMappings(const ThreadName& thread,
 
     for (MappingIndex::nth_index<0>::type::const_iterator
              i = dm_mappings.get<0>().lower_bound(thread),
-             iEnd = dm_mappings.get<0>().upper_bound(thread);
-         !terminate && (i != iEnd);
+             i_end = dm_mappings.get<0>().upper_bound(thread);
+         !terminate && (i != i_end);
          ++i)
     {
         if (i->dm_range.intersects(range) &&
