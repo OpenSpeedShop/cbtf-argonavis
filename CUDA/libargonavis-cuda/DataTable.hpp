@@ -58,11 +58,24 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Structure containing per-thread data. */
         struct PerThreadData
         {
+            /** Names of all sampled hardware performance counters. */
+            std::vector<std::string> dm_counters;
+
             /** Table of this thread's data transfers. */
             EventTable<DataTransfer> dm_data_transfers;
             
             /** Table of this thread's kernel executions. */
             EventTable<KernelExecution> dm_kernel_executions;
+            
+            /** Processed periodic samples. */
+            std::map<
+                boost::uint64_t, std::vector<boost::uint64_t>
+                > dm_periodic_samples;
+            
+            /** Unprocessed periodic samples. */
+            std::vector<
+                std::vector<boost::uint8_t>
+                > dm_unprocessed_periodic_samples;
         };
 
         /** Construct an empty data table. */
@@ -163,13 +176,16 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                      PerProcessData& per_process);
         
         /** Process a CUDA_OverflowSamples message. */
-        void process(const CUDA_OverflowSamples& message);
+        void process(const CUDA_OverflowSamples& message,
+                     PerThreadData& per_thread);
         
         /** Process a CUDA_PeriodicSamples message. */
-        void process(const CUDA_PeriodicSamples& message);
+        void process(const CUDA_PeriodicSamples& message,
+                     PerThreadData& per_thread);
         
         /** Process a CUDA_SamplingConfig message. */
-        void process(const CUDA_SamplingConfig& message);
+        void process(const CUDA_SamplingConfig& message,
+                     PerThreadData& per_thread);
 
         /** Process a DataTransfer event completions. */
         void process(
@@ -180,6 +196,11 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         void process(
             const PartialEventTable<KernelExecution>::Completions& completions
             );
+
+        /** Process periodic samples. */
+        void process_periodic_samples(const boost::uint8_t* begin,
+                                      const boost::uint8_t* end,
+                                      PerThreadData& per_thread);
 
         /** Names of all sampled hardware performance counters. */
         std::vector<std::string> dm_counters;

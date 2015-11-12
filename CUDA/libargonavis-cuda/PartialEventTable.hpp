@@ -20,10 +20,9 @@
 
 #pragma once
 
+#include <boost/bimap.hpp>
+#include <boost/bimap/multiset_of.hpp>
 #include <boost/cstdint.hpp>
-#include <boost/multi_index_container.hpp>
-#include <boost/multi_index/member.hpp>
-#include <boost/multi_index/ordered_index.hpp>
 #include <boost/optional.hpp>
 #include <map>
 #include <stddef.h>
@@ -58,6 +57,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Construct an empty partial event table. */
         PartialEventTable() :
             dm_contexts(),
+            dm_correlations(),
             dm_devices(),
             dm_events()
         {
@@ -75,7 +75,21 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         {
             Completions completions;
             
-            // ...
+            Contexts::left_const_iterator i = dm_contexts.left.find(context);
+            
+            if (i == dm_contexts.left.end())
+            {
+                i = dm_contexts.left.insert(
+                    std::make_pair(context, device)
+                    ).first;
+                
+                Devices::const_iterator j = dm_devices.find(device);
+                
+                if (j != dm_devices.end())
+                {
+                    complete(completions, context, j->second);
+                }
+            }
             
             return completions;
         }
@@ -90,8 +104,21 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         Completions addDevice(boost::uint32_t device, std::size_t index)
         {
             Completions completions;
-            
-            // ...
+
+            Devices::const_iterator i = dm_devices.find(device);
+
+            if (i == dm_devices.end())
+            {
+                i = dm_devices.insert(std::make_pair(device, index)).first;
+
+                Contexts::right_const_iterator j = 
+                    dm_contexts.right.find(device);
+                
+                if (j != dm_contexts.right.end())
+                {
+                    complete(completions, j->first, index);
+                }
+            }
             
             return completions;
         }
@@ -109,29 +136,24 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         {
             Completions completions;
 
-            IteratorByID i = dm_events.template get<ByID>().find(id);
-
-            if (i == dm_events.template get<ByID>().end())
+            typename Events::iterator i = dm_events.find(id);
+            
+            if (i == dm_events.end())
             {
-                i = dm_events.insert(
-                    PartialEventIndexRow(id, event, thread)
-                    ).first;
+                i = dm_events.insert(std::make_pair(id, PartialEvent())).first;
             }
-            else if (i->dm_enqueuing)
+            else if (i->second.dm_enqueuing)
             {
                 Base::raise<std::runtime_error>(
                     "Encountered multiple enqueuings of the event with "
                     "correlation ID %1%.", id
                     );
             }
-            else
-            {
-                dm_events.template get<ByID>().replace(
-                    i, PartialEventIndexRow(*i, event, thread)
-                    );
-                
-                complete(i, completions);
-            }
+            
+            i->second.dm_thread = thread;
+            i->second.dm_enqueuing = event;
+            
+            complete(completions, i);
             
             return completions;
         }
@@ -150,219 +172,159 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         {
             Completions completions;
 
-            IteratorByID i = dm_events.template get<ByID>().find(id);
-
-            if (i == dm_events.template get<ByID>().end())
+            typename Events::iterator i = dm_events.find(id);
+            
+            if (i == dm_events.end())
             {
-                i = dm_events.insert(
-                    PartialEventIndexRow(id, event, context)
-                    ).first;
+                i = dm_events.insert(std::make_pair(id, PartialEvent())).first;
             }
-            else if (i->dm_completion)
+            else if (i->second.dm_completion)
             {
                 Base::raise<std::runtime_error>(
                     "Encountered multiple completions of the event with "
                     "correlation ID %1%.", id
                     );
             }
-            else
-            {
-                dm_events.template get<ByID>().replace(
-                    i, PartialEventIndexRow(*i, event, context)
-                    );
-                
-                complete(i, completions);
-            }
+
+            i->second.dm_context = context;
+            i->second.dm_completion = event;
+            
+            dm_correlations.insert(Correlations::value_type(context, id));
+
+            complete(completions, i);
             
             return completions;
         }
         
     private:
 
-        /** Structure containing one row of a partial event index. */
-        struct PartialEventIndexRow
+        /** Structure containing information about a single partial event. */
+        struct PartialEvent
         {
-            /** Correlation ID of the event. */
-            boost::uint32_t dm_id;
-
-            /** Unknown context address for this event. */
-            Base::Address dm_context;
-
-            /** Unknown device ID for this event. */
-            boost::uint32_t dm_device;
-            
-            /** Thread in which this event occurred. */
-            boost::optional<Base::ThreadName> dm_thread;
-
             /** Partial enqueuing information for this event. */
             boost::optional<T> dm_enqueuing;
-
+            
             /** Partial completion information for this event. */
             boost::optional<T> dm_completion;
 
-            /** Constructor from the enqueuing of an event. */
-            PartialEventIndexRow(boost::uint32_t id, const T& event,
-                                 const Base::ThreadName& thread) :
-                dm_id(id),
-                dm_context(0),
-                dm_device(-1),
-                dm_thread(thread),
-                dm_enqueuing(event),
-                dm_completion()
-            {
-            }
-            
-            /** Constructor from the completion of an event. */
-            PartialEventIndexRow(boost::uint32_t id, const T& event,
-                                 const Base::Address& context) :
-                dm_id(id),
-                dm_context(context),
-                dm_device(-1),
-                dm_thread(),
-                dm_enqueuing(),
-                dm_completion(event)
-            {
-            }
+            /** Address of the context in which this event occurred. */
+            boost::optional<Base::Address> dm_context;
 
-            /** Copy constructor with update from the enqueuing of an event. */
-            PartialEventIndexRow(const PartialEventIndexRow& other,
-                                 const T& event,
-                                 const Base::ThreadName& thread) :
-                dm_id(other.dm_id),
-                dm_context(other.dm_context),
-                dm_device(other.dm_device),
-                dm_thread(thread),
-                dm_enqueuing(event),
-                dm_completion(other.dm_completion)
-            {
-            }
-            
-            /** Copy constructor with update from the completion of an event. */
-            PartialEventIndexRow(const PartialEventIndexRow& other,
-                                 const T& event,
-                                 const Base::Address& context) :
-                dm_id(other.dm_id),
-                dm_context(context),
-                dm_device(other.dm_device),
-                dm_thread(other.dm_thread),
-                dm_enqueuing(other.dm_enqueuing),
-                dm_completion(event)
-            {
-            }
-
-            /** Copy constructor with unknown device ID update. */
-            PartialEventIndexRow(const PartialEventIndexRow& other,
-                                 const boost::uint32_t& device) :
-                dm_id(other.dm_id),
-                dm_context(other.dm_context),
-                dm_device(device),
-                dm_thread(other.dm_thread),
-                dm_enqueuing(other.dm_enqueuing),
-                dm_completion(other.dm_completion)
-            {
-            }
-            
-        }; // struct PartialEventIndexRow
-
-        /** Tag for the correlation ID index of PartialEventIndex. */
-        struct ByID { };
-       
-        /** Tag for the unknown context address index of PartialEventIndex. */
-        struct ByContext { };
+            /** Thread in which this event occurred. */
+            boost::optional<Base::ThreadName> dm_thread;
+        };
         
-        /** Tag for the unknown device ID index of PartialEventIndex. */
-        struct ByDevice { };
-
-        /** Type of associative container used to search for partial events. */
-        typedef boost::multi_index_container<
-            PartialEventIndexRow,
-            boost::multi_index::indexed_by<
-                boost::multi_index::ordered_unique<
-                    boost::multi_index::tag<ByID>,
-                    boost::multi_index::member<
-                        PartialEventIndexRow,
-                        boost::uint32_t,
-                        &PartialEventIndexRow::dm_id
-                        >
-                    >,
-                boost::multi_index::ordered_non_unique<
-                    boost::multi_index::tag<ByContext>,
-                    boost::multi_index::member<
-                        PartialEventIndexRow,
-                        Base::Address,
-                        &PartialEventIndexRow::dm_context
-                        >
-                    >,
-                boost::multi_index::ordered_non_unique<
-                    boost::multi_index::tag<ByDevice>,
-                    boost::multi_index::member<
-                        PartialEventIndexRow,
-                        boost::uint32_t,
-                        &PartialEventIndexRow::dm_device
-                        >
-                    >
-                >
-            > PartialEventIndex;
-
-        /** Type of iterator used when searching by correlation ID. */
-        typedef typename PartialEventIndex::
-           template index<ByID>::type::iterator IteratorByID;
+        /** Type of container used to store the known context addresses. */
+        typedef boost::bimap<Base::Address, boost::uint32_t> Contexts;
         
-        /** Type of iterator used when searching by unknown context address. */
-        typedef typename PartialEventIndex::
-           template index<ByContext>::type::iterator IteratorByContext;
+        /** Type of container used to store the known correlation IDs. */
+        typedef boost::bimap<
+            Base::Address, boost::bimaps::multiset_of<boost::uint32_t>
+            > Correlations;
 
-        /** Type of iterator used when searching by unknown device ID. */
-        typedef typename PartialEventIndex::
-           template index<ByDevice>::type::iterator IteratorByDevice;
+        /** Type of container used to store the known device IDs. */
+        typedef std::map<boost::uint32_t, std::size_t> Devices;
+
+        /** Type of container used to store the partial events. */
+        typedef std::map<boost::uint32_t, PartialEvent> Events;
+
+        /** Complete partial events for the specified context if possible. */
+        void complete(Completions& completions,
+                      const Base::Address& context, std::size_t index)
+        {
+            std::vector<boost::uint32_t> completed;
+
+            for (Correlations::left_const_iterator
+                     i = dm_correlations.left.lower_bound(context),
+                     i_end = dm_correlations.left.upper_bound(context);
+                 i != i_end;
+                 ++i)
+            {
+                typename Events::iterator j = dm_events.find(i->second);
+                
+                if ((j == dm_events.end()) ||
+                    !j->second.dm_enqueuing ||
+                    !j->second.dm_completion ||
+                    !j->second.dm_context ||
+                    !j->second.dm_thread)
+                {
+                    continue;
+                }
+                
+                T event = *(j->second.dm_completion);
+                event.device = index;
+                event.call_site = j->second.dm_enqueuing->call_site;
+                event.time = j->second.dm_enqueuing->time;
+            
+                completions.push_back(
+                    std::make_pair(*(j->second.dm_thread), event)
+                    );
+
+                completed.push_back(j->first);
+            }
+
+            for (std::vector<boost::uint32_t>::const_iterator
+                     i = completed.begin(); i != completed.end(); ++i)
+            {
+                dm_correlations.right.erase(*i);
+                dm_events.erase(*i);
+            }
+        }
 
         /** Complete the specified partial event if possible. */
-        void complete(const IteratorByID& i, Completions& completions)
+        void complete(Completions& completions,
+                      const typename std::map<
+                          boost::uint32_t, PartialEvent
+                          >::iterator& i)
         {
-            if (!i->dm_enqueuing || !i->dm_completion)
-            {
-                return;
-            }
-            
-            const std::map<Base::Address, boost::uint32_t>::const_iterator
-                j = dm_contexts.find(i->dm_context);
-
-            if (j == dm_contexts.end())
+            if (!i->second.dm_enqueuing ||
+                !i->second.dm_completion ||
+                !i->second.dm_context ||
+                !i->second.dm_thread)
             {
                 return;
             }
 
-            const std::map<boost::uint32_t, std::size_t>::const_iterator
-                k = dm_devices.find(j->second);
+            Contexts::left_const_iterator j = 
+                dm_contexts.left.find(*(i->second.dm_context));
             
+            if (j == dm_contexts.left.end())
+            {
+                return;
+            }
+
+            Devices::const_iterator k = dm_devices.find(j->second);
+
             if (k == dm_devices.end())
             {
-                dm_events.template get<ByID>().replace(
-                    i, PartialEventIndexRow(*i, j->second)
-                    );
-                
                 return;
             }
 
-            T event = *(i->dm_completion);
+            T event = *(i->second.dm_completion);
             event.device = k->second;
-            event.call_site = i->dm_enqueuing->call_site;
-            event.time = i->dm_enqueuing->time;
-
-            completions.push_back(std::make_pair(*(i->dm_thread), event));
+            event.call_site = i->second.dm_enqueuing->call_site;
+            event.time = i->second.dm_enqueuing->time;
             
-            dm_events.template get<ByID>().erase(i);
+            completions.push_back(
+                std::make_pair(*(i->second.dm_thread), event)
+                );
+
+            dm_correlations.right.erase(i->first);
+            dm_events.erase(i);
         }
-        
+
         /** Device ID for each known context address. */
-        std::map<Base::Address, boost::uint32_t> dm_contexts;
+        Contexts dm_contexts;
 
+        /** Correlation ID(s) for each known context address. */
+        Correlations dm_correlations;
+        
         /** Index within DataTable::dm_devices for each known device ID. */
-        std::map<boost::uint32_t, std::size_t> dm_devices;
-
-        /** Partial events in this table. */
-        PartialEventIndex dm_events;
-
+        Devices dm_devices;
+        
+        /** Partial event for each known correlation ID. */
+        Events dm_events;
+        
     }; // class PartialEventTable<T>
 
 } } } // namespace ArgoNavis::CUDA::Impl

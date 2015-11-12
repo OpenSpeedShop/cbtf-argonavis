@@ -18,6 +18,8 @@
 
 /** @file Definition of the DataTable class. */
 
+#include <ArgoNavis/Base/Raise.hpp>
+
 #include <ArgoNavis/CUDA/CachePreference.hpp>
 #include <ArgoNavis/CUDA/CopyKind.hpp>
 #include <ArgoNavis/CUDA/MemoryKind.hpp>
@@ -234,15 +236,15 @@ void DataTable::process(const Base::ThreadName& thread,
             break;
 
         case OverflowSamples:
-            process(raw.CBTF_cuda_message_u.overflow_samples);
+            process(raw.CBTF_cuda_message_u.overflow_samples, per_thread);
             break;
 
         case PeriodicSamples:
-            process(raw.CBTF_cuda_message_u.periodic_samples);
+            process(raw.CBTF_cuda_message_u.periodic_samples, per_thread);
             break;
             
         case SamplingConfig:
-            process(raw.CBTF_cuda_message_u.sampling_config);
+            process(raw.CBTF_cuda_message_u.sampling_config, per_thread);
             break;
             
         }
@@ -323,6 +325,7 @@ DataTable::PerThreadData& DataTable::accessPerThreadData(
 size_t DataTable::findSite(boost::uint32_t site, const CBTF_cuda_data& data)
 {
     StackTrace trace;
+
     for (boost::uint32_t i = site;
          (i < data.stack_traces.stack_traces_len) &&
              (data.stack_traces.stack_traces_val[i] != 0);
@@ -401,6 +404,7 @@ void DataTable::process(const struct CUDA_DeviceInfo& message,
     {
         return;
     }
+
     per_host.dm_known_devices.insert(message.device);
     
     CUDA::Device device = convert(message);
@@ -451,28 +455,67 @@ void DataTable::process(const struct CUDA_EnqueueXfer& message,
 
         
 //------------------------------------------------------------------------------
+// TODO: Eventually we should make overflow samples available too!
 //------------------------------------------------------------------------------
-void DataTable::process(const struct CUDA_OverflowSamples& message)
+void DataTable::process(const struct CUDA_OverflowSamples& message,
+                        PerThreadData& per_thread)
 {
-    // ...
 }
 
 
         
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void DataTable::process(const struct CUDA_PeriodicSamples& message)
+void DataTable::process(const struct CUDA_PeriodicSamples& message,
+                        PerThreadData& per_thread)
 {
-    // ...
+    const boost::uint8_t* begin = &message.deltas.deltas_val[0];
+
+    const boost::uint8_t* end = 
+        &message.deltas.deltas_val[message.deltas.deltas_len];
+    
+    if (!per_thread.dm_counters.empty())
+    {
+        process_periodic_samples(begin, end, per_thread);
+    }
+    else
+    {
+        per_thread.dm_unprocessed_periodic_samples.push_back(
+            std::vector<boost::uint8_t>(begin, end)
+            );
+    }
 }
 
 
         
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void DataTable::process(const CUDA_SamplingConfig& message)
+void DataTable::process(const CUDA_SamplingConfig& message,
+                        PerThreadData& per_thread)
 {
-    // ...
+    if (!per_thread.dm_counters.empty())
+    {
+        Base::raise<std::runtime_error>(
+            "Encountered multiple CUDA_SamplingConfig for a thread."
+            );
+    }
+    
+    for (u_int i = 0; i < message.events.events_len; ++i)
+    {
+        per_thread.dm_counters.push_back(message.events.events_val[i].name);
+    }
+
+    // TODO: Update the data-table wide dm_counters!
+    
+    for (std::vector<std::vector<boost::uint8_t> >::const_iterator
+             i = per_thread.dm_unprocessed_periodic_samples.begin();
+         i != per_thread.dm_unprocessed_periodic_samples.end();
+         ++i)
+    {
+        process_periodic_samples(&(*i->begin()), &(*i->end()), per_thread);
+    }
+    
+    per_thread.dm_unprocessed_periodic_samples.clear();
 }
 
 
@@ -512,5 +555,51 @@ void DataTable::process(
         dm_interval |= i->second.time;
         dm_interval |= i->second.time_begin;
         dm_interval |= i->second.time_end;
+    }
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process_periodic_samples(const boost::uint8_t* begin,
+                                         const boost::uint8_t* end,
+                                         PerThreadData& per_thread)
+{
+    static int kAdditionalBytes[4] = { 0, 2, 3, 8 };
+
+    std::vector<uint64_t>::size_type n = 0;
+    std::vector<uint64_t>::size_type N = 1 + per_thread.dm_counters.size();
+
+    std::vector<uint64_t> samples(N, 0);
+
+    for (const boost::uint8_t* ptr = begin; ptr != end;)
+    {
+        boost::uint8_t encoding = *ptr >> 6;
+
+        boost::uint64_t delta = 0;
+        if (encoding < 3)
+        {
+            delta = static_cast<boost::uint64_t>(*ptr) & 0x3F;
+        }
+        ++ptr;
+        for (int i = 0; i < kAdditionalBytes[encoding]; ++i)
+        {
+            delta <<= 8;
+            delta |= static_cast<boost::uint64_t>(*ptr++);
+        }
+
+        samples[n++] += delta;
+
+        if (n == N)
+        {
+            per_thread.dm_periodic_samples.insert(
+                std::make_pair(
+                    samples[0],
+                    std::vector<uint64_t>(samples.begin() + 1, samples.end())
+                    )
+                );
+            n = 0;
+        }
     }
 }
