@@ -23,9 +23,8 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#include <KrellInstitute/Messages/CUDA_data.h>
 #include <KrellInstitute/Messages/DataHeader.h>
-
-#include "CUDA_data.h"
 
 /**
  * Maximum number of (CBTF_Protocol_Address) stack trace addresses contained

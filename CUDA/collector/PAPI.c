@@ -28,11 +28,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <KrellInstitute/Messages/CUDA_data.h>
+
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Time.h>
 #include <KrellInstitute/Services/Timer.h>
-
-#include "CUDA_data.h"
 
 #include "collector.h"
 #include "PAPI.h"

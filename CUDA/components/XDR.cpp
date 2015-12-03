@@ -20,11 +20,10 @@
 
 #include <KrellInstitute/CBTF/XDR.hpp>
 
+#include <KrellInstitute/Messages/CUDA_data.h>
 #include <KrellInstitute/Messages/LinkedObjectEvents.h>
 #include <KrellInstitute/Messages/Symbol.h>
 #include <KrellInstitute/Messages/ThreadEvents.h>
-
-#include "CUDA_data.h"
 
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_AttachedToThreads)
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_Blob)

@@ -22,10 +22,10 @@
 #include <malloc.h>
 #include <stdio.h>
 
+#include <KrellInstitute/Messages/CUDA_data.h>
+
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Time.h>
-
-#include "CUDA_data.h"
 
 #include "collector.h"
 #include "CUPTI_activities.h"

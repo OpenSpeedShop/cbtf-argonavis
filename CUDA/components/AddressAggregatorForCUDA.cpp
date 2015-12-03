@@ -30,11 +30,10 @@
 
 #include <KrellInstitute/Messages/Address.h>
 #include <KrellInstitute/Messages/Blob.h>
+#include <KrellInstitute/Messages/CUDA_data.h>
 #include <KrellInstitute/Messages/File.h>
 #include <KrellInstitute/Messages/PerformanceData.hpp>
 #include <KrellInstitute/Messages/Time.h>
-
-#include "CUDA_data.h"
 
 using namespace KrellInstitute::CBTF;
 using namespace KrellInstitute::Core;

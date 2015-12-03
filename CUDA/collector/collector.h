@@ -22,7 +22,7 @@
 
 #include <stdbool.h>
 
-#include "CUDA_data.h"
+#include <KrellInstitute/Messages/CUDA_data.h>
 
 /* Flag indicating if debugging is enabled. */
 extern bool IsDebugEnabled;
