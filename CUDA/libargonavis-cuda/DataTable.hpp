@@ -58,9 +58,12 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Structure containing per-thread data. */
         struct PerThreadData
         {
-            /** Names of all sampled hardware performance counters. */
-            std::vector<std::string> dm_counters;
-
+            /**
+             * Index within DataTable::counters() for each of this thread's
+             * sampled hardware performance counters.
+             */
+            std::vector<std::vector<std::string>::size_type> dm_counters;
+            
             /** Table of this thread's data transfers. */
             EventTable<DataTransfer> dm_data_transfers;
             

@@ -18,7 +18,10 @@
 
 /** @file Definition of the PerformanceData class. */
 
+#include <boost/assert.hpp>
 #include <ArgoNavis/CUDA/PerformanceData.hpp>
+#include <map>
+#include <stddef.h>
 
 #include "DataTable.hpp"
 
@@ -31,8 +34,49 @@ using namespace ArgoNavis::CUDA::Impl;
 /** Anonymous namespace hiding implementation details. */
 namespace {
 
-    // ...
-   
+    /** Type of container used to store periodic samples. */
+    typedef std::map<
+        boost::uint64_t, std::vector<boost::uint64_t>
+        > PeriodicSamples;
+
+    /** Find the smallest range of samples enclosing the given interval. */
+    bool find(const PeriodicSamples& samples, const TimeInterval& interval,
+              PeriodicSamples::const_iterator& min,
+              PeriodicSamples::const_iterator& max)
+    {
+        if (samples.empty())
+        {
+            return false;
+        }
+        
+        TimeInterval clamped = interval & 
+            TimeInterval(samples.begin()->first, samples.rbegin()->first);
+        
+        if (clamped.empty())
+        {
+            return false;
+        }
+        
+        min = samples.lower_bound(clamped.begin());
+        max = samples.upper_bound(clamped.end());
+        
+        if ((min != samples.begin()) && (Time(min->first) != clamped.begin()))
+        {
+            --min;
+        }
+
+        if (max != samples.begin())
+        {
+            --max;
+            if (Time(max->first) != clamped.end())
+            {
+                ++max;
+            }
+        }
+
+        return true;
+    }
+    
 } // namespace <anonymous>
 
 
@@ -82,9 +126,43 @@ std::vector<boost::uint64_t> PerformanceData::counts(
     const TimeInterval& interval
     ) const
 {
-    // ...
+    std::size_t N = dm_data_table->counters().size();
+    std::vector<boost::uint64_t> counts(N, 0);
+    
+    std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
+        dm_data_table->threads().find(thread);
+    
+    if (i == dm_data_table->threads().end())
+    {
+        return counts;
+    }
 
-    return std::vector<boost::uint64_t>();
+    std::size_t M = i->second.dm_counters.size();
+    BOOST_ASSERT(M <= N);
+    
+    PeriodicSamples::const_iterator j_min, j_max;
+
+    if (!find(i->second.dm_periodic_samples, interval, j_min, j_max))
+    {
+        return counts;
+    }
+    
+    TimeInterval sample_interval(j_min->first, j_max->first);
+    
+    boost::uint64_t interval_width = (interval & sample_interval).width();
+    boost::uint64_t sample_width = sample_interval.width();
+
+    BOOST_ASSERT((j_min->second.size() == M) && (j_max->second.size() == M));
+    for (std::size_t m = 0; m < M; ++m)
+    {
+        std::size_t n = i->second.dm_counters[m];
+        BOOST_ASSERT(n < N);
+        
+        boost::uint64_t count_delta = j_max->second[m] - j_min->second[m];
+        counts[n] = count_delta * interval_width / sample_width;
+    }
+    
+    return counts;
 }
 
 
@@ -183,9 +261,47 @@ void PerformanceData::visitPeriodicSamples(
     std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
         dm_data_table->threads().find(thread);
     
-    if (i != dm_data_table->threads().end())
+    if (i == dm_data_table->threads().end())
     {
-        // ...
+        return;
+    }
+
+    std::size_t N = dm_data_table->counters().size();
+    std::vector<boost::uint64_t> counts(N, 0);
+    
+    std::size_t M = i->second.dm_counters.size();
+    BOOST_ASSERT(M <= N);
+    
+    bool terminate = false;
+
+    PeriodicSamples::const_iterator j_min, j_max;
+
+    if (!find(i->second.dm_periodic_samples, interval, j_min, j_max))
+    {
+        return;
+    }
+
+    ++j_max;
+    
+    for (PeriodicSamples::const_iterator
+             j = j_min; !terminate && (j != j_max); ++j)
+    {
+        Time t(j->first);
+        
+        if (interval.contains(t))
+        {
+            counts.assign(N, 0);
+            BOOST_ASSERT(j->second.size() == M);
+            for (std::size_t m = 0; m < M; ++m)
+            {
+                std::size_t n = i->second.dm_counters[m];
+                BOOST_ASSERT(n < N);
+
+                counts[n] = j->second[m];
+            }
+            
+            terminate |= !visitor(t, counts);
+        }
     }
 }
 

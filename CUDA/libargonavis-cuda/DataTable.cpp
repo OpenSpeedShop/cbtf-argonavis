@@ -502,10 +502,23 @@ void DataTable::process(const CUDA_SamplingConfig& message,
     
     for (u_int i = 0; i < message.events.events_len; ++i)
     {
-        per_thread.dm_counters.push_back(message.events.events_val[i].name);
-    }
+        std::string name(message.events.events_val[i].name);
 
-    // TODO: Update the data-table wide dm_counters!
+        std::vector<std::string>::size_type j;
+        for (j = 0; j < dm_counters.size(); ++j)
+        {
+            if (dm_counters[j] == name)
+            {
+                break;
+            }
+        }
+        if (j == dm_counters.size())
+        {
+            dm_counters.push_back(name);
+        }
+
+        per_thread.dm_counters.push_back(j);
+    }
     
     for (std::vector<std::vector<boost::uint8_t> >::const_iterator
              i = per_thread.dm_unprocessed_periodic_samples.begin();
