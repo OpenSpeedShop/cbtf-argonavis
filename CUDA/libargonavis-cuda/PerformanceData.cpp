@@ -82,11 +82,74 @@ namespace {
 
 
 //------------------------------------------------------------------------------
+// Iterate over each of the individual CUDA messages that are "packed" into the
+// specified performance data. For all of the messages containing stack traces
+// or sampled PC addresses, invoke the given visitor.
 //------------------------------------------------------------------------------
 void PerformanceData::visitPCs(const CBTF_cuda_data& message,
                                AddressVisitor& visitor)
 {
-    // ...
+    bool terminate = false;
+    
+    for (u_int i = 0; !terminate && (i < message.messages.messages_len); ++i)
+    {
+        const CBTF_cuda_message& raw = message.messages.messages_val[i];
+        
+        switch (raw.type)
+        {
+            
+        case EnqueueExec:
+            {
+                const CUDA_EnqueueExec& msg = 
+                    raw.CBTF_cuda_message_u.enqueue_exec;
+                
+                for (uint32_t i = msg.call_site;
+                     !terminate &&
+                         (i < message.stack_traces.stack_traces_len) &&
+                         (message.stack_traces.stack_traces_val[i] != 0);
+                     ++i)
+                {
+                    terminate |= !visitor(
+                        message.stack_traces.stack_traces_val[i]
+                        );
+                }
+            }
+            break;
+            
+        case EnqueueXfer:
+            {
+                const CUDA_EnqueueXfer& msg = 
+                    raw.CBTF_cuda_message_u.enqueue_xfer;
+
+                for (uint32_t i = msg.call_site;
+                     !terminate && 
+                         (i < message.stack_traces.stack_traces_len) &&
+                         (message.stack_traces.stack_traces_val[i] != 0);
+                     ++i)
+                {
+                    terminate |= !visitor(
+                        message.stack_traces.stack_traces_val[i]
+                        );
+                }
+            }
+            break;
+
+        case OverflowSamples:
+            {
+                const CUDA_OverflowSamples& msg =
+                    raw.CBTF_cuda_message_u.overflow_samples;
+                
+                for (uint32_t i = 0; !terminate && (i < msg.pcs.pcs_len); ++i)
+                {
+                    terminate |= !visitor(msg.pcs.pcs_val[i]);
+                }
+            }
+            break;
+            
+        default:
+            break;
+        }
+    }
 }
 
 
