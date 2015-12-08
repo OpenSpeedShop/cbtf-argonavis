@@ -30,6 +30,7 @@
 #include <KrellInstitute/Messages/CUDA_data.h>
 
 #include <ArgoNavis/Base/Address.hpp>
+#include <ArgoNavis/Base/AddressVisitor.hpp>
 #include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
@@ -45,7 +46,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
     /**
      * Table containing the performance data for one or more threads. This class
-     * provides the underlying implementation for the PerformanceData class.
+     * provides underlying implementation for the PerformanceData class.
      */
     class DataTable
     {
@@ -80,6 +81,10 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 std::vector<boost::uint8_t>
                 > dm_unprocessed_periodic_samples;
         };
+
+        /** Visit the PC addresses within the given message. */
+        static void visitPCs(const CBTF_cuda_data& message,
+                             Base::AddressVisitor& visitor);
 
         /** Construct an empty data table. */
         DataTable();
