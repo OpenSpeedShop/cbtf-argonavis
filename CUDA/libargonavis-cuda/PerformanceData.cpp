@@ -202,11 +202,14 @@ const std::vector<StackTrace>& PerformanceData::sites() const
 
 
 //------------------------------------------------------------------------------
+// Simply pass the provided arguments on to the identically named method of the
+// DataTable class. The actual implementation is located there in order to keep
+// as much of the message-specific code centralized in one place.
 //------------------------------------------------------------------------------
 void PerformanceData::visitBlobs(const ThreadName& thread,
                                  BlobVisitor& visitor) const
 {
-    // ...
+    dm_data_table->visitBlobs(thread, visitor);
 }
 
 

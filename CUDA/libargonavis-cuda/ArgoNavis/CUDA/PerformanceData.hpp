@@ -26,7 +26,6 @@
 #include <vector>
 
 #include <KrellInstitute/Messages/CUDA_data.h>
-#include <KrellInstitute/Messages/DataHeader.h>
 
 #include <ArgoNavis/Base/AddressVisitor.hpp>
 #include <ArgoNavis/Base/BlobVisitor.hpp>

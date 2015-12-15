@@ -24,6 +24,7 @@
 #include <stddef.h>
 #include <string>
 
+#include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/Time.hpp>
 
 #include <ArgoNavis/CUDA/CachePreference.hpp>
@@ -36,10 +37,19 @@ namespace ArgoNavis { namespace CUDA {
     {
         /** Index of the device on which the kernel execution occurred. */
         size_t device;
-        
+
         /** Index of the kernel execution's call site. */
         size_t call_site;
-        
+
+        /** Correlation ID of the kernel execution. */
+        boost::uint32_t id;
+
+        /** CUDA context for which the kernel was executed. */
+        Base::Address context;
+
+        /** CUDA stream for which the kernel was executed. */
+        Base::Address stream;
+
         /** Time at which the kernel execution was requested. */
         Base::Time time;
         

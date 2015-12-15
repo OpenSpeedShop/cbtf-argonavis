@@ -23,6 +23,7 @@
 #include <boost/cstdint.hpp>
 #include <stddef.h>
 
+#include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/Time.hpp>
 
 #include <ArgoNavis/CUDA/CopyKind.hpp>
@@ -38,6 +39,15 @@ namespace ArgoNavis { namespace CUDA {
         
         /** Index of the data transfer's call site. */
         size_t call_site;
+
+        /** Correlation ID of the data transfer. */
+        boost::uint32_t id;
+
+        /** CUDA context for which the data was transferred. */
+        Base::Address context;
+
+        /** CUDA stream for which the data was transferred. */
+        Base::Address stream;
         
         /** Time at which the data transfer was requested. */
         Base::Time time;

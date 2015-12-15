@@ -31,6 +31,7 @@
 
 #include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/AddressVisitor.hpp>
+#include <ArgoNavis/Base/BlobVisitor.hpp>
 #include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
@@ -39,6 +40,7 @@
 #include <ArgoNavis/CUDA/Device.hpp>
 #include <ArgoNavis/CUDA/KernelExecution.hpp>
 
+#include "BlobGenerator.hpp"
 #include "EventTable.hpp"
 #include "PartialEventTable.hpp"
 
@@ -46,7 +48,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
     /**
      * Table containing the performance data for one or more threads. This class
-     * provides underlying implementation for the PerformanceData class.
+     * provides underlying implementation details for the PerformanceData class.
      */
     class DataTable
     {
@@ -122,6 +124,10 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         {
             return dm_threads;
         }
+
+        /** Visit the (raw) performance data blobs for the given thread. */
+        void visitBlobs(const Base::ThreadName& thread,
+                        Base::BlobVisitor& visitor) const;
         
     private:
 
@@ -153,6 +159,14 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Find the given call site in (or add it to) the known call sites. */
         size_t findSite(boost::uint32_t site, const CBTF_cuda_data& data);
+
+        /** Generate the messages for a DataTransfer event. */
+        bool generate(const DataTransfer& event,
+                      BlobGenerator& generator) const;
+        
+        /** Generate the messages for a KernelExecution event. */
+        bool generate(const KernelExecution& event,
+                      BlobGenerator& generator) const;
         
         /** Process a CUDA_CompletedExec message. */
         void process(const CUDA_CompletedExec& message,

@@ -18,6 +18,11 @@
 
 /** @file Definition of the DataTable class. */
 
+#include <boost/bind.hpp>
+#include <boost/ref.hpp>
+#include <cstring>
+#include <utility>
+
 #include <ArgoNavis/Base/Raise.hpp>
 
 #include <ArgoNavis/CUDA/CachePreference.hpp>
@@ -89,6 +94,9 @@ namespace {
     {    
         KernelExecution event;
 
+        event.id = message.id;
+        event.context = message.context;
+        event.stream = message.stream;
         event.time_begin = message.time_begin;
         event.time_end = message.time_end;
         event.function = message.function;
@@ -112,6 +120,9 @@ namespace {
     {
         DataTransfer event;
 
+        event.id = message.id;
+        event.context = message.context;
+        event.stream = message.stream;
         event.time_begin = message.time_begin;
         event.time_end = message.time_end;
         event.size = message.size;
@@ -162,6 +173,7 @@ namespace {
     KernelExecution convert(const CUDA_EnqueueExec& message)
     {    
         KernelExecution event;
+        event.id = message.id;
         event.time = message.time;
         return event;
     }
@@ -170,8 +182,157 @@ namespace {
     DataTransfer convert(const CUDA_EnqueueXfer& message)
     {
         DataTransfer event;
+        event.id = message.id;
         event.time = message.time;
         return event;
+    }
+
+    /** Convert a CachePreference into a CUDA_CachePreference. */
+    CUDA_CachePreference convert(const CachePreference& value)
+    {
+        switch (value)
+        {
+        case kInvalidCachePreference: return InvalidCachePreference;
+        case kNoPreference: return NoPreference;
+        case kPreferShared: return PreferShared;
+        case kPreferCache: return PreferCache;
+        case kPreferEqual: return PreferEqual;
+        default: return InvalidCachePreference;
+        }
+    }
+
+    /** Convert a CopyKind into a CUDA_CopyKind. */
+    CUDA_CopyKind convert(const CopyKind& value)
+    {
+        switch (value)
+        {
+        case kInvalidCopyKind: return InvalidCopyKind;
+        case kUnknownCopyKind: return UnknownCopyKind;
+        case kHostToDevice: return HostToDevice;
+        case kDeviceToHost: return DeviceToHost;
+        case kHostToArray: return HostToArray;
+        case kArrayToHost: return ArrayToHost;
+        case kArrayToArray: return ArrayToArray;
+        case kArrayToDevice: return ArrayToDevice;
+        case kDeviceToArray: return DeviceToArray;
+        case kDeviceToDevice: return DeviceToDevice;
+        case kHostToHost: return HostToHost;
+        default: return InvalidCopyKind;
+        }
+    }
+
+    /** Convert a MemoryKind into a CUDA_MemoryKind. */
+    CUDA_MemoryKind convert(const MemoryKind& value)
+    {
+        switch (value)
+        {
+        case kInvalidMemoryKind: return InvalidMemoryKind;
+        case kUnknownMemoryKind: return UnknownMemoryKind;
+        case kPageable: return Pageable;
+        case kPinned: return Pinned;
+        case kDevice: return ::Device;
+        case kArray: return Array;
+        default: return InvalidMemoryKind;
+        }
+    }
+
+    /** Convert a Device into a CUDA_DeviceInfo. */
+    CUDA_DeviceInfo convert(const ArgoNavis::CUDA::Device& device)
+    {
+        CUDA_DeviceInfo message;
+        
+        message.device = 0; // Caller must provide this
+        message.name = strdup(device.name.c_str());
+        message.compute_capability[0] = device.compute_capability.get<0>();
+        message.compute_capability[1] = device.compute_capability.get<1>();
+        message.max_grid[0] = device.max_grid.get<0>();
+        message.max_grid[1] = device.max_grid.get<1>();
+        message.max_grid[2] = device.max_grid.get<2>();
+        message.max_block[0] = device.max_block.get<0>();
+        message.max_block[1] = device.max_block.get<1>();
+        message.max_block[2] = device.max_block.get<2>();
+        message.global_memory_bandwidth = device.global_memory_bandwidth;
+        message.global_memory_size = device.global_memory_size;
+        message.constant_memory_size = device.constant_memory_size;
+        message.l2_cache_size = device.l2_cache_size;
+        message.threads_per_warp = device.threads_per_warp;
+        message.core_clock_rate = device.core_clock_rate;
+        message.memcpy_engines = device.memcpy_engines;
+        message.multiprocessors = device.multiprocessors;
+        message.max_ipc = device.max_ipc;
+        message.max_warps_per_multiprocessor =
+            device.max_warps_per_multiprocessor;
+        message.max_blocks_per_multiprocessor = 
+            device.max_blocks_per_multiprocessor;
+        message.max_registers_per_block = device.max_registers_per_block;
+        message.max_shared_memory_per_block = 
+            device.max_shared_memory_per_block;
+        message.max_threads_per_block = device.max_threads_per_block;
+        
+        return message;
+    }
+
+    /**
+     * Convert a DataTransfer into a CUDA_EnqueueXfer and CUDA_CompletedXfer.
+     */
+    std::pair<CUDA_EnqueueXfer, CUDA_CompletedXfer> convert(
+        const DataTransfer& event
+        )
+    {
+        CUDA_EnqueueXfer enqueue;
+        CUDA_CompletedXfer completed;
+
+        enqueue.id = event.id;
+        enqueue.time = event.time;
+        enqueue.call_site = 0; // Caller must provide this
+        
+        completed.id = event.id;
+        completed.time_begin = event.time_begin;
+        completed.time_end = event.time_end;
+        completed.context = event.context;
+        completed.stream = event.stream;
+        completed.size = event.size;
+        completed.kind = convert(event.kind);
+        completed.source_kind = convert(event.source_kind);
+        completed.destination_kind = convert(event.destination_kind);
+        completed.asynchronous = event.asynchronous ? TRUE : FALSE;
+
+        return std::make_pair(enqueue, completed);
+    }
+
+    /**
+     * Convert a KernelExecution into a CUDA_EnqueueExec and CUDA_CompletedExec.
+     */
+    std::pair<CUDA_EnqueueExec, CUDA_CompletedExec> convert(
+        const KernelExecution& event
+        )
+    {
+        CUDA_EnqueueExec enqueue;
+        CUDA_CompletedExec completed;
+
+        enqueue.id = event.id;
+        enqueue.time = event.time;
+        enqueue.call_site = 0; // Caller must provide this
+
+        completed.id = event.id;
+        completed.time_begin = event.time_begin;
+        completed.time_end = event.time_end;
+        completed.context = event.context;
+        completed.stream = event.stream;
+        completed.function = strdup(event.function.c_str());
+        completed.grid[0] = event.grid.get<0>();
+        completed.grid[1] = event.grid.get<1>();
+        completed.grid[2] = event.grid.get<2>();
+        completed.block[0] = event.block.get<0>();
+        completed.block[1] = event.block.get<1>();
+        completed.block[2] = event.block.get<2>();
+        completed.cache_preference = convert(event.cache_preference);
+        completed.registers_per_thread = event.registers_per_thread;
+        completed.static_shared_memory = event.static_shared_memory;
+        completed.dynamic_shared_memory = event.dynamic_shared_memory;
+        completed.local_memory = event.local_memory;
+
+        return std::make_pair(enqueue, completed);
     }
     
 } // namespace <anonymous>
@@ -327,6 +488,61 @@ void DataTable::process(const Base::ThreadName& thread,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+void DataTable::visitBlobs(const Base::ThreadName& thread,
+                           Base::BlobVisitor& visitor) const
+{
+    std::map<ThreadName, PerThreadData>::const_iterator i = 
+        dm_threads.find(thread);
+    
+    if (i == dm_threads.end())
+    {
+        return;
+    }
+    
+    const PerThreadData& per_thread = i->second;
+
+    BlobGenerator generator(visitor);
+
+    // ...
+
+    if (generator.terminate())
+    {
+        return; // Terminate the iteration
+    }
+    
+    per_thread.dm_data_transfers.visit(
+        TimeInterval(Time::TheBeginning(), Time::TheEnd()),
+        boost::bind(
+            static_cast<
+                bool (DataTable::*)(const DataTransfer&, BlobGenerator&) const
+                >(&DataTable::generate),
+            this, _1, boost::ref(generator)
+            )
+        );
+
+    if (generator.terminate())
+    {
+        return; // Terminate the iteration
+    }
+
+    per_thread.dm_kernel_executions.visit(
+        TimeInterval(Time::TheBeginning(), Time::TheEnd()),
+        boost::bind(
+            static_cast<
+                bool (DataTable::*)(const KernelExecution&, 
+                                    BlobGenerator&) const
+            >(&DataTable::generate),
+            this, _1, boost::ref(generator)
+            )
+        );
+
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 DataTable::PerHostData& DataTable::accessPerHostData(const ThreadName& thread)
 {
     ThreadName key(thread.host(), 0 /* Dummy PID */);
@@ -422,6 +638,108 @@ size_t DataTable::findSite(boost::uint32_t site, const CBTF_cuda_data& data)
     }
 
     return i;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool DataTable::generate(const DataTransfer& event,
+                         BlobGenerator& generator) const
+{
+    // Convert the event into the corresponding enqueue and completed messages
+    std::pair<CUDA_EnqueueXfer, CUDA_CompletedXfer> messages = convert(event);
+    CUDA_EnqueueXfer& enqueue = messages.first;
+    CUDA_CompletedXfer& completed = messages.second;
+
+    // Add this event's call site to the blob generator
+
+    enqueue.call_site = generator.add_site(dm_sites[event.call_site]);
+    
+    if (generator.terminate())
+    {
+        return false; // Terminate the iteration
+    }
+    
+    // Add this event's enqueue message to the blob generator
+
+    CBTF_cuda_message* enqueue_message = generator.add_message();
+    
+    if (generator.terminate())
+    {
+        return false; // Terminate the iteration
+    }
+
+    enqueue_message->type = EnqueueXfer;
+    memcpy(&enqueue_message->CBTF_cuda_message_u.enqueue_xfer,
+           &enqueue, sizeof(CUDA_EnqueueXfer));
+    
+    // Add this event's completed message to the blob generator
+    
+    CBTF_cuda_message* completed_message = generator.add_message();
+    
+    if (generator.terminate())
+    {
+        return false; // Terminate the iteration
+    }
+
+    completed_message->type = CompletedXfer;
+    memcpy(&completed_message->CBTF_cuda_message_u.completed_xfer,
+           &completed, sizeof(CUDA_CompletedXfer));
+
+    // Continue the iteration
+    return true;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool DataTable::generate(const KernelExecution& event,
+                         BlobGenerator& generator) const
+{
+    // Convert the event into the corresponding enqueue and completed messages
+    std::pair<CUDA_EnqueueExec, CUDA_CompletedExec> messages = convert(event);
+    CUDA_EnqueueExec& enqueue = messages.first;
+    CUDA_CompletedExec& completed = messages.second;
+
+    // Add this event's call site to the blob generator
+
+    enqueue.call_site = generator.add_site(dm_sites[event.call_site]);
+
+    if (generator.terminate())
+    {
+        return false; // Terminate the iteration
+    }
+
+    // Add this event's enqueue message to the blob generator
+
+    CBTF_cuda_message* enqueue_message = generator.add_message();
+    
+    if (generator.terminate())
+    {
+        return false; // Terminate the iteration
+    }
+
+    enqueue_message->type = EnqueueExec;
+    memcpy(&enqueue_message->CBTF_cuda_message_u.enqueue_exec,
+           &enqueue, sizeof(CUDA_EnqueueExec));
+
+    // Add this event's completed message to the blob generator
+    
+    CBTF_cuda_message* completed_message = generator.add_message();
+    
+    if (generator.terminate())
+    {
+        return false; // Terminate the iteration
+    }
+
+    completed_message->type = CompletedExec;
+    memcpy(&completed_message->CBTF_cuda_message_u.completed_exec,
+           &completed, sizeof(CUDA_CompletedExec));
+
+    // Continue the iteration
+    return true;
 }
 
 

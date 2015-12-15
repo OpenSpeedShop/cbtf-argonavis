@@ -29,6 +29,7 @@ add_library(argonavis-cuda SHARED
     ArgoNavis/CUDA/PeriodicSampleVisitor.hpp
     ArgoNavis/CUDA/stringify.hpp
     ArgoNavis/CUDA/Vector.hpp
+    BlobGenerator.hpp BlobGenerator.cpp
     DataTable.hpp DataTable.cpp
     EventTable.hpp
     PartialEventTable.hpp
