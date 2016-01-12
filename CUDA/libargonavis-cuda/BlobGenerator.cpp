@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2015,2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -92,7 +92,7 @@ BlobGenerator::~BlobGenerator()
 // This method is almost identical to TLS_add_current_call_site() found in
 // "cbtf-argonavis/CUDA/collector/TLS.c".
 //------------------------------------------------------------------------------
-boost::uint32_t BlobGenerator::add_site(const StackTrace& site)
+boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
 {
     int i, j;
 
@@ -134,7 +134,7 @@ boost::uint32_t BlobGenerator::add_site(const StackTrace& site)
                 for (j = 0; j < site.size(); ++j, ++i)
                 {
                     dm_stack_traces[i] = site[j];
-                    update_header(site[j]);
+                    updateHeader(site[j]);
                 }
                 dm_stack_traces[i] = 0;
                 dm_data->stack_traces.stack_traces_len = i + 1;
@@ -168,7 +168,7 @@ boost::uint32_t BlobGenerator::add_site(const StackTrace& site)
 // This method is almost identical to TLS_add_message() found in
 // "cbtf-argonavis/CUDA/collector/TLS.c".
 //------------------------------------------------------------------------------
-CBTF_cuda_message* BlobGenerator::add_message()
+CBTF_cuda_message* BlobGenerator::addMessage()
 {
     if (dm_data->messages.messages_len == kMaxMessagesPerBlob)
     {
@@ -184,7 +184,7 @@ CBTF_cuda_message* BlobGenerator::add_message()
 // This method is almost identical to TLS_update_header_with_address() found in
 // "cbtf-argonavis/CUDA/collector/TLS.c".
 //------------------------------------------------------------------------------
-void BlobGenerator::update_header(const Base::Address& address)
+void BlobGenerator::updateHeader(const Base::Address& address)
 {
     if (address < Base::Address(dm_header->addr_begin))
     {
@@ -202,7 +202,7 @@ void BlobGenerator::update_header(const Base::Address& address)
 // This method is almost identical to TLS_update_header_with_time() found in
 // "cbtf-argonavis/CUDA/collector/TLS.c".
 //------------------------------------------------------------------------------
-void BlobGenerator::update_header(const Base::Time& time)
+void BlobGenerator::updateHeader(const Base::Time& time)
 {
     if (time < Base::Time(dm_header->time_begin))
     {

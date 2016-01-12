@@ -736,7 +736,7 @@ bool DataTable::generate(const PerProcessData& per_process,
     for (std::map<Address, boost::uint32_t>::const_iterator
              i = contexts.begin(); i != contexts.end(); ++i)
     {
-        CBTF_cuda_message* message = generator.add_message();
+        CBTF_cuda_message* message = generator.addMessage();
         
         if (generator.terminate())
         {
@@ -755,7 +755,7 @@ bool DataTable::generate(const PerProcessData& per_process,
     for (std::map<boost::uint32_t, std::size_t>::const_iterator
              i = devices.begin(); i != devices.end(); ++i)
     {
-        CBTF_cuda_message* message = generator.add_message();
+        CBTF_cuda_message* message = generator.addMessage();
         
         if (generator.terminate())
         {
@@ -771,7 +771,7 @@ bool DataTable::generate(const PerProcessData& per_process,
 
     // Add a CUDA_SamplingConfig message to the blob generator
 
-    CBTF_cuda_message* message = generator.add_message();
+    CBTF_cuda_message* message = generator.addMessage();
         
     if (generator.terminate())
     {
@@ -820,7 +820,7 @@ bool DataTable::generate(const DataTransfer& event,
 
     // Add this event's call site to the blob generator
 
-    enqueue.call_site = generator.add_site(dm_sites[event.call_site]);
+    enqueue.call_site = generator.addSite(dm_sites[event.call_site]);
     
     if (generator.terminate())
     {
@@ -829,7 +829,7 @@ bool DataTable::generate(const DataTransfer& event,
     
     // Add this event's enqueue message to the blob generator
 
-    CBTF_cuda_message* enqueue_message = generator.add_message();
+    CBTF_cuda_message* enqueue_message = generator.addMessage();
     
     if (generator.terminate())
     {
@@ -842,7 +842,7 @@ bool DataTable::generate(const DataTransfer& event,
     
     // Add this event's completed message to the blob generator
     
-    CBTF_cuda_message* completed_message = generator.add_message();
+    CBTF_cuda_message* completed_message = generator.addMessage();
     
     if (generator.terminate())
     {
@@ -871,7 +871,7 @@ bool DataTable::generate(const KernelExecution& event,
 
     // Add this event's call site to the blob generator
 
-    enqueue.call_site = generator.add_site(dm_sites[event.call_site]);
+    enqueue.call_site = generator.addSite(dm_sites[event.call_site]);
 
     if (generator.terminate())
     {
@@ -880,7 +880,7 @@ bool DataTable::generate(const KernelExecution& event,
 
     // Add this event's enqueue message to the blob generator
 
-    CBTF_cuda_message* enqueue_message = generator.add_message();
+    CBTF_cuda_message* enqueue_message = generator.addMessage();
     
     if (generator.terminate())
     {
@@ -893,7 +893,7 @@ bool DataTable::generate(const KernelExecution& event,
 
     // Add this event's completed message to the blob generator
     
-    CBTF_cuda_message* completed_message = generator.add_message();
+    CBTF_cuda_message* completed_message = generator.addMessage();
     
     if (generator.terminate())
     {

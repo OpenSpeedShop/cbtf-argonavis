@@ -60,16 +60,16 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         }
 
         /** Add the specified call site to the current blob. */
-        boost::uint32_t add_site(const Base::StackTrace& site);
+        boost::uint32_t addSite(const Base::StackTrace& site);
 
         /** Add the a new message to the current blob. */
-        CBTF_cuda_message* add_message();
+        CBTF_cuda_message* addMessage();
 
         /** Update the current blob's header with the specified address. */
-        void update_header(const Base::Address& address);
+        void updateHeader(const Base::Address& address);
 
         /** Update the current blob's header with the specified time. */
-        void update_header(const Base::Time& time);
+        void updateHeader(const Base::Time& time);
         
     private:
         
