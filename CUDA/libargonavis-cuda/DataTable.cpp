@@ -506,8 +506,8 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     const PerThreadData& per_thread = i_thread->second;
     
     BlobGenerator generator(visitor);
-    
-    // Generate the context and devince information messages
+
+    // Generate the context/device information and sampling config messages
     
     generate(per_process, per_thread, generator);
     
@@ -515,7 +515,7 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     {
         return; // Terminate the iteration
     }
-    
+
     // Visit all of the data transfer events, adding them to the generator
 
     per_thread.dm_data_transfers.visit(
@@ -553,7 +553,6 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
 
 
 
-    // ... TODO: Add a CUDA_SamplingConfig message
     // ... TODO: Add periodic samples to the generator
 
 
@@ -745,9 +744,10 @@ bool DataTable::generate(const PerProcessData& per_process,
         }
 
         message->type = ContextInfo;
+        CUDA_ContextInfo& info = message->CBTF_cuda_message_u.context_info;
 
-        message->CBTF_cuda_message_u.context_info.context = i->first;
-        message->CBTF_cuda_message_u.context_info.device = i->second;
+        info.context = i->first;
+        info.device = i->second;
     }
 
     // Add the necessary device information messages to the blob generator
@@ -763,12 +763,45 @@ bool DataTable::generate(const PerProcessData& per_process,
         }
 
         message->type = DeviceInfo;
+        CUDA_DeviceInfo& info = message->CBTF_cuda_message_u.device_info;
 
-        message->CBTF_cuda_message_u.device_info = 
-            convert(dm_devices[i->second]);
-        message->CBTF_cuda_message_u.device_info.device = i->first;
+        info = convert(dm_devices[i->second]);
+        info.device = i->first;
     }
 
+    // Add a CUDA_SamplingConfig message to the blob generator
+
+    CBTF_cuda_message* message = generator.add_message();
+        
+    if (generator.terminate())
+    {
+        return false; // Terminate the iteration
+    }
+        
+    message->type = SamplingConfig;    
+    CUDA_SamplingConfig& config = message->CBTF_cuda_message_u.sampling_config;
+
+    config.interval = 0; // TODO: Use the real interval!?
+
+    config.events.events_len = per_thread.dm_counters.size();
+
+    config.events.events_val =
+        reinterpret_cast<CUDA_EventDescription*>(
+            malloc(std::max(1U, config.events.events_len) *
+                   sizeof(CUDA_EventDescription))
+            );
+
+    for (std::vector<std::vector<std::string>::size_type>::const_iterator
+             i = per_thread.dm_counters.begin();
+         i  != per_thread.dm_counters.end();
+         ++i)
+    {
+        CUDA_EventDescription& description = config.events.events_val[*i];
+        
+        description.name = strdup(dm_counters[*i].c_str());
+        description.threshold = 0; // TODO: Use the real threshold!?
+    }
+    
     // Continue the iteration
     return true;    
 }

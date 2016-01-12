@@ -160,7 +160,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Find the given call site in (or add it to) the known call sites. */
         size_t findSite(boost::uint32_t site, const CBTF_cuda_data& data);
 
-        /** Generate the messages containing context and device information. */
+        /** 
+         * Generate the context/device information and sampling config messages.
+         */
         bool generate(const PerProcessData& per_process,
                       const PerThreadData& per_thread,
                       BlobGenerator& generator) const;
