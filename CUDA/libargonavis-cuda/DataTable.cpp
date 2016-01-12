@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -491,25 +491,33 @@ void DataTable::process(const Base::ThreadName& thread,
 void DataTable::visitBlobs(const Base::ThreadName& thread,
                            Base::BlobVisitor& visitor) const
 {
-    std::map<ThreadName, PerThreadData>::const_iterator i = 
+    std::map<ThreadName, PerProcessData>::const_iterator i_process = 
+        dm_processes.find(ThreadName(thread.host(), thread.pid()));
+    
+    std::map<ThreadName, PerThreadData>::const_iterator i_thread = 
         dm_threads.find(thread);
     
-    if (i == dm_threads.end())
+    if ((i_process == dm_processes.end()) || (i_thread == dm_threads.end()))
     {
         return;
     }
     
-    const PerThreadData& per_thread = i->second;
-
+    const PerProcessData& per_process = i_process->second;
+    const PerThreadData& per_thread = i_thread->second;
+    
     BlobGenerator generator(visitor);
-
-    // ...
-
+    
+    // Generate the context and devince information messages
+    
+    generate(per_process, per_thread, generator);
+    
     if (generator.terminate())
     {
         return; // Terminate the iteration
     }
     
+    // Visit all of the data transfer events, adding them to the generator
+
     per_thread.dm_data_transfers.visit(
         TimeInterval(Time::TheBeginning(), Time::TheEnd()),
         boost::bind(
@@ -525,6 +533,8 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
         return; // Terminate the iteration
     }
 
+    // Visit all of the kernel execution events, adding them to the generator
+
     per_thread.dm_kernel_executions.visit(
         TimeInterval(Time::TheBeginning(), Time::TheEnd()),
         boost::bind(
@@ -536,7 +546,18 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
             )
         );
 
-    // ...
+    if (generator.terminate())
+    {
+        return; // Terminate the iteration
+    }
+
+
+
+    // ... TODO: Add a CUDA_SamplingConfig message
+    // ... TODO: Add periodic samples to the generator
+
+
+
 }
 
 
@@ -638,6 +659,118 @@ size_t DataTable::findSite(boost::uint32_t site, const CBTF_cuda_data& data)
     }
 
     return i;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool DataTable::generate(const PerProcessData& per_process,
+                         const PerThreadData& per_thread,
+                         BlobGenerator& generator) const
+{
+    std::map<Address, boost::uint32_t> contexts;
+    std::map<boost::uint32_t, std::size_t> devices;
+
+    // Visit all of the known context addresses for data transfer events,
+    // lookup their device ID and index within DataTable::dm_devices, and
+    // add this information to the maps above.
+    
+    for (std::set<Address>::const_iterator
+             i = per_thread.dm_data_transfers.contexts().begin();
+         i != per_thread.dm_data_transfers.contexts().end();
+         ++i)
+    {
+        if (contexts.find(*i) != contexts.end())
+        {
+            continue;
+        }
+
+        boost::uint32_t device = 
+            per_process.dm_partial_data_transfers.device(*i);
+
+        contexts.insert(std::make_pair(*i, device));
+
+        if (devices.find(device) != devices.end())
+        {
+            continue;
+        }
+        
+        std::size_t index = 
+            per_process.dm_partial_data_transfers.index(device);
+        
+        devices.insert(std::make_pair(device, index));
+    }
+
+    // Visit all of the known context addresses for kernel execution events,
+    // lookup their device ID and index within DataTable::dm_devices, and add
+    // this information to the maps above.
+    
+    for (std::set<Address>::const_iterator
+             i = per_thread.dm_kernel_executions.contexts().begin();
+         i != per_thread.dm_kernel_executions.contexts().end();
+         ++i)
+    {
+        if (contexts.find(*i) != contexts.end())
+        {
+            continue;
+        }
+
+        boost::uint32_t device = 
+            per_process.dm_partial_kernel_executions.device(*i);
+        
+        contexts.insert(std::make_pair(*i, device));
+
+        if (devices.find(device) != devices.end())
+        {
+            continue;
+        }
+        
+        std::size_t index = 
+            per_process.dm_partial_kernel_executions.index(device);
+        
+        devices.insert(std::make_pair(device, index));
+    }
+
+    // Add the necessary context information messages to the blob generator
+
+    for (std::map<Address, boost::uint32_t>::const_iterator
+             i = contexts.begin(); i != contexts.end(); ++i)
+    {
+        CBTF_cuda_message* message = generator.add_message();
+        
+        if (generator.terminate())
+        {
+            return false; // Terminate the iteration
+        }
+
+        message->type = ContextInfo;
+
+        message->CBTF_cuda_message_u.context_info.context = i->first;
+        message->CBTF_cuda_message_u.context_info.device = i->second;
+    }
+
+    // Add the necessary device information messages to the blob generator
+    
+    for (std::map<boost::uint32_t, std::size_t>::const_iterator
+             i = devices.begin(); i != devices.end(); ++i)
+    {
+        CBTF_cuda_message* message = generator.add_message();
+        
+        if (generator.terminate())
+        {
+            return false; // Terminate the iteration
+        }
+
+        message->type = DeviceInfo;
+
+        message->CBTF_cuda_message_u.device_info = 
+            convert(dm_devices[i->second]);
+        message->CBTF_cuda_message_u.device_info.device = i->first;
+    }
+
+    // Continue the iteration
+    return true;    
 }
 
 

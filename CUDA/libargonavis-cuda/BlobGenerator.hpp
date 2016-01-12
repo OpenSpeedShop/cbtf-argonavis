@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2015,2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -62,7 +62,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Add the specified call site to the current blob. */
         boost::uint32_t add_site(const Base::StackTrace& site);
 
-        /** Add the specified message to the current blob. */
+        /** Add the a new message to the current blob. */
         CBTF_cuda_message* add_message();
 
         /** Update the current blob's header with the specified address. */

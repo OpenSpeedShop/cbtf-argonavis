@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2015,2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -194,6 +194,38 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             complete(completions, i);
             
             return completions;
+        }
+
+        /** Get the device ID for the given context address. */
+        boost::uint32_t device(const Base::Address& context) const
+        {            
+            Contexts::left_const_iterator i = dm_contexts.left.find(context);
+
+            if (i == dm_contexts.left.end())
+            {
+                Base::raise<std::invalid_argument>(
+                    "Unknown context address %1%.", context
+                    );
+            }
+
+            return i->second;
+        }
+
+        /**
+         * Get the index within DataTable::dm_devices for the given device ID.
+         */
+        std::size_t index(boost::uint32_t device) const
+        {
+            Devices::const_iterator i = dm_devices.find(device);
+
+            if (i == dm_devices.end())
+            {
+                Base::raise<std::invalid_argument>(
+                    "Unknown device ID %1%.", device
+                    );
+            }
+            
+            return i->second;
         }
         
     private:

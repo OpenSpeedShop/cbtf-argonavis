@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2015,2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -21,8 +21,10 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include <utility>
 
+#include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
@@ -49,11 +51,18 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Add a new completed event to this table. */
         void add(const T& event)
         {
+            dm_contexts.insert(event.context);
             dm_events.insert(
                 std::make_pair(
                     Base::TimeInterval(event.time_begin, event.time_end), event
                     )
                 );
+        }
+
+        /** All known context addresses. */
+        const std::set<Base::Address>& contexts() const
+        {
+            return dm_contexts;
         }
         
         /**
@@ -95,9 +104,12 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
     private:
 
+        /** All known context addresses. */
+        std::set<Base::Address> dm_contexts;
+
         /** Completed events indexed by their time interval. */
         std::map<Base::TimeInterval, T> dm_events;
-
+        
     }; // class EventTable<T>
 
 } } } // namespace ArgoNavis::CUDA::Impl

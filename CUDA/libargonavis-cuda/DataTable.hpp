@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -160,6 +160,11 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Find the given call site in (or add it to) the known call sites. */
         size_t findSite(boost::uint32_t site, const CBTF_cuda_data& data);
 
+        /** Generate the messages containing context and device information. */
+        bool generate(const PerProcessData& per_process,
+                      const PerThreadData& per_thread,
+                      BlobGenerator& generator) const;
+        
         /** Generate the messages for a DataTransfer event. */
         bool generate(const DataTransfer& event,
                       BlobGenerator& generator) const;
