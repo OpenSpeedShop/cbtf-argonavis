@@ -550,13 +550,17 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     {
         return; // Terminate the iteration
     }
-
-
-
-    // ... TODO: Add periodic samples to the generator
-
-
-
+    
+    // Add the periodic samples to the generator
+    
+    for (std::map<
+             boost::uint64_t, std::vector<boost::uint64_t>
+             >::const_iterator i = per_thread.dm_periodic_samples.begin();
+         (i != per_thread.dm_periodic_samples.end()) && !generator.terminate();
+         ++i)
+    {
+        generator.addPeriodicSample(i->first, i->second);
+    }
 }
 
 
@@ -839,6 +843,8 @@ bool DataTable::generate(const DataTransfer& event,
     enqueue_message->type = EnqueueXfer;
     memcpy(&enqueue_message->CBTF_cuda_message_u.enqueue_xfer,
            &enqueue, sizeof(CUDA_EnqueueXfer));
+
+    generator.updateHeader(event.time);
     
     // Add this event's completed message to the blob generator
     
@@ -852,6 +858,9 @@ bool DataTable::generate(const DataTransfer& event,
     completed_message->type = CompletedXfer;
     memcpy(&completed_message->CBTF_cuda_message_u.completed_xfer,
            &completed, sizeof(CUDA_CompletedXfer));
+
+    generator.updateHeader(event.time_begin);
+    generator.updateHeader(event.time_end);
 
     // Continue the iteration
     return true;
@@ -891,6 +900,8 @@ bool DataTable::generate(const KernelExecution& event,
     memcpy(&enqueue_message->CBTF_cuda_message_u.enqueue_exec,
            &enqueue, sizeof(CUDA_EnqueueExec));
 
+    generator.updateHeader(event.time);
+
     // Add this event's completed message to the blob generator
     
     CBTF_cuda_message* completed_message = generator.addMessage();
@@ -903,6 +914,9 @@ bool DataTable::generate(const KernelExecution& event,
     completed_message->type = CompletedExec;
     memcpy(&completed_message->CBTF_cuda_message_u.completed_exec,
            &completed, sizeof(CUDA_CompletedExec));
+
+    generator.updateHeader(event.time_begin);
+    generator.updateHeader(event.time_end);
 
     // Continue the iteration
     return true;
@@ -1011,11 +1025,11 @@ void DataTable::process(const struct CUDA_EnqueueXfer& message,
 
         
 //------------------------------------------------------------------------------
-// TODO: Eventually we should make overflow samples available too!
 //------------------------------------------------------------------------------
 void DataTable::process(const struct CUDA_OverflowSamples& message,
                         PerThreadData& per_thread)
 {
+    // TODO: Eventually we should make overflow samples available too!
 }
 
 

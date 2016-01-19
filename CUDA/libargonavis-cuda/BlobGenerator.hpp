@@ -62,8 +62,12 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Add the specified call site to the current blob. */
         boost::uint32_t addSite(const Base::StackTrace& site);
 
-        /** Add the a new message to the current blob. */
+        /** Add a new message to the current blob. */
         CBTF_cuda_message* addMessage();
+        
+        /** Add the specified periodic sample to the current blob. */
+        void addPeriodicSample(boost::uint64_t time,
+                               const std::vector<boost::uint64_t>& counts);
 
         /** Update the current blob's header with the specified address. */
         void updateHeader(const Base::Address& address);
@@ -96,6 +100,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Unique, null-terminated, stack traces referenced by the messages. */
         std::vector<CBTF_Protocol_Address> dm_stack_traces;
+
+        /** Pointer to the message containing the periodic samples. */
+        CUDA_PeriodicSamples* dm_periodic_samples;
+        
+        /** Time and event count deltas. Pointed to by the above message. */
+        std::vector<boost::uint8_t> dm_periodic_samples_deltas;
+        
+        /** Previously taken periodic event sample (including its time). */
+        std::vector<boost::uint64_t> dm_periodic_samples_previous;
 
     }; // class BlobGenerator
 
