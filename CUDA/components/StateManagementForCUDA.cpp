@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -145,6 +145,7 @@ StateManagementForCUDA::StateManagementForCUDA() :
 
     declareOutput<bool>("ThreadsFinished");
     declareOutput<bool>("TriggerAddressBuffer");
+    declareOutput<bool>("TriggerData");
 }
 
 
@@ -202,6 +203,8 @@ void StateManagementForCUDA::handleThreadsStateChanged(
         
         if (dm_threads.empty())
         {
+            emitOutput<bool>("TriggerData", true);
+            
             CBTF_Protocol_AttachedToThreads threads = dm_address_spaces;
 
             emitOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
@@ -210,7 +213,7 @@ void StateManagementForCUDA::handleThreadsStateChanged(
                     new CBTF_Protocol_AttachedToThreads(threads)
                     )
                 );
-            
+
             emitOutput<bool>("TriggerAddressBuffer", true);
 
             std::vector<
