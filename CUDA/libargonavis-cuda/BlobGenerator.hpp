@@ -48,7 +48,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     public:
 
         /** Construct an empty blob generator with the given blob visitor. */
-        BlobGenerator(Base::BlobVisitor& visitor);
+        BlobGenerator(const Base::BlobVisitor& visitor);
 
         /** Destroy this blob generator. */
         ~BlobGenerator();
@@ -84,7 +84,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         void generate();
         
         /** Visitor invoked for each generated blob. */
-        Base::BlobVisitor& dm_visitor;
+        const Base::BlobVisitor& dm_visitor;
         
         /** Flag indicating whether blob generation should be terminated. */
         bool dm_terminate;

@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -60,7 +60,7 @@ namespace ArgoNavis { namespace CUDA {
          * @param visitor    Visitor invoked for each PC address.
          */
         static void visitPCs(const CBTF_cuda_data& message,
-                             Base::AddressVisitor& visitor);
+                             const Base::AddressVisitor& visitor);
 
         /** Construct empty performance data. */
         PerformanceData();
@@ -117,7 +117,7 @@ namespace ArgoNavis { namespace CUDA {
          *          returned by the visitor.
          */
         void visitBlobs(const Base::ThreadName& thread,
-                        Base::BlobVisitor& visitor) const;
+                        const Base::BlobVisitor& visitor) const;
 
         /**
          * Visit those data transfers within the given thread whose request-
@@ -132,7 +132,7 @@ namespace ArgoNavis { namespace CUDA {
          */
         void visitDataTransfers(const Base::ThreadName& thread,
                                 const Base::TimeInterval& interval,
-                                DataTransferVisitor& visitor) const;
+                                const DataTransferVisitor& visitor) const;
 
         /**
          * Visit those kernel executions within the given thread whose request-
@@ -147,7 +147,7 @@ namespace ArgoNavis { namespace CUDA {
          */
         void visitKernelExecutions(const Base::ThreadName& thread,
                                    const Base::TimeInterval& interval,
-                                   KernelExecutionVisitor& visitor) const;
+                                   const KernelExecutionVisitor& visitor) const;
 
         /**
          * Visit those hardware performance counter periodic samples within the

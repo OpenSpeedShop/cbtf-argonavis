@@ -66,7 +66,7 @@ namespace {
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-BlobGenerator::BlobGenerator(BlobVisitor& visitor) :
+BlobGenerator::BlobGenerator(const BlobVisitor& visitor) :
     dm_visitor(visitor),
     dm_terminate(false),
     dm_header(new CBTF_DataHeader()),

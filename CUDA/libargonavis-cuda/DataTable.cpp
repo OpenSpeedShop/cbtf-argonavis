@@ -344,7 +344,8 @@ namespace {
 // specified performance data. For all of the messages containing stack traces
 // or sampled PC addresses, invoke the given visitor.
 //------------------------------------------------------------------------------
-void DataTable::visitPCs(const CBTF_cuda_data& message, AddressVisitor& visitor)
+void DataTable::visitPCs(const CBTF_cuda_data& message,
+                         const AddressVisitor& visitor)
 {
     bool terminate = false;
     
@@ -489,7 +490,7 @@ void DataTable::process(const Base::ThreadName& thread,
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 void DataTable::visitBlobs(const Base::ThreadName& thread,
-                           Base::BlobVisitor& visitor) const
+                           const Base::BlobVisitor& visitor) const
 {
     std::map<ThreadName, PerProcessData>::const_iterator i_process = 
         dm_processes.find(ThreadName(thread.host(), thread.pid()));
@@ -1046,7 +1047,7 @@ void DataTable::process(const struct CUDA_PeriodicSamples& message,
     
     if (!per_thread.dm_counters.empty())
     {
-        process_periodic_samples(begin, end, per_thread);
+        processPeriodicSamples(begin, end, per_thread);
     }
     else
     {
@@ -1095,7 +1096,7 @@ void DataTable::process(const CUDA_SamplingConfig& message,
          i != per_thread.dm_unprocessed_periodic_samples.end();
          ++i)
     {
-        process_periodic_samples(&(*i->begin()), &(*i->end()), per_thread);
+        processPeriodicSamples(&(*i->begin()), &(*i->end()), per_thread);
     }
     
     per_thread.dm_unprocessed_periodic_samples.clear();
@@ -1145,9 +1146,9 @@ void DataTable::process(
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void DataTable::process_periodic_samples(const boost::uint8_t* begin,
-                                         const boost::uint8_t* end,
-                                         PerThreadData& per_thread)
+void DataTable::processPeriodicSamples(const boost::uint8_t* begin,
+                                       const boost::uint8_t* end,
+                                       PerThreadData& per_thread)
 {
     static int kAdditionalBytes[4] = { 0, 2, 3, 8 };
 

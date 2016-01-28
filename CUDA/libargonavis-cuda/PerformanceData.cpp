@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -87,7 +87,7 @@ namespace {
 // as much of the message-specific code centralized in one place.
 //------------------------------------------------------------------------------
 void PerformanceData::visitPCs(const CBTF_cuda_data& message,
-                               AddressVisitor& visitor)
+                               const AddressVisitor& visitor)
 {
     DataTable::visitPCs(message, visitor);
 }
@@ -207,7 +207,7 @@ const std::vector<StackTrace>& PerformanceData::sites() const
 // as much of the message-specific code centralized in one place.
 //------------------------------------------------------------------------------
 void PerformanceData::visitBlobs(const ThreadName& thread,
-                                 BlobVisitor& visitor) const
+                                 const BlobVisitor& visitor) const
 {
     dm_data_table->visitBlobs(thread, visitor);
 }
@@ -219,7 +219,7 @@ void PerformanceData::visitBlobs(const ThreadName& thread,
 void PerformanceData::visitDataTransfers(
     const ThreadName& thread,
     const TimeInterval& interval,
-    DataTransferVisitor& visitor
+    const DataTransferVisitor& visitor
     ) const
 {
     std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
@@ -240,7 +240,7 @@ void PerformanceData::visitDataTransfers(
 void PerformanceData::visitKernelExecutions(
     const ThreadName& thread,
     const TimeInterval& interval,
-    KernelExecutionVisitor& visitor
+    const KernelExecutionVisitor& visitor
     ) const
 {
     std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =

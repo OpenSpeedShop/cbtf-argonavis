@@ -86,7 +86,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Visit the PC addresses within the given message. */
         static void visitPCs(const CBTF_cuda_data& message,
-                             Base::AddressVisitor& visitor);
+                             const Base::AddressVisitor& visitor);
 
         /** Construct an empty data table. */
         DataTable();
@@ -127,7 +127,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Visit the (raw) performance data blobs for the given thread. */
         void visitBlobs(const Base::ThreadName& thread,
-                        Base::BlobVisitor& visitor) const;
+                        const Base::BlobVisitor& visitor) const;
         
     private:
 
@@ -227,9 +227,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             );
 
         /** Process periodic samples. */
-        void process_periodic_samples(const boost::uint8_t* begin,
-                                      const boost::uint8_t* end,
-                                      PerThreadData& per_thread);
+        void processPeriodicSamples(const boost::uint8_t* begin,
+                                    const boost::uint8_t* end,
+                                    PerThreadData& per_thread);
 
         /** Names of all sampled hardware performance counters. */
         std::vector<std::string> dm_counters;
