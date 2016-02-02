@@ -95,6 +95,7 @@ TLS* TLS_get()
     TLS* tls = &Implicit;
 #endif
     Assert(tls != NULL);
+    return tls;
 }
 
 
