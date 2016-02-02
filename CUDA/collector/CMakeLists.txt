@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,7 +23,7 @@ set(SOURCES
     CUPTI_check.h
     CUPTI_context.h CUPTI_context.c
     CUPTI_stream.h CUPTI_stream.c
-    CUPTI_time.h CUPTI_time.h
+    CUPTI_time.h CUPTI_time.c
     PAPI.h PAPI.c
     Pthread_check.h
     TLS.h TLS.c

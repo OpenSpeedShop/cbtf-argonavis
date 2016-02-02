@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -252,7 +252,7 @@ static void add_memcpy(TLS* tls, CUcontext context, CUstream stream,
 
 #if (CUPTI_API_VERSION < 5)
     /* Add the context ID to pointer mapping from this activity */
-    CUPTI_context_id_to_ptr(activity->contextId, context);
+    CUPTI_context_add(activity->contextId, context);
 #endif
 }
  
@@ -308,7 +308,7 @@ static void add_kernel(TLS* tls, CUcontext context, CUstream stream,
     
 #if (CUPTI_API_VERSION < 5)
     /* Add the context ID to pointer mapping from this activity */
-    CUPTI_context_id_to_ptr(activity->contextId, context);
+    CUPTI_context_add(activity->contextId, context);
 #endif
 }
 

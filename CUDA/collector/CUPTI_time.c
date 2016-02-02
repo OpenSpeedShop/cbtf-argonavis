@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -17,6 +17,8 @@
 *******************************************************************************/
 
 /** @file Definition of CUPTI time support functions and globals. */
+
+#include <inttypes.h>
 
 #include <KrellInstitute/Services/Time.h>
 

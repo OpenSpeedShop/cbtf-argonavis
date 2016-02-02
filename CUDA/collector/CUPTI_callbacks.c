@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -237,7 +237,7 @@ static void callback(void* userdata,
                     CUPTI_CHECK(cuptiGetContextId(rdata->context, &context_id));
 
                     /* Add the context ID to pointer mapping */
-                    CUPTI_context_id_to_ptr(context_id, rdata->context);
+                    CUPTI_context_add(context_id, rdata->context);
 #endif
                 }
                 break;
@@ -291,8 +291,7 @@ static void callback(void* userdata,
                                     ));
 #else
                     /* Add the stream ID to pointer mapping */
-                    CUPTI_stream_id_to_ptr(stream_id,
-                                           rdata->resourceHandle.stream);
+                    CUPTI_stream_add(stream_id, rdata->resourceHandle.stream);
 #endif
                 }
                 break;
