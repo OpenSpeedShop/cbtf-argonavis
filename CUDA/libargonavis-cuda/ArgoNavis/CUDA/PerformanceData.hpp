@@ -167,7 +167,7 @@ namespace ArgoNavis { namespace CUDA {
          */
         void visitPeriodicSamples(const Base::ThreadName& thread,
                                   const Base::TimeInterval& interval,
-                                  const PeriodicSampleVisitor& visitor);
+                                  const PeriodicSampleVisitor& visitor) const;
 
         /**
          * Visit the threads containing performance data.

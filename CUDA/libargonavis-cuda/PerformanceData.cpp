@@ -262,7 +262,7 @@ void PerformanceData::visitPeriodicSamples(
     const ThreadName& thread,
     const TimeInterval& interval,
     const PeriodicSampleVisitor& visitor
-    )
+    ) const
 {
     std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
         dm_data_table->threads().find(thread);
