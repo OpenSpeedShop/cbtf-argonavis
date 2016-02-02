@@ -331,7 +331,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             case UnknownMemoryKind: return "UnknownMemoryKind";
             case Pageable: return "Pageable";
             case Pinned: return "Pinned";
-            case Device: return "Device";
+            case ::Device: return "Device";
             case Array: return "Array";
             }
             return "?";
