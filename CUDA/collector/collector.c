@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -357,9 +357,6 @@ void cbtf_collector_stop()
     
     /* Stop PAPI data collection for this thread */
     PAPI_stop_data_collection();
-
-    /* Ensure that all CUPTI activity data for this process has been flushed */
-    CUPTI_activities_flush();
 
     /* Access our thread-local storage */
     TLS* tls = TLS_get();

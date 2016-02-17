@@ -260,6 +260,9 @@ static void callback(void* userdata,
                     
                     /* Add the global activities */
                     CUPTI_activities_add(tls, NULL, NULL);
+#else
+		    /* Flush all activities */
+		    CUPTI_activities_flush();
 #endif
                 }
                 break;
