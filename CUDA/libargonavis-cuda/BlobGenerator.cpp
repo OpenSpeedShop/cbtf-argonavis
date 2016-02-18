@@ -354,6 +354,7 @@ void BlobGenerator::updateHeader(const Time& time)
 //------------------------------------------------------------------------------
 void BlobGenerator::initialize()
 {
+    dm_header->id = strdup("");
     dm_header->time_begin = ~0;
     dm_header->time_end = 0;
     dm_header->addr_begin = ~0;
@@ -391,7 +392,7 @@ void BlobGenerator::generate()
     boost::shared_ptr<CBTF_Protocol_Blob> blob =
         KrellInstitute::Messages::pack<CBTF_cuda_data>(
             std::make_pair(dm_header, dm_data),
-            *reinterpret_cast<xdrproc_t*>(&xdr_CBTF_cuda_data)
+            reinterpret_cast<xdrproc_t>(&xdr_CBTF_cuda_data)
             );
     
     dm_terminate |= dm_visitor(blob);
