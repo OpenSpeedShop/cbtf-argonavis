@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -46,7 +46,7 @@
  *          the future, performance testing should be done to determine an
  *          optimal value.
  */
-#define MAX_MESSAGES_PER_BLOB 128
+#define MAX_MESSAGES_PER_BLOB 512
 
 #if defined(PAPI_FOUND)
 /**
