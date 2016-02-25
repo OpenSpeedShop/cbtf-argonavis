@@ -95,8 +95,6 @@ namespace {
         KernelExecution event;
 
         event.id = message.id;
-        event.context = message.context;
-        event.stream = message.stream;
         event.time_begin = message.time_begin;
         event.time_end = message.time_end;
         event.function = message.function;
@@ -121,8 +119,6 @@ namespace {
         DataTransfer event;
 
         event.id = message.id;
-        event.context = message.context;
-        event.stream = message.stream;
         event.time_begin = message.time_begin;
         event.time_end = message.time_end;
         event.size = message.size;
@@ -174,6 +170,8 @@ namespace {
     {    
         KernelExecution event;
         event.id = message.id;
+        event.context = message.context;
+        event.stream = message.stream;
         event.time = message.time;
         return event;
     }
@@ -183,6 +181,8 @@ namespace {
     {
         DataTransfer event;
         event.id = message.id;
+        event.context = message.context;
+        event.stream = message.stream;
         event.time = message.time;
         return event;
     }
@@ -283,14 +283,14 @@ namespace {
         CUDA_CompletedXfer completed;
 
         enqueue.id = event.id;
+        enqueue.context = event.context;
+        enqueue.stream = event.stream;
         enqueue.time = event.time;
         enqueue.call_site = 0; // Caller must provide this
         
         completed.id = event.id;
         completed.time_begin = event.time_begin;
         completed.time_end = event.time_end;
-        completed.context = event.context;
-        completed.stream = event.stream;
         completed.size = event.size;
         completed.kind = convert(event.kind);
         completed.source_kind = convert(event.source_kind);
@@ -311,14 +311,14 @@ namespace {
         CUDA_CompletedExec completed;
 
         enqueue.id = event.id;
+        enqueue.context = event.context;
+        enqueue.stream = event.stream;
         enqueue.time = event.time;
         enqueue.call_site = 0; // Caller must provide this
 
         completed.id = event.id;
         completed.time_begin = event.time_begin;
         completed.time_end = event.time_end;
-        completed.context = event.context;
-        completed.stream = event.stream;
         completed.function = strdup(event.function.c_str());
         completed.grid[0] = event.grid.get<0>();
         completed.grid[1] = event.grid.get<1>();
@@ -931,7 +931,7 @@ void DataTable::process(const struct CUDA_CompletedExec& message,
                         PerProcessData& per_process)
 {
     process(per_process.dm_partial_kernel_executions.addCompleted(
-                message.id, convert(message), message.context
+                message.id, convert(message)
                 ));
 }
 
@@ -943,7 +943,7 @@ void DataTable::process(const struct CUDA_CompletedXfer& message,
                         PerProcessData& per_process)
 {
     process(per_process.dm_partial_data_transfers.addCompleted(
-                message.id, convert(message), message.context
+                message.id, convert(message)
                 ));
 }
 
@@ -1002,7 +1002,7 @@ void DataTable::process(const struct CUDA_EnqueueExec& message,
     event.call_site = findSite(message.call_site, data);
     
     process(per_process.dm_partial_kernel_executions.addEnqueued(
-                message.id, event, thread
+                message.id, event, message.context, thread
                 ));
 }
 
@@ -1019,7 +1019,7 @@ void DataTable::process(const struct CUDA_EnqueueXfer& message,
     event.call_site = findSite(message.call_site, data);
 
     process(per_process.dm_partial_data_transfers.addEnqueued(
-                message.id, event, thread
+                message.id, event, message.context, thread
                 ));
 }
 

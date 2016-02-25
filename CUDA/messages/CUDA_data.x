@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -120,12 +120,6 @@ struct CUDA_CompletedExec
     /** Time at which the kernel execution ended. */
     CBTF_Protocol_Time time_end;
 
-    /** CUDA context for which the kernel was executed. */
-    CBTF_Protocol_Address context;
-
-    /** CUDA stream for which the kernel was executed. */
-    CBTF_Protocol_Address stream;
-
     /** Name of the kernel function being executed. */
     string function<>;
 
@@ -167,12 +161,6 @@ struct CUDA_CompletedXfer
     /** Time at which the data transfer ended. */
     CBTF_Protocol_Time time_end;
 
-    /** CUDA context for which the data was transferred. */
-    CBTF_Protocol_Address context;
-
-    /** CUDA stream for which the data was transferred. */
-    CBTF_Protocol_Address stream;
-    
     /** Number of bytes being transferred. */
     uint64_t size;
 
@@ -278,6 +266,12 @@ struct CUDA_EnqueueExec
     /** Correlation ID of the kernel execution. */
     uint32_t id;
 
+    /** CUDA context for which the kernel execution was enqueued. */
+    CBTF_Protocol_Address context;
+
+    /** CUDA stream for which the kernel execution was enqueued. */
+    CBTF_Protocol_Address stream;
+
     /** Time at which the kernel execution was enqueued. */
     CBTF_Protocol_Time time;
 
@@ -298,6 +292,12 @@ struct CUDA_EnqueueXfer
     /** Correlation ID of the data transfer. */
     uint32_t id;
 
+    /** CUDA context for which the data transfer was enqueued. */
+    CBTF_Protocol_Address context;
+
+    /** CUDA stream for which the data transfer was enqueued. */
+    CBTF_Protocol_Address stream;
+    
     /** Time at which the data transfer was enqueued. */
     CBTF_Protocol_Time time;
 

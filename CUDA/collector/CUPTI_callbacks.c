@@ -56,6 +56,93 @@ static CUpti_SubscriberHandle Handle;
 
 
 /**
+ * Get the CUDA stream pointer from the parameters passed into a driver API
+ * domain callback. A null pointer is returned if the specified parameters
+ * do not refer to a CUDA stream pointer.
+ *
+ * @param id            ID of the callback.
+ * @param raw_params    Parameters passed to the callback.
+ * @return              CUDA stream pointer referenced by those parameters.
+ */
+static CUstream get_stream(CUpti_CallbackId id, const void* raw_params)
+{
+    switch (id)
+    {
+
+    case CUPTI_DRIVER_TRACE_CBID_cuLaunchGridAsync:
+        return ((cuLaunchGridAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuLaunchKernel:
+        return ((cuLaunchKernel_params*)raw_params)->hStream;
+#if (CUPTI_API_VERSION >= 8)
+    case CUPTI_DRIVER_TRACE_CBID_cuLaunchKernel_ptsz:
+        return ((cuLaunchKernel_ptsz_params*)raw_params)->hStream;        
+#endif
+
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoDAsync:
+        return ((cuMemcpyHtoDAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync:
+        return ((cuMemcpyDtoHAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync:
+        return ((cuMemcpyDtoDAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync:
+        return ((cuMemcpyHtoAAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync:
+        return ((cuMemcpyAtoHAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync:
+        return ((cuMemcpy2DAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync:
+        return ((cuMemcpy3DAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoDAsync_v2:
+        return ((cuMemcpyHtoDAsync_v2_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync_v2:
+        return ((cuMemcpyDtoHAsync_v2_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync_v2:
+        return ((cuMemcpyDtoDAsync_v2_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync_v2:
+        return ((cuMemcpyAtoHAsync_v2_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync_v2:
+        return ((cuMemcpy2DAsync_v2_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync_v2:
+        return ((cuMemcpy3DAsync_v2_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync_v2:
+        return ((cuMemcpyHtoAAsync_v2_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAsync:
+        return ((cuMemcpyAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyPeerAsync:
+        return ((cuMemcpyPeerAsync_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DPeerAsync:
+        return ((cuMemcpy3DPeerAsync_params*)raw_params)->hStream;
+#if (CUPTI_API_VERSION >= 8)
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAsync_ptsz:
+        return ((cuMemcpyAsync_ptsz_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync_v2_ptsz:
+        return ((cuMemcpyHtoAAsync_v2_ptsz_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync_v2_ptsz:
+        return ((cuMemcpyAtoHAsync_v2_ptsz_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoDAsync_v2_ptsz:
+        return ((cuMemcpyHtoDAsync_v2_ptsz_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync_v2_ptsz:
+        return ((cuMemcpyDtoHAsync_v2_ptsz_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync_v2_ptsz:
+        return ((cuMemcpyDtoDAsync_v2_ptsz_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync_v2_ptsz:
+        return ((cuMemcpy2DAsync_v2_ptsz_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync_v2_ptsz:
+        return ((cuMemcpy3DAsync_v2_ptsz_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpyPeerAsync_ptsz:
+        return ((cuMemcpyPeerAsync_ptsz_params*)raw_params)->hStream;
+    case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DPeerAsync_ptsz:
+        return ((cuMemcpy3DPeerAsync_ptsz_params*)raw_params)->hStream;
+#endif
+        
+    default:
+        return NULL;
+    }
+}
+
+
+
+/**
  * Callback invoked by CUPTI every time a CUDA event occurs for which we have
  * a subscription. Subscriptions are setup within cbtf_collector_start(), and
  * are setup once for the entire process.
@@ -110,19 +197,24 @@ static void callback(void* userdata,
             {
 
 
-
-            case CUPTI_DRIVER_TRACE_CBID_cuLaunchKernel :
+            case CUPTI_DRIVER_TRACE_CBID_cuLaunch:
+            case CUPTI_DRIVER_TRACE_CBID_cuLaunchGrid:
+            case CUPTI_DRIVER_TRACE_CBID_cuLaunchGridAsync:                
+            case CUPTI_DRIVER_TRACE_CBID_cuLaunchKernel:
+#if (CUPTI_API_VERSION >= 8)
+            case CUPTI_DRIVER_TRACE_CBID_cuLaunchKernel_ptsz:
+#endif
                 if (cbdata->callbackSite == CUPTI_API_ENTER)
                 {
-                    const cuLaunchKernel_params* const params =
-                        (cuLaunchKernel_params*)cbdata->functionParams;
-
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
                         printf("[CBTF/CUDA] enter cuLaunchKernel()\n");
                     }
 #endif
+
+                    /* Add the context ID to pointer mapping */
+                    CUPTI_context_add(cbdata->contextUid, cbdata->context);
                     
                     /* Add a message for this event */
                     
@@ -134,6 +226,10 @@ static void callback(void* userdata,
                         &raw_message->CBTF_cuda_message_u.enqueue_exec;
 
                     message->id = cbdata->correlationId;
+                    message->context = (CBTF_Protocol_Address)cbdata->context;
+                    message->stream = (CBTF_Protocol_Address)get_stream(
+                        id, cbdata->functionParams
+                        );
                     message->time = CBTF_GetTime();
                     message->call_site = TLS_add_current_call_site(tls);
                     
@@ -143,48 +239,75 @@ static void callback(void* userdata,
 
 
 
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2D:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2D_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DUnaligned:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DUnaligned_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3D:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3D_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DPeer:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DPeerAsync:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoA:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoA_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoD:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoD_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoH:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoH_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoA:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoA_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoD:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoD_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoH:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoH_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoA:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoA_v2:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync_v2:
             case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoD:
-            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoD_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoH:                
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoD:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoA:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoD:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoA:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoH:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoA:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2D:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DUnaligned:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3D:
             case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoDAsync:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoD_v2:
             case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoDAsync_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoH_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoD_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoH_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoD_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoA_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoA_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2D_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DUnaligned_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3D_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoA_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync_v2:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAsync:
             case CUPTI_DRIVER_TRACE_CBID_cuMemcpyPeer:
             case CUPTI_DRIVER_TRACE_CBID_cuMemcpyPeerAsync:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DPeer:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DPeerAsync:
+#if (CUPTI_API_VERSION >= 8)
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoD_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoH_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoD_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoA_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoD_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoA_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoH_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoA_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2D_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DUnaligned_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3D_v2_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyPeer_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DPeer_ptds:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAsync_ptsz:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoAAsync_v2_ptsz:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyAtoHAsync_v2_ptsz:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyHtoDAsync_v2_ptsz:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoHAsync_v2_ptsz:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyDtoDAsync_v2_ptsz:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy2DAsync_v2_ptsz:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DAsync_v2_ptsz:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpyPeerAsync_ptsz:
+            case CUPTI_DRIVER_TRACE_CBID_cuMemcpy3DPeerAsync_ptsz:
+#endif
                 if (cbdata->callbackSite == CUPTI_API_ENTER)
                 {
 #if !defined(NDEBUG)
@@ -193,7 +316,10 @@ static void callback(void* userdata,
                         printf("[CBTF/CUDA] enter cuMemcpy*()\n");
                     }
 #endif
-                    
+
+                    /* Add the context ID to pointer mapping */
+                    CUPTI_context_add(cbdata->contextUid, cbdata->context);
+                                        
                     /* Add a message for this event */
                     
                     CBTF_cuda_message* raw_message = TLS_add_message(tls);
@@ -204,6 +330,10 @@ static void callback(void* userdata,
                         &raw_message->CBTF_cuda_message_u.enqueue_xfer;
                     
                     message->id = cbdata->correlationId;
+                    message->context = (CBTF_Protocol_Address)cbdata->context;
+                    message->stream = (CBTF_Protocol_Address)get_stream(
+                        id, cbdata->functionParams
+                        );
                     message->time = CBTF_GetTime();
                     message->call_site = TLS_add_current_call_site(tls);
                     
@@ -244,12 +374,6 @@ static void callback(void* userdata,
                                              CUPTI_ACTIVITY_BUFFER_SIZE),
                                     CUPTI_ACTIVITY_BUFFER_SIZE
                                     ));
-#elif (CUPTI_API_VERSION >= 5)
-                    uint32_t context_id = 0;
-                    CUPTI_CHECK(cuptiGetContextId(rdata->context, &context_id));
-
-                    /* Add the context ID to pointer mapping */
-                    CUPTI_context_add(context_id, rdata->context);
 #endif
                 }
                 break;
@@ -273,8 +397,8 @@ static void callback(void* userdata,
                     /* Add the global activities */
                     CUPTI_activities_add(tls, NULL, NULL);
 #else
-		    /* Flush all activities */
-		    CUPTI_activities_flush();
+                    /* Flush all activities */
+                    CUPTI_activities_flush();
 #endif
                 }
                 break;
@@ -291,10 +415,14 @@ static void callback(void* userdata,
                     }
 #endif
 
+                    /* Add the stream ID to pointer mapping */
+
                     uint32_t stream_id = 0;
                     CUPTI_CHECK(cuptiGetStreamId(rdata->context,
                                                  rdata->resourceHandle.stream,
                                                  &stream_id));
+
+                    CUPTI_stream_add(stream_id, rdata->resourceHandle.stream);
                                         
 #if (CUPTI_API_VERSION < 4)
                     /* Enqueue a buffer for stream-specific activities */
@@ -304,9 +432,6 @@ static void callback(void* userdata,
                                              CUPTI_ACTIVITY_BUFFER_SIZE),
                                     CUPTI_ACTIVITY_BUFFER_SIZE
                                     ));
-#else
-                    /* Add the stream ID to pointer mapping */
-                    CUPTI_stream_add(stream_id, rdata->resourceHandle.stream);
 #endif
                 }
                 break;
