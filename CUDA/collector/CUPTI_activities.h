@@ -42,4 +42,3 @@ void CUPTI_activities_flush();
 
 /* Stop CUPTI activity data collection for this process. */
 void CUPTI_activities_stop();
-

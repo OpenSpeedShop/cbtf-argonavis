@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -381,8 +381,6 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 ("id", stringify(value.id))
                 ("time_begin", stringify(value.time_begin))
                 ("time_end", stringify(value.time_end))
-                ("context", stringify(value.context))
-                ("stream", stringify(value.stream))
                 ("function", stringify<FunctionName>(value.function))
                 ("grid", 
                  stringify<std::vector<boost::int32_t> >(
@@ -419,8 +417,6 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 ("id", stringify(value.id))
                 ("time_begin", stringify(value.time_begin))
                 ("time_end", stringify(value.time_end))
-                ("context", stringify(value.context))
-                ("stream", stringify(value.stream))
                 ("size", stringify<ByteCount>(value.size))
                 ("kind", stringify(value.kind))
                 ("source_kind", stringify(value.source_kind))
@@ -509,6 +505,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             return stringify<Fields>(
                 boost::assign::tuple_list_of
                 ("id", stringify(value.id))
+                ("context", stringify(value.context))
+                ("stream", stringify(value.stream))
                 ("time", stringify(value.time))
                 ("call_site", stringify(value.call_site))
                 );
@@ -523,6 +521,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             return stringify<Fields>(
                 boost::assign::tuple_list_of
                 ("id", stringify(value.id))
+                ("context", stringify(value.context))
+                ("stream", stringify(value.stream))
                 ("time", stringify(value.time))
                 ("call_site", stringify(value.call_site))
                 );

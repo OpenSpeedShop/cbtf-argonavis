@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -20,6 +20,7 @@
 
 #include <pthread.h>
 
+#include "collector.h"
 #include "CUPTI_context.h"
 #include "Pthread_check.h"
 
@@ -85,6 +86,13 @@ void CUPTI_context_add(uint32_t id, CUcontext ptr)
     }
     else if (Contexts.values[i].ptr == NULL)
     {
+#if !defined(NDEBUG)
+        if (IsDebugEnabled)
+        {
+            printf("[CBTF/CUDA] CUPTI_context_add(%u, %p)\n", id, ptr);
+        }
+#endif
+        
         Contexts.values[i].id = id;
         Contexts.values[i].ptr = ptr;
     }

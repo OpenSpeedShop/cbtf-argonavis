@@ -126,12 +126,14 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /**
          * Add the enqueuing of an event.
          *
-         * @param id        Correlation ID of the event.
-         * @param event     Partial information for this event.
-         * @param thread    Thread in which this event occurred.
-         * @return          Any events which are completed by this addition.
+         * @param id         Correlation ID of the event.
+         * @param event      Partial information for this event.
+         * @param context    Address of the context for this event.
+         * @param thread     Thread in which this event occurred.
+         * @return           Any events which are completed by this addition.
          */
         Completions addEnqueued(boost::uint32_t id, const T& event,
+                                const Base::Address& context,
                                 const Base::ThreadName& thread)
         {
             Completions completions;
@@ -150,8 +152,11 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                     );
             }
             
-            i->second.dm_thread = thread;
             i->second.dm_enqueuing = event;
+            i->second.dm_context = context;
+            i->second.dm_thread = thread;
+
+            dm_correlations.insert(Correlations::value_type(context, id));
             
             complete(completions, i);
             
@@ -163,12 +168,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
          *
          * @param id         Correlation ID of the event.
          * @param event      Partial information for this event.
-         * @param context    Address of the context for this event.
          * @return           Any events which are completed by this addition.
          */
-        Completions addCompleted(boost::uint32_t id, const T& event,
-                                 const Base::Address& context)
-            
+        Completions addCompleted(boost::uint32_t id, const T& event)
         {
             Completions completions;
 
@@ -186,11 +188,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                     );
             }
 
-            i->second.dm_context = context;
             i->second.dm_completion = event;
             
-            dm_correlations.insert(Correlations::value_type(context, id));
-
             complete(completions, i);
             
             return completions;

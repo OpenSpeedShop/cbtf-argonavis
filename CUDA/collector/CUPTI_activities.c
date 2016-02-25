@@ -134,17 +134,14 @@ inline CUDA_CachePreference toCachePreference(CUfunc_cache value)
 
 
 /**
- * Add the given context activity for the specified CUDA context/stream to the
- * performance data blob contained within the given thread-local storage.
+ * Add the given context activity to the performance data blob contained
+ * within the specified thread-local storage.
  *
  * @param tls             Thread-local storage to which the activity
  *                        is to be added.
- * @param context         CUDA context for the activity to be added.
- * @param stream          CUDA stream for the activity to be added.
  * @param raw_activity    Activity record for the activity to be added.
  */
-inline void add_context(TLS* tls, CUcontext context, CUstream stream,
-                        const CUpti_Activity* const raw_activity)
+static void add_context(TLS* tls, const CUpti_Activity* const raw_activity)
 {
     const CUpti_ActivityContext* const activity =
         (const CUpti_ActivityContext*)raw_activity;
@@ -164,17 +161,14 @@ inline void add_context(TLS* tls, CUcontext context, CUstream stream,
 
 
 /**
- * Add the given device activity for the specified CUDA context/stream to the
- * performance data blob contained within the given thread-local storage.
+ * Add the given device activity to the performance data blob contained
+ * within the specified thread-local storage.
  *
  * @param tls             Thread-local storage to which the activity
  *                        is to be added.
- * @param context         CUDA context for the activity to be added.
- * @param stream          CUDA stream for the activity to be added.
  * @param raw_activity    Activity record for the activity to be added.
  */
-static void add_device(TLS* tls, CUcontext context, CUstream stream,
-                       const CUpti_Activity* const raw_activity)
+static void add_device(TLS* tls, const CUpti_Activity* const raw_activity)
 {
 #if (CUPTI_API_VERSION < 8)
     const CUpti_ActivityDevice* const activity =
@@ -225,17 +219,14 @@ static void add_device(TLS* tls, CUcontext context, CUstream stream,
 
 
 /**
- * Add the given kernel activity for the specified CUDA context/stream to the
- * performance data blob contained within the given thread-local storage.
+ * Add the given kernel activity to the performance data blob contained
+ * within the specified thread-local storage.
  *
  * @param tls             Thread-local storage to which the activity
  *                        is to be added.
- * @param context         CUDA context for the activity to be added.
- * @param stream          CUDA stream for the activity to be added.
  * @param raw_activity    Activity record for the activity to be added.
  */
-static void add_kernel(TLS* tls, CUcontext context, CUstream stream,
-                       const CUpti_Activity* const raw_activity)
+static void add_kernel(TLS* tls, const CUpti_Activity* const raw_activity)
 {
 #if (CUPTI_API_VERSION < 4)
     const CUpti_ActivityKernel* const activity =
@@ -260,9 +251,6 @@ static void add_kernel(TLS* tls, CUcontext context, CUstream stream,
     message->time_begin = activity->start + TimeOffset;
     message->time_end = activity->end + TimeOffset;
 
-    message->context = (CBTF_Protocol_Address)context;
-    message->stream = (CBTF_Protocol_Address)stream;
-    
     message->function = (char*)activity->name;
     
     message->grid[0] = activity->gridX;
@@ -288,27 +276,19 @@ static void add_kernel(TLS* tls, CUcontext context, CUstream stream,
     
     TLS_update_header_with_time(tls, message->time_begin);
     TLS_update_header_with_time(tls, message->time_end);
-    
-#if (CUPTI_API_VERSION < 5)
-    /* Add the context ID to pointer mapping from this activity */
-    CUPTI_context_add(activity->contextId, context);
-#endif
 }
 
 
 
 /**
- * Add the given memcpy activity for the specified CUDA context/stream to the
- * performance data blob contained within the given thread-local storage.
+ * Add the given memcpy activity to the performance data blob contained
+ * within the specified thread-local storage.
  *
  * @param tls             Thread-local storage to which the activity
  *                        is to be added.
- * @param context         CUDA context for the activity to be added.
- * @param stream          CUDA stream for the activity to be added.
  * @param raw_activity    Activity record for the activity to be added.
  */
-static void add_memcpy(TLS* tls, CUcontext context, CUstream stream,
-                       const CUpti_Activity* const raw_activity)
+static void add_memcpy(TLS* tls, const CUpti_Activity* const raw_activity)
 {
     const CUpti_ActivityMemcpy* const activity =
         (const CUpti_ActivityMemcpy*)raw_activity;
@@ -325,9 +305,6 @@ static void add_memcpy(TLS* tls, CUcontext context, CUstream stream,
     message->time_begin = activity->start + TimeOffset;
     message->time_end = activity->end + TimeOffset;
 
-    message->context = (CBTF_Protocol_Address)context;
-    message->stream = (CBTF_Protocol_Address)stream;
-    
     message->size = activity->bytes;
     
     message->kind = toCopyKind(activity->copyKind);
@@ -339,11 +316,6 @@ static void add_memcpy(TLS* tls, CUcontext context, CUstream stream,
     
     TLS_update_header_with_time(tls, message->time_begin);
     TLS_update_header_with_time(tls, message->time_end);
-
-#if (CUPTI_API_VERSION < 5)
-    /* Add the context ID to pointer mapping from this activity */
-    CUPTI_context_add(activity->contextId, context);
-#endif
 }
  
  
@@ -354,13 +326,12 @@ static void add_memcpy(TLS* tls, CUcontext context, CUstream stream,
  *
  * @param tls          Thread-local storage to which activities are to be added.
  * @param context      CUDA context for the activities to be added.
- * @param stream       CUDA stream for the activities to be added.
  * @param stream_id    CUDA stream ID for the activities to be added.
  * @param buffer       Buffer containing the activity records.
  * @param size         Actual size of the buffer.
  */
-static void add(TLS* tls, CUcontext context, CUstream stream,
-                uint32_t stream_id, uint8_t* buffer, size_t size)
+static void add(TLS* tls, CUcontext context, uint32_t stream_id,
+                uint8_t* buffer, size_t size)
 {
     Assert(tls != NULL);
     
@@ -371,8 +342,8 @@ static void add(TLS* tls, CUcontext context, CUstream stream,
     if (dropped > 0)
     {
         fprintf(stderr, "[CBTF/CUDA] "
-                "dropped %u activity records for stream %p in context %p\n",
-                (unsigned int)dropped, stream, context);
+                "dropped %u activity records for stream ID %u in context %p\n",
+                (unsigned int)dropped, stream_id, context);
         fflush(stderr);
     }
     
@@ -398,19 +369,19 @@ static void add(TLS* tls, CUcontext context, CUstream stream,
         {
             
         case CUPTI_ACTIVITY_KIND_CONTEXT:
-            add_context(tls, context, stream, raw_activity);
+            add_context(tls, raw_activity);
             break;
             
         case CUPTI_ACTIVITY_KIND_DEVICE:
-            add_device(tls, context, stream, raw_activity);
+            add_device(tls, raw_activity);
             break;
             
         case CUPTI_ACTIVITY_KIND_KERNEL:
-            add_kernel(tls, context, stream, raw_activity);
+            add_kernel(tls, raw_activity);
             break;
             
         case CUPTI_ACTIVITY_KIND_MEMCPY:
-            add_memcpy(tls, context, stream, raw_activity);
+            add_memcpy(tls, raw_activity);
             break;
             
         default:
@@ -423,11 +394,11 @@ static void add(TLS* tls, CUcontext context, CUstream stream,
     if (IsDebugEnabled)
     {
         printf("[CBTF/CUDA] "
-               "added %u activity records for stream %p in context %p\n",
-               (unsigned int)(total - ignored), stream, context);
+               "added %u activity records for stream ID %u in context %p\n",
+               (unsigned int)(total - ignored), stream_id, context);
         printf("[CBTF/CUDA] "
-               "ignored %u activity records for stream %p in context %p\n",
-               (unsigned int)ignored, stream, context);
+               "ignored %u activity records for stream ID %u in context %p\n",
+               (unsigned int)ignored, stream_id, context);
     }
 #endif
 }
@@ -470,11 +441,8 @@ static void callback(CUcontext context, uint32_t stream_id,
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
     
-    /* Find the CUDA stream pointer corresponding to this CUPTI stream ID */
-    CUstream stream = CUPTI_stream_ptr_from_id(stream_id);
-    
     /* Actually add these activities */
-    add(tls, context, stream, stream_id, buffer, size);
+    add(tls, context, stream_id, buffer, size);
 }
 #endif
 
@@ -501,7 +469,6 @@ void CUPTI_activities_start()
     CUPTI_CHECK(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONTEXT));
     CUPTI_CHECK(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_DEVICE));
     CUPTI_CHECK(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMCPY));
-    CUPTI_CHECK(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMSET));
     CUPTI_CHECK(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL));
 }
 
@@ -545,7 +512,7 @@ void CUPTI_activities_add(TLS* tls, CUcontext context, CUstream stream)
     CUPTI_CHECK(retval);
     
     /* Actually add these activities */
-    add(tls, context, stream, stream_id, buffer, size);
+    add(tls, context, stream_id, buffer, size);
     
     /* Re-enqueue this buffer of activities */
     CUPTI_CHECK(cuptiActivityEnqueueBuffer(
