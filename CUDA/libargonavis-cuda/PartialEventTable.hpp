@@ -79,9 +79,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             
             if (i == dm_contexts.left.end())
             {
-                i = dm_contexts.left.insert(
-                    std::make_pair(context, device)
-                    ).first;
+                dm_contexts.left.insert(std::make_pair(context, device));
                 
                 Devices::const_iterator j = dm_devices.find(device);
                 
@@ -109,7 +107,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
             if (i == dm_devices.end())
             {
-                i = dm_devices.insert(std::make_pair(device, index)).first;
+                dm_devices.insert(std::make_pair(device, index));
 
                 Contexts::right_const_iterator j = 
                     dm_contexts.right.find(device);
@@ -285,6 +283,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 T event = *(j->second.dm_completion);
                 event.device = index;
                 event.call_site = j->second.dm_enqueuing->call_site;
+		event.context = j->second.dm_enqueuing->context;
+		event.stream = j->second.dm_enqueuing->stream;
                 event.time = j->second.dm_enqueuing->time;
             
                 completions.push_back(
@@ -334,6 +334,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             T event = *(i->second.dm_completion);
             event.device = k->second;
             event.call_site = i->second.dm_enqueuing->call_site;
+	    event.context = i->second.dm_enqueuing->context;
+	    event.stream = i->second.dm_enqueuing->stream;
             event.time = i->second.dm_enqueuing->time;
             
             completions.push_back(

@@ -83,13 +83,16 @@ BlobGenerator::BlobGenerator(const BlobVisitor& visitor) :
 
 
 //------------------------------------------------------------------------------
-// Generate a blob for the remaining data (if any).
+// Generate a blob for the remaining data (if any). Note the message count
+// is tested against 1 (rather than 0) because initialize() always adds a
+// PeriodicSamples message, and we only want to generate if that message
+// actually contains a delta.
 //------------------------------------------------------------------------------
 BlobGenerator::~BlobGenerator()
 
 {
     if (!dm_terminate && 
-        ((dm_data->messages.messages_len > 0) ||
+        ((dm_data->messages.messages_len > 1) ||
          (dm_periodic_samples->deltas.deltas_len > 0)))
     {
         generate();

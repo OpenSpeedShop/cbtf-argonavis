@@ -981,11 +981,11 @@ void DataTable::process(const struct CUDA_DeviceInfo& message,
     CUDA::Device device = convert(message);
     dm_devices.push_back(device);
     
-    process(per_process.dm_partial_data_transfers.addContext(
-                message.device, dm_devices.size()
+    process(per_process.dm_partial_data_transfers.addDevice(
+                message.device, dm_devices.size() - 1
                 ));
-    process(per_process.dm_partial_kernel_executions.addContext(
-                message.device, dm_devices.size()
+    process(per_process.dm_partial_kernel_executions.addDevice(
+                message.device, dm_devices.size() - 1
                 ));
 }
 
