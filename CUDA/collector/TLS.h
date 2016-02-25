@@ -46,7 +46,7 @@
  *          the future, performance testing should be done to determine an
  *          optimal value.
  */
-#define MAX_MESSAGES_PER_BLOB 512
+#define MAX_MESSAGES_PER_BLOB 128
 
 #if defined(PAPI_FOUND)
 /**
