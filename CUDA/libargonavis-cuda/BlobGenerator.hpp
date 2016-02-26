@@ -33,6 +33,7 @@
 #include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/BlobVisitor.hpp>
 #include <ArgoNavis/Base/StackTrace.hpp>
+#include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/Time.hpp>
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
@@ -47,8 +48,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
     public:
 
-        /** Construct an empty blob generator with the given blob visitor. */
-        BlobGenerator(const Base::BlobVisitor& visitor);
+        /** Construct an empty blob generator. */
+        BlobGenerator(const Base::ThreadName& thread,
+                      const Base::BlobVisitor& visitor);
 
         /** Destroy this blob generator. */
         ~BlobGenerator();
@@ -82,7 +84,10 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Generate a blob for the current header and data. */
         void generate();
-        
+
+        /** Name of the thread for which blobs are being generated. */
+        const Base::ThreadName& dm_thread;
+
         /** Visitor invoked for each generated blob. */
         const Base::BlobVisitor& dm_visitor;
         
