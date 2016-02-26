@@ -1979,7 +1979,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx OpenSpe
 +        CBTF_cuda_data message;
 +        memset(&message, 0, sizeof(message));
 +
-+        Blob blob = database->getResultAsBlob(2);
++        Blob blob = database->getResultAsBlob(1);
 +        blob.getXDRDecoding(
 +            reinterpret_cast<xdrproc_t>(xdr_CBTF_cuda_data), &message
 +            );

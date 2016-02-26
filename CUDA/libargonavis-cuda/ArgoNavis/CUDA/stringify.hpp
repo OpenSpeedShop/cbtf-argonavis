@@ -110,7 +110,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     class FunctionName
     {
     public:
-        FunctionName(const char* value) : dm_value(value) { }
+        FunctionName(const char* value) : dm_value(value ? value : "") { }
         FunctionName(const std::string& value) : dm_value(value) { }
         operator std::string() const { return dm_value; }
     private:

@@ -114,7 +114,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 
                 if (j != dm_contexts.right.end())
                 {
-                    complete(completions, j->first, index);
+                    complete(completions, j->second, index);
                 }
             }
             
@@ -248,7 +248,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         
         /** Type of container used to store the known correlation IDs. */
         typedef boost::bimap<
-            Base::Address, boost::bimaps::multiset_of<boost::uint32_t>
+            boost::bimaps::multiset_of<Base::Address>, boost::uint32_t
             > Correlations;
 
         /** Type of container used to store the known device IDs. */
@@ -283,8 +283,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 T event = *(j->second.dm_completion);
                 event.device = index;
                 event.call_site = j->second.dm_enqueuing->call_site;
-		event.context = j->second.dm_enqueuing->context;
-		event.stream = j->second.dm_enqueuing->stream;
+                event.context = j->second.dm_enqueuing->context;
+                event.stream = j->second.dm_enqueuing->stream;
                 event.time = j->second.dm_enqueuing->time;
             
                 completions.push_back(
@@ -334,8 +334,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             T event = *(i->second.dm_completion);
             event.device = k->second;
             event.call_site = i->second.dm_enqueuing->call_site;
-	    event.context = i->second.dm_enqueuing->context;
-	    event.stream = i->second.dm_enqueuing->stream;
+            event.context = i->second.dm_enqueuing->context;
+            event.stream = i->second.dm_enqueuing->stream;
             event.time = i->second.dm_enqueuing->time;
             
             completions.push_back(
