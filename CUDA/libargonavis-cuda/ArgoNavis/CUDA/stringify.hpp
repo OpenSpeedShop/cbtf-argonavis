@@ -33,6 +33,7 @@
 #include <string>
 #include <vector>
 
+#include <KrellInstitute/Messages/DataHeader.h>
 #include <KrellInstitute/Messages/CUDA_data.h>
 
 #include <ArgoNavis/CUDA/CachePreference.hpp>
@@ -690,7 +691,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                     
                 stream << std::endl
                        << (boost::format("[%1$3d] %2%") % i % 
-                           stringify(static_cast<CUDA_MessageTypes>(msg.type))) 
+                           stringify(static_cast<CUDA_MessageTypes>(msg.type)))
                        << std::endl << std::endl << stringify(msg);
             }
             
@@ -712,6 +713,37 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             }
             stream << std::endl;
             
+            return stream.str();
+        }
+    };
+
+    template <>
+    struct Stringify<CBTF_DataHeader>
+    {
+        static std::string impl(const CBTF_DataHeader& value)
+        {
+            std::stringstream stream;
+
+            stream << std::endl << "Data Header" << std::endl << std::endl;
+
+            stream << stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("experiment", stringify(value.experiment))
+                ("collector", stringify(value.collector))
+                ("id", stringify(value.id))
+                ("host", stringify(value.host))
+                ("pid", stringify(value.pid))
+                ("posix_tid", stringify(value.posix_tid))
+                ("rank", stringify(value.rank))
+                ("omp_tid", stringify(value.omp_tid))
+                ("time_begin", stringify(value.time_begin))
+                ("time_end", stringify(value.time_end))
+                ("addr_begin", stringify(value.addr_begin))
+                ("addr_end", stringify(value.addr_end))
+                );
+
+            stream << std::endl;
+
             return stream.str();
         }
     };

@@ -20,6 +20,7 @@
 
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
+#include <cstdlib>
 #include <typeinfo>
 
 #include <KrellInstitute/CBTF/Component.hpp>
@@ -31,11 +32,13 @@
 #include <KrellInstitute/Messages/Address.h>
 #include <KrellInstitute/Messages/Blob.h>
 #include <KrellInstitute/Messages/CUDA_data.h>
+#include <KrellInstitute/Messages/DataHeader.h>
 #include <KrellInstitute/Messages/File.h>
 #include <KrellInstitute/Messages/PerformanceData.hpp>
 #include <KrellInstitute/Messages/Time.h>
 
 #include <ArgoNavis/CUDA/PerformanceData.hpp>
+#include <ArgoNavis/CUDA/stringify.hpp>
 
 using namespace ArgoNavis;
 using namespace KrellInstitute::CBTF;
@@ -99,7 +102,10 @@ private:
     
     /** Visit the performance data blobs for the given thread. */
     bool visitBlobs(const Base::ThreadName& thread);
-    
+
+    /** Flag indicating if debugging is enabled for this component. */
+    bool dm_is_debug_enabled;
+     
     /** Address buffer containing all of the observed addresses. */
     AddressBuffer dm_addresses;
     
@@ -116,6 +122,7 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(DataAggregatorForCUDA)
 //------------------------------------------------------------------------------
 DataAggregatorForCUDA::DataAggregatorForCUDA() :
     Component(Type(typeid(DataAggregatorForCUDA)), Version(1, 0, 0)),
+    dm_is_debug_enabled(getenv("CBTF_DEBUG_DATA_AGGREGATOR_FOR_CUDA") != NULL),
     dm_addresses(),
     dm_data()
 {
@@ -158,6 +165,24 @@ bool DataAggregatorForCUDA::emitBlob(
     )
 {
     emitOutput<boost::shared_ptr<CBTF_Protocol_Blob> >("Data", blob);
+
+    if (dm_is_debug_enabled)
+    {
+        std::pair<
+            boost::shared_ptr<CBTF_DataHeader>,
+            boost::shared_ptr<CBTF_cuda_data>
+            > unpacked = KrellInstitute::Messages::unpack<CBTF_cuda_data>(
+                blob, reinterpret_cast<xdrproc_t>(xdr_CBTF_cuda_data)
+                );
+        
+        const CBTF_DataHeader& cuda_data_header = *unpacked.first;
+        const CBTF_cuda_data& cuda_data = *unpacked.second;
+
+        std::cout << std::endl
+                  << "[CBTF/CUDA] Emitted Blob" << std::endl
+                  << CUDA::stringify<>(cuda_data_header)
+                  << CUDA::stringify<>(cuda_data);
+    }
     
     return true; // Continue the iteration
 }
@@ -184,6 +209,14 @@ void DataAggregatorForCUDA::handleData(
     
     const CBTF_DataHeader& cuda_data_header = *unpacked.first;
     const CBTF_cuda_data& cuda_data = *unpacked.second;
+
+    if (dm_is_debug_enabled)
+    {
+        std::cout << std::endl
+                  << "[CBTF/CUDA] Received Blob" << std::endl
+                  << CUDA::stringify<>(cuda_data_header)
+                  << CUDA::stringify<>(cuda_data);
+    }
 
     CUDA::PerformanceData::visitPCs(
         cuda_data, boost::bind(&DataAggregatorForCUDA::addAddress, this, _1)
