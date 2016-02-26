@@ -722,11 +722,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     {
         static std::string impl(const CBTF_DataHeader& value)
         {
-            std::stringstream stream;
-
-            stream << std::endl << "Data Header" << std::endl << std::endl;
-
-            stream << stringify<Fields>(
+            return stringify<Fields>(
                 boost::assign::tuple_list_of
                 ("experiment", stringify(value.experiment))
                 ("collector", stringify(value.collector))
@@ -741,10 +737,6 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 ("addr_begin", stringify(value.addr_begin))
                 ("addr_end", stringify(value.addr_end))
                 );
-
-            stream << std::endl;
-
-            return stream.str();
         }
     };
 
