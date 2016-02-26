@@ -55,7 +55,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/cmake/FindCBTF-Argo.cmake OpenSpeedShop.NEW-CU
 -    )
 diff -Naur OpenSpeedShop.ORIGINAL/cmake/FindCBTF-ArgoNavis.cmake OpenSpeedShop.NEW-CUPTI/cmake/FindCBTF-ArgoNavis.cmake
 --- OpenSpeedShop.ORIGINAL/cmake/FindCBTF-ArgoNavis.cmake	1969-12-31 18:00:00.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/cmake/FindCBTF-ArgoNavis.cmake	2016-02-02 00:14:14.387906172 -0600
++++ OpenSpeedShop.NEW-CUPTI/cmake/FindCBTF-ArgoNavis.cmake	2016-02-26 16:07:37.770987879 -0600
 @@ -0,0 +1,93 @@
 +################################################################################
 +# Copyright (c) 2006-2015 Krell Institute. All Rights Reserved.
@@ -151,8 +151,8 @@ diff -Naur OpenSpeedShop.ORIGINAL/cmake/FindCBTF-ArgoNavis.cmake OpenSpeedShop.N
 +  set(BUILD_CUDA_SUPPORT "TRUE")
 +endif()
 diff -Naur OpenSpeedShop.ORIGINAL/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/CMakeLists.txt
---- OpenSpeedShop.ORIGINAL/CMakeLists.txt	2016-01-19 21:05:46.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/CMakeLists.txt	2016-02-02 00:14:14.383906356 -0600
+--- OpenSpeedShop.ORIGINAL/CMakeLists.txt	2016-02-19 00:37:33.000000000 -0600
++++ OpenSpeedShop.NEW-CUPTI/CMakeLists.txt	2016-02-26 16:25:00.331536747 -0600
 @@ -1,5 +1,6 @@
  ################################################################################
  # Copyright (c) 2014-2016 Krell Institute. All Rights Reserved.
@@ -201,7 +201,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/CMakeLi
      endif()
  
  else()
-@@ -571,19 +566,17 @@
+@@ -571,18 +566,17 @@
      #--------------------------------------------------------------------------------
      add_subdirectory(openss)
  
@@ -221,13 +221,12 @@ diff -Naur OpenSpeedShop.ORIGINAL/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/CMakeLi
      endif()
 -#   endif()
 -    endif()
--
  
-     #--------------------------------------------------------------------------------
-     # install the find_package related cmake files 
+     # Install <openss related>.py files needed when running the OSS python interface
+     add_subdirectory(pyscripting)
 diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CMakeLists.txt
 --- OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CMakeLists.txt	2015-08-01 13:13:28.000000000 -0500
-+++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CMakeLists.txt	2016-02-02 00:14:14.387906172 -0600
++++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CMakeLists.txt	2016-02-26 16:07:37.770987879 -0600
 @@ -1,5 +1,6 @@
  ################################################################################
  # Copyright (c) 2014-2015 Krell Institute. All Rights Reserved.
@@ -1740,7 +1739,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAData.hxx OpenSpeedS
 -} } // namespace OpenSpeedShop::Queries
 diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CUDAQueries.cxx
 --- OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx	2014-11-20 00:29:06.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CUDAQueries.cxx	2016-02-02 00:14:14.387906172 -0600
++++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CUDAQueries.cxx	2016-02-26 16:13:03.088180556 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -1748,9 +1747,11 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx OpenSpe
  //
  // This library is free software; you can redistribute it and/or modify it under
  // the terms of the GNU Lesser General Public License as published by the Free
-@@ -19,13 +19,28 @@
+@@ -18,14 +18,34 @@
+ 
  /** @file Definition of CUDA extensions to the Queries namespace. */
  
++#include <boost/algorithm/string/predicate.hpp>
  #include <boost/bind.hpp>
 -#include <boost/function.hpp>
 +#include <boost/cstdint.hpp>
@@ -1766,10 +1767,14 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx OpenSpe
 +#include <ArgoNavis/CUDA/KernelExecutionVisitor.hpp>
 +#include <ArgoNavis/CUDA/stringify.hpp>
 +
++#include "AddressRange.hxx"
 +#include "Assert.hxx"
 +#include "Blob.hxx"
 +#include "Database.hxx"
 +#include "EntrySpy.hxx"
++#include "Function.hxx"
++#include "LinkedObject.hxx"
++#include "Path.hxx"
 +
  #include "CUDAQueries.hxx"
  
@@ -1778,7 +1783,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx OpenSpe
  using namespace OpenSpeedShop;
  using namespace OpenSpeedShop::Framework;
  using namespace OpenSpeedShop::Queries;
-@@ -38,29 +53,79 @@
+@@ -38,29 +58,79 @@
  
      /** Visitor used to accumulate the total event time. */
      template <typename T>
@@ -1862,7 +1867,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx OpenSpe
      }
      
  } // namespace <anonymous>
-@@ -69,25 +134,164 @@
+@@ -69,25 +139,211 @@
  
  //------------------------------------------------------------------------------
  //------------------------------------------------------------------------------
@@ -1890,12 +1895,59 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx OpenSpe
 +{
 +    StackTrace result(thread, time);
 +
++    // Initially include ALL frames for the call site of this CUDA request
 +    for (Base::StackTrace::const_iterator
 +             i = trace.begin(); i != trace.end(); ++i)
 +    {
 +        result.push_back(Address(static_cast<boost::uint64_t>(*i)));
 +    }
++
++    //
++    // Trim all of the frames that preceeded the actual entry into main(),
++    // assuming, of course, that main() can actually be found.
++    //
 +    
++    for (int i = 0; i < result.size(); ++i)
++    {
++        pair<bool, Function> function = result.getFunctionAt(i);
++        if (function.first && (function.second.getName() == "main"))
++        {
++            result.erase(result.begin() + i + 1, result.end());
++            break;
++        }            
++    }
++
++    //
++    // Now iterate over the frames from main() towards the final call site,
++    // looking for the first frame that is part of the CUDA implementation
++    // or our collector. Trim the stack trace from that point all the way
++    // to the final call site.
++    //
++    
++    for (int i = result.size(); i > 0; --i)
++    {
++        pair<bool, LinkedObject> linked_object = result.getLinkedObjectAt(i);
++        if (linked_object.first)
++        {
++            Path base_name = linked_object.second.getPath().getBaseName();
++            if (starts_with(base_name, "cuda-collector") ||
++                starts_with(base_name, "libcu"))
++            {
++                result.erase(result.begin(), result.begin() + i + 1);
++                break;
++            }
++        }
++        
++        pair<bool, Function> function = result.getFunctionAt(i);
++        if (function.first &&
++            (starts_with(function.second.getName(), "__device_stub") ||
++             starts_with(function.second.getName(), "cudart::")))
++        {
++            result.erase(result.begin(), result.begin() + i + 1);
++            break;
++        }
++    }
++        
 +    return result;
 +}
 +
@@ -2034,7 +2086,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx OpenSpe
      
      return result;
  }
-@@ -97,18 +301,69 @@
+@@ -97,18 +353,69 @@
  //------------------------------------------------------------------------------
  //------------------------------------------------------------------------------
  CUDAXferRate Queries::GetCUDAXferRate(
@@ -2110,7 +2162,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.cxx OpenSpe
 +}
 diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.hxx OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CUDAQueries.hxx
 --- OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.hxx	2014-11-20 00:29:06.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CUDAQueries.hxx	2016-02-02 00:14:14.387906172 -0600
++++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CUDAQueries.hxx	2016-02-26 16:07:37.770987879 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -2294,7 +2346,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAQueries.hxx OpenSpe
  } } // namespace OpenSpeedShop::Queries
 diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAXferRate.hxx OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CUDAXferRate.hxx
 --- OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/CUDAXferRate.hxx	2014-11-20 00:29:06.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CUDAXferRate.hxx	2016-02-02 00:14:14.391905988 -0600
++++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/CUDAXferRate.hxx	2016-02-26 16:07:37.770987879 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -2412,7 +2464,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/Makefile.am OpenSpeedSh
 -endif
 diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/osscuda2xml.cxx OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/osscuda2xml.cxx
 --- OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/osscuda2xml.cxx	2014-12-17 23:39:49.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/osscuda2xml.cxx	2016-02-02 00:14:14.387906172 -0600
++++ OpenSpeedShop.NEW-CUPTI/libopenss-queries-cuda/osscuda2xml.cxx	2016-02-26 16:07:37.770987879 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -3188,7 +3240,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/libopenss-queries-cuda/test.cxx OpenSpeedShop.
 -}
 diff -Naur OpenSpeedShop.ORIGINAL/openss/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/openss/CMakeLists.txt
 --- OpenSpeedShop.ORIGINAL/openss/CMakeLists.txt	2016-01-19 21:05:46.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/openss/CMakeLists.txt	2016-02-02 00:14:15.703845714 -0600
++++ OpenSpeedShop.NEW-CUPTI/openss/CMakeLists.txt	2016-02-26 16:07:37.770987879 -0600
 @@ -1,5 +1,6 @@
  ################################################################################
  # Copyright (c) 2014-2016 Krell Institute. All Rights Reserved.
@@ -3232,7 +3284,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/openss/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/
  endif() #endif for RUNTIME_ONLY
 diff -Naur OpenSpeedShop.ORIGINAL/openss/osscollect.cxx OpenSpeedShop.NEW-CUPTI/openss/osscollect.cxx
 --- OpenSpeedShop.ORIGINAL/openss/osscollect.cxx	2015-11-25 11:07:53.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/openss/osscollect.cxx	2016-02-02 00:14:15.703845714 -0600
++++ OpenSpeedShop.NEW-CUPTI/openss/osscollect.cxx	2016-02-26 16:07:37.770987879 -0600
 @@ -1,5 +1,6 @@
  ////////////////////////////////////////////////////////////////////////////////
  // Copyright (c) 2011-2013 Krell Institute. All Rights Reserved.
@@ -3255,7 +3307,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/openss/osscollect.cxx OpenSpeedShop.NEW-CUPTI/
                                                       OutputCallback((void (*)(const char*, const int&, void*))NULL,(void *)NULL),
 diff -Naur OpenSpeedShop.ORIGINAL/ossdumpcuda/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/ossdumpcuda/CMakeLists.txt
 --- OpenSpeedShop.ORIGINAL/ossdumpcuda/CMakeLists.txt	2015-06-02 17:38:24.000000000 -0500
-+++ OpenSpeedShop.NEW-CUPTI/ossdumpcuda/CMakeLists.txt	2016-02-02 00:14:15.479856005 -0600
++++ OpenSpeedShop.NEW-CUPTI/ossdumpcuda/CMakeLists.txt	2016-02-26 16:07:37.770987879 -0600
 @@ -1,5 +1,6 @@
  ################################################################################
  # Copyright (c) 2015 Krell Institute. All Rights Reserved.
@@ -3356,7 +3408,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/ossdumpcuda/Makefile.am OpenSpeedShop.NEW-CUPT
 -endif
 diff -Naur OpenSpeedShop.ORIGINAL/ossdumpcuda/ossdumpcuda.cxx OpenSpeedShop.NEW-CUPTI/ossdumpcuda/ossdumpcuda.cxx
 --- OpenSpeedShop.ORIGINAL/ossdumpcuda/ossdumpcuda.cxx	2014-10-30 00:27:56.000000000 -0500
-+++ OpenSpeedShop.NEW-CUPTI/ossdumpcuda/ossdumpcuda.cxx	2016-02-02 00:14:15.479856005 -0600
++++ OpenSpeedShop.NEW-CUPTI/ossdumpcuda/ossdumpcuda.cxx	2016-02-26 16:07:37.770987879 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -4167,7 +4219,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/ossdumpcuda/ossdumpcuda.cxx OpenSpeedShop.NEW-
                   reinterpret_cast<char*>(&data));        
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/plugins/collectors/CMakeLists.txt
 --- OpenSpeedShop.ORIGINAL/plugins/collectors/CMakeLists.txt	2016-01-19 21:05:46.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/CMakeLists.txt	2016-02-02 00:14:15.683846633 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/CMakeLists.txt	2016-02-26 16:07:37.774987654 -0600
 @@ -1,5 +1,6 @@
  ################################################################################
  # Copyright (c) 2014-2016 Krell Institute. All Rights Reserved.
@@ -4194,7 +4246,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/CMakeLists.txt OpenSpeedSho
 +endif()
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/CMakeLists.txt.~1.9.~ OpenSpeedShop.NEW-CUPTI/plugins/collectors/CMakeLists.txt.~1.9.~
 --- OpenSpeedShop.ORIGINAL/plugins/collectors/CMakeLists.txt.~1.9.~	1969-12-31 18:00:00.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/CMakeLists.txt.~1.9.~	2016-02-02 00:14:15.687846448 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/CMakeLists.txt.~1.9.~	2016-02-26 16:07:37.774987654 -0600
 @@ -0,0 +1,52 @@
 +################################################################################
 +# Copyright (c) 2014-2016 Krell Institute. All Rights Reserved.
@@ -4250,7 +4302,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/CMakeLists.txt.~1.9.~ OpenS
 +
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CMakeLists.txt
 --- OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CMakeLists.txt	2015-06-02 17:38:24.000000000 -0500
-+++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CMakeLists.txt	2016-02-02 00:14:15.691846265 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CMakeLists.txt	2016-02-26 16:07:37.774987654 -0600
 @@ -1,5 +1,6 @@
  ################################################################################
  # Copyright (c) 2014-2015 Krell Institute. All Rights Reserved.
@@ -4326,7 +4378,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CMakeLists.txt OpenSpe
 +    )
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDACollector.cxx OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDACollector.cxx
 --- OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDACollector.cxx	2014-10-27 21:41:24.000000000 -0500
-+++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDACollector.cxx	2016-02-02 00:14:15.691846265 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDACollector.cxx	2016-02-26 16:07:37.774987654 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -5167,7 +5219,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDACollector.cxx Open
  }
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDACollector.hxx OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDACollector.hxx
 --- OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDACollector.hxx	2014-10-13 20:36:05.000000000 -0500
-+++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDACollector.hxx	2016-02-02 00:14:15.691846265 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDACollector.hxx	2016-02-26 16:07:37.774987654 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -5302,7 +5354,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDACollector.hxx Open
  } } // namespace OpenSpeedShop::Framework
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDACountsDetail.hxx OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDACountsDetail.hxx
 --- OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDACountsDetail.hxx	2014-10-27 21:41:24.000000000 -0500
-+++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDACountsDetail.hxx	2016-02-02 00:14:15.691846265 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDACountsDetail.hxx	2016-02-26 16:07:37.774987654 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -5535,7 +5587,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDADeviceDetail.hxx O
 -} } // namespace OpenSpeedShop::Framework
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDAExecDetail.hxx OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDAExecDetail.hxx
 --- OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDAExecDetail.hxx	2014-12-16 23:37:09.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDAExecDetail.hxx	2016-02-02 00:14:15.691846265 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDAExecDetail.hxx	2016-02-26 16:07:37.774987654 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -5731,7 +5783,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDAExecDetail.hxx Ope
  } } // namespace OpenSpeedShop::Framework
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDAXferDetail.hxx OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDAXferDetail.hxx
 --- OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDAXferDetail.hxx	2014-12-16 23:37:09.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDAXferDetail.hxx	2016-02-02 00:14:15.691846265 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/collectors/cuda/CUDAXferDetail.hxx	2016-02-26 16:07:37.774987654 -0600
 @@ -1,5 +1,5 @@
  ////////////////////////////////////////////////////////////////////////////////
 -// Copyright (c) 2014 Argo Navis Technologies. All Rights Reserved.
@@ -5973,7 +6025,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/Makefile.am OpenSpeedS
 -endif
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/plugins/views/CMakeLists.txt
 --- OpenSpeedShop.ORIGINAL/plugins/views/CMakeLists.txt	2016-01-19 21:05:47.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/plugins/views/CMakeLists.txt	2016-02-02 00:14:15.643848471 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/views/CMakeLists.txt	2016-02-26 16:07:37.774987654 -0600
 @@ -1,5 +1,6 @@
  ################################################################################
  # Copyright (c) 2014-2016 Krell Institute. All Rights Reserved.
@@ -5995,7 +6047,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/CMakeLists.txt OpenSpeedShop.NEW
 -
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/CMakeLists.txt.~1.6.~ OpenSpeedShop.NEW-CUPTI/plugins/views/CMakeLists.txt.~1.6.~
 --- OpenSpeedShop.ORIGINAL/plugins/views/CMakeLists.txt.~1.6.~	1969-12-31 18:00:00.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/plugins/views/CMakeLists.txt.~1.6.~	2016-02-02 00:14:15.643848471 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/views/CMakeLists.txt.~1.6.~	2016-02-26 16:07:37.774987654 -0600
 @@ -0,0 +1,46 @@
 +################################################################################
 +# Copyright (c) 2014-2016 Krell Institute. All Rights Reserved.
@@ -6045,7 +6097,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/CMakeLists.txt.~1.6.~ OpenSpeedS
 +
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/cuda/CMakeLists.txt OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/CMakeLists.txt
 --- OpenSpeedShop.ORIGINAL/plugins/views/cuda/CMakeLists.txt	2015-06-02 17:38:27.000000000 -0500
-+++ OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/CMakeLists.txt	2016-02-02 00:14:15.651848104 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/CMakeLists.txt	2016-02-26 16:07:37.774987654 -0600
 @@ -1,5 +1,6 @@
  ################################################################################
  # Copyright (c) 2014-2015 Krell Institute. All Rights Reserved.
@@ -6116,7 +6168,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/cuda/CMakeLists.txt OpenSpeedSho
 +    )
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/cuda/cuda_exec_view.cxx OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/cuda_exec_view.cxx
 --- OpenSpeedShop.ORIGINAL/plugins/views/cuda/cuda_exec_view.cxx	2015-01-14 17:25:46.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/cuda_exec_view.cxx	2016-02-02 00:14:15.651848104 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/cuda_exec_view.cxx	2016-02-26 16:07:37.774987654 -0600
 @@ -1,6 +1,6 @@
  ////////////////////////////////////////////////////////////////////////////////
  // Copyright (c) 2014 Krell Institute. All Rights Reserved.
@@ -6192,7 +6244,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/cuda/cuda_exec_view.cxx OpenSpee
      extime += secondary.getTime() / num_calls;   \
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/cuda/cuda_hwpc_view.cxx OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/cuda_hwpc_view.cxx
 --- OpenSpeedShop.ORIGINAL/plugins/views/cuda/cuda_hwpc_view.cxx	2015-01-14 17:25:46.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/cuda_hwpc_view.cxx	2016-02-02 00:14:15.651848104 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/cuda_hwpc_view.cxx	2016-02-26 16:07:37.774987654 -0600
 @@ -1,6 +1,6 @@
  ////////////////////////////////////////////////////////////////////////////////
  // Copyright (c) 2010-2014 Krell Institute. All Rights Reserved.
@@ -6211,7 +6263,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/cuda/cuda_hwpc_view.cxx OpenSpee
  #define PUSH_HV(x) HV.push_back(x)
 diff -Naur OpenSpeedShop.ORIGINAL/plugins/views/cuda/cuda_xfer_view.cxx OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/cuda_xfer_view.cxx
 --- OpenSpeedShop.ORIGINAL/plugins/views/cuda/cuda_xfer_view.cxx	2015-01-14 17:25:46.000000000 -0600
-+++ OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/cuda_xfer_view.cxx	2016-02-02 00:14:15.651848104 -0600
++++ OpenSpeedShop.NEW-CUPTI/plugins/views/cuda/cuda_xfer_view.cxx	2016-02-26 16:07:37.774987654 -0600
 @@ -1,6 +1,6 @@
  ////////////////////////////////////////////////////////////////////////////////
  // Copyright (c) 2014 Krell Institute. All Rights Reserved.

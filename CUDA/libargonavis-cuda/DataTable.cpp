@@ -959,7 +959,7 @@ void DataTable::process(const struct CUDA_ContextInfo& message,
 {
     process(per_process.dm_partial_data_transfers.addContext(
                 message.context, message.device
-                ));    
+                ));
     process(per_process.dm_partial_kernel_executions.addContext(
                 message.context, message.device
                 ));
