@@ -55,6 +55,12 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Destroy this blob generator. */
         ~BlobGenerator();
 
+        /** Flag indicating whether anything has been added. */
+        bool empty() const
+        {
+            return dm_empty;
+        }
+
         /** Flag indicating whether blob generation should be terminated. */
         bool terminate() const
         {
@@ -90,7 +96,10 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Visitor invoked for each generated blob. */
         const Base::BlobVisitor& dm_visitor;
-        
+
+        /** Flag indicating whether anything has been added. */
+        bool dm_empty;
+
         /** Flag indicating whether blob generation should be terminated. */
         bool dm_terminate;
 
@@ -106,8 +115,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Unique, null-terminated, stack traces referenced by the messages. */
         std::vector<CBTF_Protocol_Address> dm_stack_traces;
 
-        /** Pointer to the message containing the periodic samples. */
-        CUDA_PeriodicSamples* dm_periodic_samples;
+        /** Message containing the periodic samples. */
+        CUDA_PeriodicSamples dm_periodic_samples;
         
         /** Time and event count deltas. Pointed to by the above message. */
         std::vector<boost::uint8_t> dm_periodic_samples_deltas;

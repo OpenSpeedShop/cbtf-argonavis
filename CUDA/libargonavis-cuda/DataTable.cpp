@@ -508,15 +508,6 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     
     BlobGenerator generator(thread, visitor);
 
-    // Generate the context/device information and sampling config messages
-    
-    generate(per_process, per_thread, generator);
-    
-    if (generator.terminate())
-    {
-        return; // Terminate the iteration
-    }
-
     // Visit all of the data transfer events, adding them to the generator
 
     per_thread.dm_data_transfers.visit(
@@ -561,6 +552,18 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
          ++i)
     {
         generator.addPeriodicSample(i->first, i->second);
+    }
+
+    if (generator.terminate())
+    {
+        return; // Terminate the iteration
+    }
+    
+    // Generate the context/device information and sampling config messages
+
+    if (!generator.empty())
+    {    
+        generate(per_process, per_thread, generator);
     }
 }
 

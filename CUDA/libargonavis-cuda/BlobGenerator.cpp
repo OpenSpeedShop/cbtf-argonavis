@@ -19,6 +19,7 @@
 /** @file Definition of the BlobGenerator class. */
 
 #include <boost/assert.hpp>
+#include <cstring>
 #include <stddef.h>
 
 #include <KrellInstitute/Messages/Blob.h>
@@ -78,12 +79,13 @@ BlobGenerator::BlobGenerator(const Base::ThreadName& thread,
                              const BlobVisitor& visitor) :
     dm_thread(thread),
     dm_visitor(visitor),
+    dm_empty(true),
     dm_terminate(false),
     dm_header(new CBTF_DataHeader()),
     dm_data(new CBTF_cuda_data()),
     dm_messages(kMaxMessagesPerBlob),
     dm_stack_traces(kMaxAddressesPerBlob),
-    dm_periodic_samples(NULL),
+    dm_periodic_samples(),
     dm_periodic_samples_deltas(kMaxDeltaBytesPerBlob),
     dm_periodic_samples_previous()
 {
@@ -93,17 +95,14 @@ BlobGenerator::BlobGenerator(const Base::ThreadName& thread,
 
 
 //------------------------------------------------------------------------------
-// Generate a blob for the remaining data (if any). Note the message count
-// is tested against 1 (rather than 0) because initialize() always adds a
-// PeriodicSamples message, and we only want to generate if that message
-// actually contains a delta.
+// Generate a blob for the remaining data (if any).
 //------------------------------------------------------------------------------
 BlobGenerator::~BlobGenerator()
 
 {
     if (!dm_terminate && 
-        ((dm_data->messages.messages_len > 1) ||
-         (dm_periodic_samples->deltas.deltas_len > 0)))
+        ((dm_data->messages.messages_len > 0) ||
+         (dm_periodic_samples.deltas.deltas_len > 0)))
     {
         generate();
     }
@@ -117,9 +116,10 @@ BlobGenerator::~BlobGenerator()
 //------------------------------------------------------------------------------
 boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
 {
-    int i, j;
+    dm_empty = false;
 
     // Iterate over the addresses in the existing stack traces
+    int i, j;
     for (i = 0, j = 0; i < kMaxAddressesPerBlob; ++i)
     {
         // Is this the terminating null of an existing stack trace?
@@ -193,6 +193,8 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
 //------------------------------------------------------------------------------
 CBTF_cuda_message* BlobGenerator::addMessage()
 {
+    dm_empty = false;
+
     if (dm_data->messages.messages_len == kMaxMessagesPerBlob)
     {
         generate();
@@ -212,6 +214,8 @@ void BlobGenerator::addPeriodicSample(
     const std::vector<boost::uint64_t>& counts
     )
 {
+    dm_empty = false;
+
     std::vector<boost::uint64_t> sample;
     sample.push_back(time);
     sample.insert(sample.end(), counts.begin(), counts.end());
@@ -224,14 +228,14 @@ void BlobGenerator::addPeriodicSample(
     BOOST_ASSERT(sample.size() == dm_periodic_samples_previous.size());
 
     // Get a pointer to the periodic samples deltas for this blob
-    boost::uint8_t* deltas = dm_periodic_samples->deltas.deltas_val;
+    boost::uint8_t* deltas = dm_periodic_samples.deltas.deltas_val;
     
     // Get the current index within the periodic samples deltas. The length
     // isn't updated until the ENTIRE event sample encoding has been added.
     // This facilitates easy restarting of the encoding in the event there
     // isn't enough room left in the array for the entire encoding.
 
-    int index = dm_periodic_samples->deltas.deltas_len;
+    int index = dm_periodic_samples.deltas.deltas_len;
     
     // Get pointers to the values in the new (current) and previous event
     // samples. Note that the time and the actual event counts are treated
@@ -289,7 +293,7 @@ void BlobGenerator::addPeriodicSample(
         if ((index + num_bytes) > kMaxDeltaBytesPerBlob)
         {
             generate();
-            index = dm_periodic_samples->deltas.deltas_len;
+            index = dm_periodic_samples.deltas.deltas_len;
             previous = &dm_periodic_samples_previous[0] - 1;
             current = &sample[0] - 1;
             i = -1;
@@ -314,7 +318,7 @@ void BlobGenerator::addPeriodicSample(
     }
 
     // Update the length of the periodic samples deltas array
-    dm_periodic_samples->deltas.deltas_len = index;
+    dm_periodic_samples.deltas.deltas_len = index;
     
     // Update the header with this sample time
     updateHeader(Time(time));
@@ -383,15 +387,9 @@ void BlobGenerator::initialize()
     dm_data->stack_traces.stack_traces_val = &dm_stack_traces[0];
 
     dm_stack_traces.assign(kMaxAddressesPerBlob, 0);
-
-    CBTF_cuda_message* raw_message = 
-        &dm_data->messages.messages_val[dm_data->messages.messages_len++];
-    raw_message->type = PeriodicSamples;
-
-    dm_periodic_samples = &raw_message->CBTF_cuda_message_u.periodic_samples;
     
-    dm_periodic_samples->deltas.deltas_len = 0;
-    dm_periodic_samples->deltas.deltas_val = &dm_periodic_samples_deltas[0];
+    dm_periodic_samples.deltas.deltas_len = 0;
+    dm_periodic_samples.deltas.deltas_val = &dm_periodic_samples_deltas[0];
     
     dm_periodic_samples_deltas.assign(kMaxDeltaBytesPerBlob, 0);
     dm_periodic_samples_previous.clear();
@@ -405,6 +403,18 @@ void BlobGenerator::initialize()
 //------------------------------------------------------------------------------
 void BlobGenerator::generate()
 {
+    if (dm_periodic_samples.deltas.deltas_len > 0)
+    {
+        CBTF_cuda_message* raw_message = 
+            &dm_data->messages.messages_val[dm_data->messages.messages_len++];
+        raw_message->type = PeriodicSamples;
+        
+        CUDA_PeriodicSamples* message =
+            &raw_message->CBTF_cuda_message_u.periodic_samples;
+        
+        memcpy(message, &dm_periodic_samples, sizeof(CUDA_PeriodicSamples));
+    }
+    
     boost::shared_ptr<CBTF_Protocol_Blob> blob =
         KrellInstitute::Messages::pack<CBTF_cuda_data>(
             std::make_pair(dm_header, dm_data),
