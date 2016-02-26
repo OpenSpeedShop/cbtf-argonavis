@@ -421,7 +421,7 @@ void BlobGenerator::generate()
             reinterpret_cast<xdrproc_t>(&xdr_CBTF_cuda_data)
             );
     
-    dm_terminate |= dm_visitor(blob);
+    dm_terminate |= !dm_visitor(blob);
     
     initialize();
 }
