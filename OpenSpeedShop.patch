@@ -5642,7 +5642,7 @@ diff -Naur OpenSpeedShop.ORIGINAL/plugins/collectors/cuda/CUDAExecDetail.hxx Ope
 +        /** Constructor. */
 +        CUDAExecDetail(const ArgoNavis::CUDA::KernelExecution& event,
 +                       const ArgoNavis::CUDA::Device& device,
-+                       const double& t) :
++                       const double& time) :
 +            ArgoNavis::CUDA::KernelExecution(event),
 +            dm_device(device),
 +            dm_time(time)

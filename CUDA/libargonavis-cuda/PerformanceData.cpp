@@ -19,9 +19,10 @@
 /** @file Definition of the PerformanceData class. */
 
 #include <boost/assert.hpp>
-#include <ArgoNavis/CUDA/PerformanceData.hpp>
 #include <map>
 #include <stddef.h>
+
+#include <ArgoNavis/CUDA/PerformanceData.hpp>
 
 #include "DataTable.hpp"
 
