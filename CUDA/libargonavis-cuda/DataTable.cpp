@@ -827,6 +827,11 @@ bool DataTable::generate(const DataTransfer& event,
     CUDA_CompletedXfer& completed = messages.second;
 
     // Add this event's call site to the blob generator
+    //
+    // Do NOT attempt to move the addSite() call after the addMessage() call.
+    // The former also insures that at leasat one message can be added to the
+    // blob; insuring that the call site and its referencing message are not
+    // split between two blobs, which would be disastrous.
 
     enqueue.call_site = generator.addSite(dm_sites[event.call_site]);
     
@@ -883,6 +888,11 @@ bool DataTable::generate(const KernelExecution& event,
     CUDA_CompletedExec& completed = messages.second;
 
     // Add this event's call site to the blob generator
+    //
+    // Do NOT attempt to move the addSite() call after the addMessage() call.
+    // The former also insures that at leasat one message can be added to the
+    // blob; insuring that the call site and its referencing message are not
+    // split between two blobs, which would be disastrous.
 
     enqueue.call_site = generator.addSite(dm_sites[event.call_site]);
 

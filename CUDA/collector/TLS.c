@@ -273,10 +273,26 @@ void TLS_update_header_with_address(TLS* tls, CBTF_Protocol_Address addr)
  *
  * @param tls    Thread-local storage to which the stack trace is to be added.
  * @return       Index of this call site within the performance data blob.
+ *
+ * @note    Call sites are always referenced by a message. And since cross-blob
+ *          references aren't supported, a crash is all but certain if the call
+ *          site and its referencing message were to be split across two blobs.
+ *          So this function also insures there is room in the current blob for
+ *          at least one more message before adding the call site.
  */
 uint32_t TLS_add_current_call_site(TLS* tls)
 {
     Assert(tls != NULL);
+
+    /*
+     * Send performance data for this thread if there isn't enough room to
+     * hold another message. See the note in this function's header.
+     */
+
+    if (tls->data.messages.messages_len == MAX_MESSAGES_PER_BLOB)
+    {
+        TLS_send_data(tls);
+    }
 
     /* Get the stack trace for the current call site */
 

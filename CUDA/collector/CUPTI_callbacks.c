@@ -216,7 +216,18 @@ static void callback(void* userdata,
                     /* Add the context ID to pointer mapping */
                     CUPTI_context_add(cbdata->contextUid, cbdata->context);
                     
-                    /* Add a message for this event */
+                    /*
+                     * Add a message for this event.
+                     *
+                     * Do NOT attempt to move the TLS_add_current_call_site()
+                     * call after the TLS_add_message() call. The former also
+                     * insures that at least one message can be added to the
+                     * current performance data blob; insuring that the call
+                     * site and its referencing message aren't split between
+                     * two performance data blobs, which would be disastrous.
+                     */
+                    
+                    uint32_t call_site = TLS_add_current_call_site(tls);
                     
                     CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
@@ -231,7 +242,7 @@ static void callback(void* userdata,
                         id, cbdata->functionParams
                         );
                     message->time = CBTF_GetTime();
-                    message->call_site = TLS_add_current_call_site(tls);
+                    message->call_site = call_site;
                     
                     TLS_update_header_with_time(tls, message->time);
                 }
@@ -319,8 +330,19 @@ static void callback(void* userdata,
 
                     /* Add the context ID to pointer mapping */
                     CUPTI_context_add(cbdata->contextUid, cbdata->context);
-                                        
-                    /* Add a message for this event */
+
+                    /*
+                     * Add a message for this event.
+                     *
+                     * Do NOT attempt to move the TLS_add_current_call_site()
+                     * call after the TLS_add_message() call. The former also
+                     * insures that at least one message can be added to the
+                     * current performance data blob; insuring that the call
+                     * site and its referencing message aren't split between
+                     * two performance data blobs, which would be disastrous.
+                     */
+                    
+                    uint32_t call_site = TLS_add_current_call_site(tls);
                     
                     CBTF_cuda_message* raw_message = TLS_add_message(tls);
                     Assert(raw_message != NULL);
@@ -335,7 +357,7 @@ static void callback(void* userdata,
                         id, cbdata->functionParams
                         );
                     message->time = CBTF_GetTime();
-                    message->call_site = TLS_add_current_call_site(tls);
+                    message->call_site = call_site;
                     
                     TLS_update_header_with_time(tls, message->time);
                 }

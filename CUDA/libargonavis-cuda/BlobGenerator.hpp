@@ -67,7 +67,16 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             return dm_terminate;
         }
 
-        /** Add the specified call site to the current blob. */
+        /**
+         * Add the specified call site to the current blob.
+         *
+         * @note    Call sites are always referenced by a message. And since
+         *          cross-blob references aren't supported, a crash is all but
+         *          certain if the call site and its referencing message were
+         *          to be split across two blobs. So this method also insures
+         *          there is room in the current blob for at least one more
+         *          message before adding the call site.
+         */
         boost::uint32_t addSite(const Base::StackTrace& site);
 
         /** Add a new message to the current blob. */

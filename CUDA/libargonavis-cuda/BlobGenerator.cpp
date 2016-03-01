@@ -118,6 +118,14 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
 {
     dm_empty = false;
 
+    // Generate a blob for the current header and data if there isn't enough
+    // room to hold another message. See the note in this method's header.
+
+    if (dm_data->messages.messages_len == kMaxMessagesPerBlob)
+    {
+        generate();
+    }
+
     // Iterate over the addresses in the existing stack traces
     int i, j;
     for (i = 0, j = 0; i < kMaxAddressesPerBlob; ++i)
@@ -177,6 +185,7 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
             // address within this stack trace matches the current address
             // within the existing stack traces. Otherwise reset the pointer
             // to zero.
+
             j = (site[j] == Address(dm_stack_traces[i])) ? (j + 1) : 0;
         }
     }
