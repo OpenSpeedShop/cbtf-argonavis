@@ -70,22 +70,10 @@ namespace ArgoNavis { namespace Base {
          */
         operator std::string() const;
         
-        /**
-         * Is this function less than another one?
-         *
-         * @param other    Function to be compared.
-         * @return         Boolean "true" if this function is less than the
-         *                 function to be compared, or "false" otherwise.
-         */
+        /** Is this function less than another one? */
         bool operator<(const Function& other) const;
 
-        /**
-         * Is this function equal to another one?
-         *
-         * @param other    Function to be compared.
-         * @return         Boolean "true" if the functions are equal,
-         *                 or "false" otherwise.
-         */
+        /** Is this function equal to another one? */
         bool operator==(const Function& other) const;
 
         /**
@@ -106,28 +94,16 @@ namespace ArgoNavis { namespace Base {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        void addAddressRanges(const std::set<AddressRange>& ranges);
+        void add(const std::set<AddressRange>& ranges);
 
-        /**
-         * Get the linked object containing this function.
-         *
-         * @return    Linked object containing this function.
-         */
-        LinkedObject getLinkedObject() const;
+        /** Get the linked object containing this function. */
+        LinkedObject parent() const;
         
-        /**
-         * Get the mangled name of this function.
-         *
-         * @return    Mangled name of this function.
-         */
-        std::string getMangledName() const;
+        /** Get the mangled name of this function. */
+        std::string mangled() const;
         
-        /**
-         * Get the demangled name of this function.
-         *
-         * @return       Demangled name of this function.
-         */
-        std::string getDemangledName() const;
+        /** Get the demangled name of this function. */
+        std::string demangled() const;
 
         /**
          * Get the address ranges associated with this function. An empty set
@@ -140,12 +116,16 @@ namespace ArgoNavis { namespace Base {
          *          an absolute address from the address space of a specific
          *          process.
          */
-        std::set<AddressRange> getAddressRanges() const;
+        std::set<AddressRange> ranges() const;
 
         /**
          * Visit the definitions of this function.
          *
-         * @param visitor    Visitor invoked for each defintion of this function.
+         * @param visitor    Visitor invoked for each defintion of this
+         *                   function.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitDefinitions(const StatementVisitor& visitor) const;
 
@@ -154,6 +134,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each loop associated 
          *                   with this function.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitLoops(const LoopVisitor& visitor) const;
         
@@ -162,6 +145,9 @@ namespace ArgoNavis { namespace Base {
          *
          * @param visitor    Visitor invoked for each statement associated 
          *                   with this function.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         void visitStatements(const StatementVisitor& visitor) const;
 

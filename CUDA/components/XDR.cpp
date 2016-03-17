@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2012 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2012,2015 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -20,20 +20,16 @@
 
 #include <KrellInstitute/CBTF/XDR.hpp>
 
-#include <KrellInstitute/Messages/IO_data.h>
+#include <KrellInstitute/Messages/CUDA_data.h>
 #include <KrellInstitute/Messages/LinkedObjectEvents.h>
 #include <KrellInstitute/Messages/Symbol.h>
 #include <KrellInstitute/Messages/ThreadEvents.h>
 
-#include "CUDA_data.h"
-
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_AttachedToThreads)
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_Blob)
-KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_CreatedProcess)
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_LinkedObjectGroup)
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_LoadedLinkedObject)
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_SymbolTable)
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_ThreadsStateChanged)
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_Protocol_UnloadedLinkedObject)
 KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_cuda_data)
-KRELL_INSTITUTE_CBTF_REGISTER_XDR_CONVERTERS(CBTF_io_trace_data)

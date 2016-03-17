@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -17,16 +17,14 @@
 ################################################################################
 
 add_library(CUDA SHARED
-    AddressAggregatorForCUDA.cpp
-    CUDADebug.cpp
-    CUDAToIO.cpp
-    SimpleThreadName.hpp
+    DataAggregatorForCUDA.cpp
     StateManagementForCUDA.cpp
     XDR.cpp
     )
 
-include_directories(
+target_include_directories(CUDA PUBLIC
     ${PROJECT_SOURCE_DIR}/libargonavis-base
+    ${PROJECT_SOURCE_DIR}/CUDA/libargonavis-cuda
     ${PROJECT_BINARY_DIR}/CUDA/messages
     ${Boost_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
@@ -36,8 +34,9 @@ include_directories(
     )
 
 target_link_libraries(CUDA
-    cbtf-messages-cuda
     argonavis-base
+    argonavis-cuda
+    cbtf-messages-cuda
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_REGEX_LIBRARY}
     ${CBTF_LIBRARIES}

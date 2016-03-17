@@ -18,17 +18,14 @@
 
 add_subdirectory(collector)
 add_subdirectory(components)
+add_subdirectory(libargonavis-cuda)
 add_subdirectory(messages)
 
 configure_file(cuda.xml.in cuda.xml)
-configure_file(cudadump.xml.in cudadump.xml)
-configure_file(cudaio.xml.in cudaio.xml)
 
 install(
     FILES
         ${PROJECT_BINARY_DIR}/CUDA/cuda.xml
-        ${PROJECT_BINARY_DIR}/CUDA/cudadump.xml
-        ${PROJECT_BINARY_DIR}/CUDA/cudaio.xml
     DESTINATION
         share/KrellInstitute/xml
     )

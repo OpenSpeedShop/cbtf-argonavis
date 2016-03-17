@@ -54,48 +54,22 @@ namespace ArgoNavis { namespace Base {
          */
         AddressBitmap(const AddressRange& range);
 
-        /**
-         * Construct an address bitmap from a set of addresses.
-         *
-         * @param addresses    Set of addresses in this address bitmap.
-         */
+        /** Construct an address bitmap from a set of addresses. */
         AddressBitmap(const std::set<Address>& addresses);
         
-        /**
-         * Construct an address bitmap from a CBTF_Protocol_AddressBitmap.
-         *
-         * @param message    Message containing this address bitmap.
-         */
+        /** Construct an address bitmap from a CBTF_Protocol_AddressBitmap. */
         AddressBitmap(const CBTF_Protocol_AddressBitmap& message);
         
-        /**
-         * Type conversion to a CBTF_Protocol_AddressBitmap.
-         *
-         * @return    Message containing this address bitmap.
-         */
+        /** Type conversion to a CBTF_Protocol_AddressBitmap. */
         operator CBTF_Protocol_AddressBitmap() const;
 
-        /**
-         * Type conversion to a string.
-         *
-         * @return    String describing this address bitmap.
-         */
+        /** Type conversion to a string. */
         operator std::string() const;
 
-        /**
-         * Is this address bitmap equal to another one?
-         *
-         * @param other    Address bitmap to be compared.
-         * @return         Boolean "true" if the address bitmaps
-         *                 are equal, or "false" otherwise.
-         */
+        /** Is this address bitmap equal to another one? */
         bool operator==(const AddressBitmap& other) const;
         
-        /**
-         * Get the address range covered by this address bitmap.
-         *
-         * @return    Address range covered by this address bitmap.
-         */
+        /** Get the address range covered by this address bitmap. */
         const AddressRange& range() const;
         
         /**
@@ -139,13 +113,7 @@ namespace ArgoNavis { namespace Base {
         
     }; // class AddressBitmap
 
-    /**
-     * Redirection to an output stream.
-     *
-     * @param stream    Destination output stream.
-     * @param bitmap    Address bitmap to be redirected.
-     * @return          Destination output stream.
-     */
+    /** Redirect an address bitmap to an output stream. */
     std::ostream& operator<<(std::ostream& stream, const AddressBitmap& bitmap);
 
 } } // namespace ArgoNavis::Base

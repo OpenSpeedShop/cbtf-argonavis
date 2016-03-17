@@ -105,85 +105,49 @@ namespace ArgoNavis { namespace Base { namespace Impl {
          */
         SymbolTable(const FileName& file);
 
-        /**
-         * Construct a symbol table from a CBTF_Protocol_SymbolTable.
-         *
-         * @param messsage    Message containing this symbol table.
-         */
+        /** Construct a symbol table from a CBTF_Protocol_SymbolTable. */
         SymbolTable(const CBTF_Protocol_SymbolTable& message);
         
-        /**
-         * Type conversion to a CBTF_Protocol_SymbolTable.
-         *
-         * @return    Message containing this symbol table.
-         */
+        /** Type conversion to a CBTF_Protocol_SymbolTable. */
         operator CBTF_Protocol_SymbolTable() const;
 
-        /**
-         * Get the name of this symbol table's linked object file.
-         *
-         * @return    Name of this symbol table's linked object file.
-         */
-        const FileName& getFile() const
+        /** Get the name of this symbol table's linked object file. */
+        const FileName& file() const
         {
             return dm_file;
         }
 
-        /**
-         * Access the table of functions in this symbol table.
-         *
-         * @return    Table of functions in this symbol table.
-         */
+        /** Access the table of functions in this symbol table. */
         const EntityTable<FunctionFields>& functions() const
         {
             return dm_functions;
         }
 
-        /**
-         * Access the table of functions in this symbol table.
-         *
-         * @return    Table of functions in this symbol table.
-         */
+        /** Access the table of functions in this symbol table. */
         EntityTable<FunctionFields>& functions()
         {
             return dm_functions;
         }
 
-        /**
-         * Access the table of loops in this symbol table.
-         *
-         * @return    Table of loops in this symbol table.
-         */
+        /** Access the table of loops in this symbol table. */
         const EntityTable<LoopFields>& loops() const
         {
             return dm_loops;
         }
 
-        /**
-         * Access the table of loops in this symbol table.
-         *
-         * @return    Table of loops in this symbol table.
-         */
+        /** Access the table of loops in this symbol table. */
         EntityTable<LoopFields>& loops()
         {
             return dm_loops;
         }
 
-        /**
-         * Access the table of statements in this symbol table.
-         *
-         * @return    Table of statements in this symbol table.
-         */
+        /** Access the table of statements in this symbol table. */
         const EntityTable<StatementFields>& statements() const
         {
             return dm_statements;
         }
 
-        /**
-         * Access the table of statements in this symbol table.
-         *
-         * @return    Table of statements in this symbol table.
-         */
+        /** Access the table of statements in this symbol table. */
         EntityTable<StatementFields>& statements()
         {
             return dm_statements;

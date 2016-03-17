@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
-Copyright (c) 2012,2014-2015 Argo Navis Technologies. All Rights Reserved.
+Copyright (c) 2012,2014-2016 Argo Navis Technologies. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 <MRNet xmlns="http://www.krellinst.org/CBTF/MRNet.xsd">
 
   <Type>cuda</Type>
-  <Version>4.0.0</Version>
+  <Version>5.0.0</Version>
 
   <!--
      List of the network's outputs.
@@ -106,7 +106,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <Network xmlns="http://www.krellinst.org/CBTF/Network">
       
       <Type>cuda_frontend</Type>
-      <Version>4.0.0</Version>
+      <Version>5.0.0</Version>
       
       <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
       
@@ -116,7 +116,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
       <Component>
         <Name>Aggregator</Name>
-        <Type>AddressAggregatorForCUDA</Type>
+        <Type>DataAggregatorForCUDA</Type>
       </Component>
 
       <Component>
@@ -162,7 +162,14 @@ Place, Suite 330, Boston, MA  02111-1307  USA
         <From>
           <Name>Management</Name><Output>TriggerAddressBuffer</Output>
         </From>
-        <To><Name>Aggregator</Name><Input>Trigger</Input></To>
+        <To><Name>Aggregator</Name><Input>TriggerAddressBuffer</Input></To>
+      </Connection>
+      
+      <Connection>
+        <From>
+          <Name>Management</Name><Output>TriggerData</Output>
+        </From>
+        <To><Name>Aggregator</Name><Input>TriggerData</Input></To>
       </Connection>
       
       <!-- List of the frontend network's outputs -->

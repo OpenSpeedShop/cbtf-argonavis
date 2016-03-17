@@ -343,13 +343,13 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     // and visitMappings queries.
     //
     
-    address_spaces.loadLinkedObject(
+    address_spaces.load(
         thread1, linked_object1, AddressRange(0, 7)
         );
-    address_spaces.loadLinkedObject(
+    address_spaces.load(
         thread1, linked_object2, AddressRange(13, 27)
         );
-    address_spaces.loadLinkedObject(
+    address_spaces.load(
         thread1, linked_object3, AddressRange(13, 113), Time(13)
         );
     
@@ -400,9 +400,9 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     // and visitMappings queries.
     //
 
-    address_spaces.unloadLinkedObject(thread1, linked_object1);
-    address_spaces.unloadLinkedObject(thread1, linked_object2, Time(7));
-    address_spaces.unloadLinkedObject(thread1, linked_object3, Time(27));
+    address_spaces.unload(thread1, linked_object1);
+    address_spaces.unload(thread1, linked_object2, Time(7));
+    address_spaces.unload(thread1, linked_object3, Time(27));
     
     linked_objects.clear();
     address_spaces.visitLinkedObjects(
@@ -460,13 +460,13 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
             malloc(sizeof(CBTF_Protocol_LinkedObject))
             );
     group_message.linkedobjects.linkedobjects_val[0].linked_object =
-        linked_object5.getFile();
+        linked_object5.file();
     group_message.linkedobjects.linkedobjects_val[0].range.begin = 0;
     group_message.linkedobjects.linkedobjects_val[0].range.end = 7 + 1;
     group_message.linkedobjects.linkedobjects_val[0].time_begin = 13;
     group_message.linkedobjects.linkedobjects_val[0].time_end = 27 + 1;
 
-    address_spaces.applyMessage(group_message);
+    address_spaces.apply(group_message);
 
     linked_objects.clear();
     address_spaces.visitLinkedObjects(
@@ -475,7 +475,7 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     for (std::set<LinkedObject>::const_iterator
              i = linked_objects.begin(); i != linked_objects.end(); ++i)
     {
-        if (i->getFile() == linked_object5.getFile())
+        if (i->file() == linked_object5.file())
         {
             linked_object5 = *i;
         }
@@ -520,7 +520,7 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     loaded_message.time = 13;
     loaded_message.range.begin = 213;
     loaded_message.range.end = 227 + 1;
-    loaded_message.linked_object = linked_object4.getFile();
+    loaded_message.linked_object = linked_object4.file();
     
     CBTF_Protocol_UnloadedLinkedObject unloaded_message;
 
@@ -531,10 +531,10 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
             );
     unloaded_message.threads.names.names_val[0] = thread1;
     unloaded_message.time = Time::TheEnd();
-    unloaded_message.linked_object = linked_object4.getFile();
+    unloaded_message.linked_object = linked_object4.file();
     
-    address_spaces.applyMessage(loaded_message);
-    address_spaces.applyMessage(unloaded_message);
+    address_spaces.apply(loaded_message);
+    address_spaces.apply(unloaded_message);
 
     linked_objects.clear();
     address_spaces.visitLinkedObjects(
@@ -543,7 +543,7 @@ BOOST_AUTO_TEST_CASE(TestAddressSpace)
     for (std::set<LinkedObject>::const_iterator
              i = linked_objects.begin(); i != linked_objects.end(); ++i)
     {
-        if (i->getFile() == linked_object4.getFile())
+        if (i->file() == linked_object4.file())
         {
             linked_object4 = *i;
         }
@@ -685,7 +685,7 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     LinkedObject linked_object(FileName("/path/to/nonexistent/dso"));
     
     BOOST_CHECK_EQUAL(LinkedObject(linked_object), linked_object);
-    BOOST_CHECK_EQUAL(linked_object.getFile(),
+    BOOST_CHECK_EQUAL(linked_object.file(),
                       FileName("/path/to/nonexistent/dso"));
 
     //
@@ -720,10 +720,10 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     Function function1(linked_object, "_Z2f1RKf");
 
     BOOST_CHECK_EQUAL(Function(function1), function1);
-    BOOST_CHECK_EQUAL(function1.getLinkedObject(), linked_object);
-    BOOST_CHECK_EQUAL(function1.getMangledName(), "_Z2f1RKf");
-    BOOST_CHECK_EQUAL(function1.getDemangledName(), "f1(float const&)");
-    BOOST_CHECK(function1.getAddressRanges().empty());
+    BOOST_CHECK_EQUAL(function1.parent(), linked_object);
+    BOOST_CHECK_EQUAL(function1.mangled(), "_Z2f1RKf");
+    BOOST_CHECK_EQUAL(function1.demangled(), "f1(float const&)");
+    BOOST_CHECK(function1.ranges().empty());
 
     Function function2(linked_object, "_Z2f2RKf");
     Function function3(linked_object, "_Z2f3RKf");
@@ -757,12 +757,12 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
                          FileName("/path/to/nonexistent/source/file"), 1, 1);
 
     BOOST_CHECK_EQUAL(Statement(statement1), statement1);
-    BOOST_CHECK_EQUAL(statement1.getLinkedObject(), linked_object);
-    BOOST_CHECK_EQUAL(statement1.getFile(),
+    BOOST_CHECK_EQUAL(statement1.parent(), linked_object);
+    BOOST_CHECK_EQUAL(statement1.file(),
                       FileName("/path/to/nonexistent/source/file"));
-    BOOST_CHECK_EQUAL(statement1.getLine(), 1);
-    BOOST_CHECK_EQUAL(statement1.getColumn(), 1);
-    BOOST_CHECK(statement1.getAddressRanges().empty());
+    BOOST_CHECK_EQUAL(statement1.line(), 1);
+    BOOST_CHECK_EQUAL(statement1.column(), 1);
+    BOOST_CHECK(statement1.ranges().empty());
 
     Statement statement2(linked_object,
                          FileName("/path/to/nonexistent/source/file"), 20, 1);
@@ -790,26 +790,30 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
 
     addresses = boost::assign::list_of
         (AddressRange(0, 7))
-        (AddressRange(13, 27)).convert_to_container<std::set<AddressRange> >();
-    function1.addAddressRanges(addresses);
+        (AddressRange(13, 27))
+        .convert_to_container<std::set<AddressRange> >();
+    function1.add(addresses);
 
     addresses = boost::assign::list_of
-        (AddressRange(113, 127)).convert_to_container<std::set<AddressRange> >();
-    function2.addAddressRanges(addresses);
+        (AddressRange(113, 127))
+        .convert_to_container<std::set<AddressRange> >();
+    function2.add(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(7, 13))
-        (AddressRange(213, 227)).convert_to_container<std::set<AddressRange> >();
-    function3.addAddressRanges(addresses);
+        (AddressRange(213, 227))
+        .convert_to_container<std::set<AddressRange> >();
+    function3.add(addresses);
     
     addresses = boost::assign::list_of
-        (AddressRange(57, 63)).convert_to_container<std::set<AddressRange> >();
-    function4.addAddressRanges(addresses);
-    
-    BOOST_CHECK(!function1.getAddressRanges().empty());
-    BOOST_CHECK(!function2.getAddressRanges().empty());
-    BOOST_CHECK(!function3.getAddressRanges().empty());
-    BOOST_CHECK(!function4.getAddressRanges().empty());
+        (AddressRange(57, 63))
+        .convert_to_container<std::set<AddressRange> >();
+    function4.add(addresses);
+
+    BOOST_CHECK(!function1.ranges().empty());
+    BOOST_CHECK(!function2.ranges().empty());
+    BOOST_CHECK(!function3.ranges().empty());
+    BOOST_CHECK(!function4.ranges().empty());
 
     //
     // Test the LinkedObject::visitFunctions(<address_range>) query.
@@ -850,25 +854,29 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
 
     addresses = boost::assign::list_of
         (AddressRange(0, 7))
-        (AddressRange(113, 127)).convert_to_container<std::set<AddressRange> >();
-    statement1.addAddressRanges(addresses);
+        (AddressRange(113, 127))
+        .convert_to_container<std::set<AddressRange> >();
+    statement1.add(addresses);
 
     addresses = boost::assign::list_of
-        (AddressRange(13, 27)).convert_to_container<std::set<AddressRange> >();
-    statement2.addAddressRanges(addresses);
+        (AddressRange(13, 27))
+        .convert_to_container<std::set<AddressRange> >();
+    statement2.add(addresses);
 
     addresses = boost::assign::list_of
-        (AddressRange(75, 100)).convert_to_container<std::set<AddressRange> >();
-    statement3.addAddressRanges(addresses);
+        (AddressRange(75, 100))
+        .convert_to_container<std::set<AddressRange> >();
+    statement3.add(addresses);
     
     addresses = boost::assign::list_of
-        (AddressRange(213, 227)).convert_to_container<std::set<AddressRange> >();
-    statement4.addAddressRanges(addresses);
+        (AddressRange(213, 227))
+        .convert_to_container<std::set<AddressRange> >();
+    statement4.add(addresses);
 
-    BOOST_CHECK(!statement1.getAddressRanges().empty());
-    BOOST_CHECK(!statement2.getAddressRanges().empty());
-    BOOST_CHECK(!statement3.getAddressRanges().empty());
-    BOOST_CHECK(!statement4.getAddressRanges().empty());
+    BOOST_CHECK(!statement1.ranges().empty());
+    BOOST_CHECK(!statement2.ranges().empty());
+    BOOST_CHECK(!statement3.ranges().empty());
+    BOOST_CHECK(!statement4.ranges().empty());
 
     //
     // Test the LinkedObject::visitStatements(<address-range>) query.
@@ -1047,9 +1055,9 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     Loop loop1(linked_object, Address(13));
 
     BOOST_CHECK_EQUAL(Loop(loop1), loop1);
-    BOOST_CHECK_EQUAL(loop1.getLinkedObject(), linked_object);
-    BOOST_CHECK_EQUAL(loop1.getHeadAddress(), Address(13));
-    BOOST_CHECK(loop1.getAddressRanges().empty());
+    BOOST_CHECK_EQUAL(loop1.parent(), linked_object);
+    BOOST_CHECK_EQUAL(loop1.head(), Address(13));
+    BOOST_CHECK(loop1.ranges().empty());
 
     Loop loop2(linked_object, Address(0));
     Loop loop3(loop1.clone(linked_object));
@@ -1073,21 +1081,24 @@ BOOST_AUTO_TEST_CASE(TestSymbolTable)
     //
 
     addresses = boost::assign::list_of
-        (AddressRange(13, 27)).convert_to_container<std::set<AddressRange> >();
-    loop1.addAddressRanges(addresses);
+        (AddressRange(13, 27))
+        .convert_to_container<std::set<AddressRange> >();
+    loop1.add(addresses);
 
     addresses = boost::assign::list_of
         (AddressRange(0, 7))
-        (AddressRange(110, 130)).convert_to_container<std::set<AddressRange> >();
-    loop2.addAddressRanges(addresses);
+        (AddressRange(110, 130))
+        .convert_to_container<std::set<AddressRange> >();
+    loop2.add(addresses);
 
     addresses = boost::assign::list_of
-        (AddressRange(13, 100)).convert_to_container<std::set<AddressRange> >();
-    loop3.addAddressRanges(addresses);
+        (AddressRange(13, 100))
+        .convert_to_container<std::set<AddressRange> >();
+    loop3.add(addresses);
 
-    BOOST_CHECK(!loop1.getAddressRanges().empty());
-    BOOST_CHECK(!loop2.getAddressRanges().empty());
-    BOOST_CHECK(!loop3.getAddressRanges().empty());
+    BOOST_CHECK(!loop1.ranges().empty());
+    BOOST_CHECK(!loop2.ranges().empty());
+    BOOST_CHECK(!loop3.ranges().empty());
 
     //
     // Test the LinkedObject::visitLoops(<address_range>) query.
@@ -1314,44 +1325,59 @@ BOOST_AUTO_TEST_CASE(TestThreadName)
     ThreadName name2("first.host", 13, 27);
     ThreadName name3("first.host", 13, 2002);
     ThreadName name4("first.host", 13, 2002, 2004);
-    ThreadName name5("second.host", 13);
+    ThreadName name5("first.host", 13, 2002, boost::none, 911);
+    ThreadName name6("second.host", 13);
 
     BOOST_CHECK_EQUAL(name1.host(), name2.host());
     BOOST_CHECK_EQUAL(name2.host(), name3.host());
     BOOST_CHECK_EQUAL(name3.host(), name4.host());
-    BOOST_CHECK_NE(name4.host(), name5.host());
+    BOOST_CHECK_EQUAL(name4.host(), name5.host());
+    BOOST_CHECK_NE(name5.host(), name6.host());
 
     BOOST_CHECK_EQUAL(name1.pid(), name2.pid());
     BOOST_CHECK_EQUAL(name2.pid(), name3.pid());
     BOOST_CHECK_EQUAL(name3.pid(), name4.pid());
     BOOST_CHECK_EQUAL(name4.pid(), name5.pid());
+    BOOST_CHECK_EQUAL(name5.pid(), name6.pid());
 
     BOOST_CHECK_EQUAL(static_cast<bool>(name1.tid()), false);
     BOOST_CHECK_EQUAL(static_cast<bool>(name2.tid()), true);
     BOOST_CHECK_EQUAL(static_cast<bool>(name3.tid()), true);
     BOOST_CHECK_EQUAL(static_cast<bool>(name4.tid()), true);
-    BOOST_CHECK_EQUAL(static_cast<bool>(name5.tid()), false);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name5.tid()), true);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name6.tid()), false);
     BOOST_CHECK_NE(*name2.tid(), *name3.tid());
     BOOST_CHECK_EQUAL(*name3.tid(), *name4.tid());
 
-    BOOST_CHECK_EQUAL(static_cast<bool>(name1.rank()), false);
-    BOOST_CHECK_EQUAL(static_cast<bool>(name2.rank()), false);
-    BOOST_CHECK_EQUAL(static_cast<bool>(name3.rank()), false);
-    BOOST_CHECK_EQUAL(static_cast<bool>(name4.rank()), true);
-    BOOST_CHECK_EQUAL(static_cast<bool>(name5.rank()), false);
-    BOOST_CHECK_EQUAL(*name4.rank(), 2004);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name1.mpi_rank()), false);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name2.mpi_rank()), false);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name3.mpi_rank()), false);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name4.mpi_rank()), true);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name5.mpi_rank()), false);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name6.mpi_rank()), false);
+    BOOST_CHECK_EQUAL(*name4.mpi_rank(), 2004);
+    
+    BOOST_CHECK_EQUAL(static_cast<bool>(name1.omp_rank()), false);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name2.omp_rank()), false);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name3.omp_rank()), false);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name4.omp_rank()), false);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name5.omp_rank()), true);
+    BOOST_CHECK_EQUAL(static_cast<bool>(name6.omp_rank()), false);
+    BOOST_CHECK_EQUAL(*name5.omp_rank(), 911);
     
     BOOST_CHECK_NE(name1, name2);
     BOOST_CHECK_NE(name2, name3);
     BOOST_CHECK_EQUAL(name3, name4);
-    BOOST_CHECK_NE(name4, name5);
-    BOOST_CHECK_NE(name5, name1);
+    BOOST_CHECK_EQUAL(name4, name5);
+    BOOST_CHECK_NE(name5, name6);
+    BOOST_CHECK_NE(name6, name1);
 
     BOOST_CHECK_LT(name1, name2);
     BOOST_CHECK_LT(name2, name3);
     BOOST_CHECK_EQUAL(name3, name4);
-    BOOST_CHECK_LT(name4, name5);
-    BOOST_CHECK_GT(name5, name1);
+    BOOST_CHECK_EQUAL(name4, name5);
+    BOOST_CHECK_LT(name5, name6);
+    BOOST_CHECK_GT(name6, name1);
 
     BOOST_CHECK_EQUAL(static_cast<std::string>(name1),
                       "Host \"first.host\", PID 13");
@@ -1362,7 +1388,28 @@ BOOST_AUTO_TEST_CASE(TestThreadName)
     BOOST_CHECK_EQUAL(static_cast<std::string>(name4),
                       "MPI Rank 2004, TID 0x00000000000007D2");
     BOOST_CHECK_EQUAL(static_cast<std::string>(name5),
+                      "Host \"first.host\", PID 13, OpenMP Rank 911");
+    BOOST_CHECK_EQUAL(static_cast<std::string>(name6),
                       "Host \"second.host\", PID 13");
+
+    BOOST_CHECK_EQUAL(
+        ThreadName(static_cast<CBTF_DataHeader>(name1)), name1
+        );
+    BOOST_CHECK_EQUAL(
+        ThreadName(static_cast<CBTF_DataHeader>(name2)), name2
+        );
+    BOOST_CHECK_EQUAL(
+        ThreadName(static_cast<CBTF_DataHeader>(name3)), name3
+        );
+    BOOST_CHECK_EQUAL(
+        ThreadName(static_cast<CBTF_DataHeader>(name4)), name4
+        );
+    BOOST_CHECK_EQUAL(
+        ThreadName(static_cast<CBTF_DataHeader>(name5)), name5
+        );
+    BOOST_CHECK_EQUAL(
+        ThreadName(static_cast<CBTF_DataHeader>(name6)), name6
+        );
 
     BOOST_CHECK_EQUAL(
         ThreadName(static_cast<CBTF_Protocol_ThreadName>(name1)), name1
@@ -1378,6 +1425,9 @@ BOOST_AUTO_TEST_CASE(TestThreadName)
         );
     BOOST_CHECK_EQUAL(
         ThreadName(static_cast<CBTF_Protocol_ThreadName>(name5)), name5
+        );
+    BOOST_CHECK_EQUAL(
+        ThreadName(static_cast<CBTF_Protocol_ThreadName>(name6)), name6
         );
 }
 

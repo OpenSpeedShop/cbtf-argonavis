@@ -23,6 +23,7 @@
 #include <boost/bind.hpp>
 #include <boost/ref.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <cstring>
 #include <set>
 
 #include <ArgoNavis/Base/AddressSpaces.hpp>
@@ -51,7 +52,7 @@ namespace {
                                    bool& contains)
     {
         contains |= ((thread == x_thread) &&
-                     (linked_object.getFile() == x_linked_object.getFile()) &&
+                     (linked_object.file() == x_linked_object.file()) &&
                      (range == x_range) &&
                      (interval == x_interval));
         return !contains;
@@ -106,12 +107,15 @@ AddressSpaces::operator CBTF_Protocol_AttachedToThreads() const
     std::set<ThreadName> threads;
     
     for (MappingIndex::const_iterator
-             i = dm_mappings.begin(), iEnd = dm_mappings.end(); i != iEnd; ++i)
+             i = dm_mappings.begin(), i_end = dm_mappings.end();
+         i != i_end;
+         ++i)
     {
         threads.insert(i->dm_thread);
     }
 
     CBTF_Protocol_AttachedToThreads message;
+    memset(&message, 0, sizeof(message));
 
     message.threads.names.names_len = threads.size();
     message.threads.names.names_val =
@@ -140,7 +144,9 @@ AddressSpaces::operator std::vector<CBTF_Protocol_LinkedObjectGroup>() const
     std::set<ThreadName> threads;
 
     for (MappingIndex::const_iterator
-             i = dm_mappings.begin(), iEnd = dm_mappings.end(); i != iEnd; ++i)
+             i = dm_mappings.begin(), i_end = dm_mappings.end();
+         i != i_end;
+         ++i)
     {
         threads.insert(i->dm_thread);
     }
@@ -171,7 +177,7 @@ AddressSpaces::operator std::vector<CBTF_Protocol_LinkedObjectGroup>() const
             CBTF_Protocol_LinkedObject& subentry = 
                 entry.linkedobjects.linkedobjects_val[n];
             
-            subentry.linked_object = j->dm_linked_object.getFile();
+            subentry.linked_object = j->dm_linked_object.file();
             subentry.range = j->dm_range;
             subentry.time_begin = j->dm_interval.begin();
             subentry.time_end = j->dm_interval.end() + 1;
@@ -190,7 +196,7 @@ AddressSpaces::operator std::vector<CBTF_Protocol_LinkedObjectGroup>() const
 // Existing linked objects are used when found and new linked objects are added
 // as necessary.
 //------------------------------------------------------------------------------
-void AddressSpaces::applyMessage(const CBTF_Protocol_LinkedObjectGroup& message)
+void AddressSpaces::apply(const CBTF_Protocol_LinkedObjectGroup& message)
 {
     for (u_int i = 0; i < message.linkedobjects.linkedobjects_len; ++i)
     {
@@ -222,15 +228,13 @@ void AddressSpaces::applyMessage(const CBTF_Protocol_LinkedObjectGroup& message)
 // Iterate over each thread in the given CBTF_Protocol_LoadedLinkedObject and
 // call loadLinkedObject() with values provided in the message.
 //------------------------------------------------------------------------------
-void AddressSpaces::applyMessage(
-    const CBTF_Protocol_LoadedLinkedObject& message
-    )
+void AddressSpaces::apply(const CBTF_Protocol_LoadedLinkedObject& message)
 {
     for (u_int i = 0; i < message.threads.names.names_len; ++i)
     {
-        loadLinkedObject(ThreadName(message.threads.names.names_val[i]),
-                         LinkedObject(message.linked_object),
-                         message.range, message.time);
+        load(ThreadName(message.threads.names.names_val[i]),
+             LinkedObject(message.linked_object),
+             message.range, message.time);
     }
 }
 
@@ -240,15 +244,13 @@ void AddressSpaces::applyMessage(
 // Iterate over each thread in the given CBTF_Protocol_UnloadedLinkedObject and
 // call unloadLinkedObject() with values provided in the message.
 //------------------------------------------------------------------------------
-void AddressSpaces::applyMessage(
-    const CBTF_Protocol_UnloadedLinkedObject& message
-    )
+void AddressSpaces::apply(const CBTF_Protocol_UnloadedLinkedObject& message)
 {
     for (u_int i = 0; i < message.threads.names.names_len; ++i)
     {
-        unloadLinkedObject(ThreadName(message.threads.names.names_val[i]),
-                           LinkedObject(message.linked_object),
-                           message.time);
+        unload(ThreadName(message.threads.names.names_val[i]),
+               LinkedObject(message.linked_object),
+               message.time);
     }
 }
 
@@ -261,7 +263,7 @@ void AddressSpaces::applyMessage(
 // is somewhat complicated because not only does the (indexed) list of linked
 // objects need to be updated, but all of the relevant mappings as well.
 //------------------------------------------------------------------------------
-void AddressSpaces::applyMessage(const CBTF_Protocol_SymbolTable& message)
+void AddressSpaces::apply(const CBTF_Protocol_SymbolTable& message)
 {
     FileName file = message.linked_object;
     
@@ -298,18 +300,18 @@ void AddressSpaces::applyMessage(const CBTF_Protocol_SymbolTable& message)
 // Existing linked objects are used when found and new linked objects are added
 // as necessary.
 //------------------------------------------------------------------------------
-void AddressSpaces::loadLinkedObject(const ThreadName& thread,
-                                     const LinkedObject& linked_object,
-                                     const AddressRange& range,
-                                     const Time& when)
+void AddressSpaces::load(const ThreadName& thread,
+                         const LinkedObject& linked_object,
+                         const AddressRange& range,
+                         const Time& when)
 {
     std::map<FileName, LinkedObject>::const_iterator i = 
-        dm_linked_objects.find(linked_object.getFile());
+        dm_linked_objects.find(linked_object.file());
     
     if (i == dm_linked_objects.end())
     {
         i = dm_linked_objects.insert(
-            std::make_pair(linked_object.getFile(), linked_object)
+            std::make_pair(linked_object.file(), linked_object)
             ).first;
     }
     
@@ -325,18 +327,18 @@ void AddressSpaces::loadLinkedObject(const ThreadName& thread,
 // being unloaded, and that have an end time that is the last possible time, and
 // update those end times to be the given time.
 //------------------------------------------------------------------------------
-void AddressSpaces::unloadLinkedObject(const ThreadName& thread,
-                                       const LinkedObject& linked_object,
-                                       const Time& when)
+void AddressSpaces::unload(const ThreadName& thread,
+                           const LinkedObject& linked_object,
+                           const Time& when)
 {
     for (MappingIndex::nth_index<2>::type::iterator
              i = dm_mappings.get<2>().lower_bound(
                  boost::make_tuple(thread, linked_object)
                  ),
-             iEnd = dm_mappings.get<2>().upper_bound(
+             i_end = dm_mappings.get<2>().upper_bound(
                  boost::make_tuple(thread, linked_object)
                  );
-         i != iEnd;
+         i != i_end;
          ++i)
     {
         if (i->dm_interval.end() == Time::TheEnd())
@@ -359,8 +361,8 @@ void AddressSpaces::visitThreads(const ThreadVisitor& visitor) const
     std::set<ThreadName> visited;
     
     for (MappingIndex::const_iterator
-             i = dm_mappings.begin(), iEnd = dm_mappings.end();
-         !terminate && (i != iEnd);
+             i = dm_mappings.begin(), i_end = dm_mappings.end();
+         !terminate && (i != i_end);
          ++i)
     {
         if (visited.find(i->dm_thread) == visited.end())
@@ -380,8 +382,8 @@ void AddressSpaces::visitLinkedObjects(const LinkedObjectVisitor& visitor) const
     bool terminate = false;
 
     for (std::map<FileName, LinkedObject>::const_iterator
-             i = dm_linked_objects.begin(), iEnd = dm_linked_objects.end();
-         !terminate && (i != iEnd);
+             i = dm_linked_objects.begin(), i_end = dm_linked_objects.end();
+         !terminate && (i != i_end);
          ++i)
     {
         terminate |= !visitor(i->second);
@@ -400,8 +402,8 @@ void AddressSpaces::visitLinkedObjects(const ThreadName& thread,
 
     for (MappingIndex::nth_index<0>::type::const_iterator
              i = dm_mappings.get<0>().lower_bound(thread),
-             iEnd = dm_mappings.get<0>().upper_bound(thread);
-         !terminate && (i != iEnd);
+             i_end = dm_mappings.get<0>().upper_bound(thread);
+         !terminate && (i != i_end);
          ++i)
     {
         if (visited.find(i->dm_linked_object) == visited.end())
@@ -421,8 +423,8 @@ void AddressSpaces::visitMappings(const MappingVisitor& visitor) const
     bool terminate = false;
 
     for (MappingIndex::const_iterator
-             i = dm_mappings.begin(), iEnd = dm_mappings.end();
-         !terminate && (i != iEnd);
+             i = dm_mappings.begin(), i_end = dm_mappings.end();
+         !terminate && (i != i_end);
          ++i)
     {
         terminate |= !visitor(i->dm_thread, i->dm_linked_object,
@@ -441,8 +443,8 @@ void AddressSpaces::visitMappings(const ThreadName& thread,
 
     for (MappingIndex::nth_index<0>::type::const_iterator
              i = dm_mappings.get<0>().lower_bound(thread),
-             iEnd = dm_mappings.get<0>().upper_bound(thread);
-         !terminate && (i != iEnd);
+             i_end = dm_mappings.get<0>().upper_bound(thread);
+         !terminate && (i != i_end);
          ++i)
     {
         terminate |= !visitor(i->dm_thread, i->dm_linked_object,
@@ -463,8 +465,8 @@ void AddressSpaces::visitMappings(const ThreadName& thread,
 
     for (MappingIndex::nth_index<0>::type::const_iterator
              i = dm_mappings.get<0>().lower_bound(thread),
-             iEnd = dm_mappings.get<0>().upper_bound(thread);
-         !terminate && (i != iEnd);
+             i_end = dm_mappings.get<0>().upper_bound(thread);
+         !terminate && (i != i_end);
          ++i)
     {
         if (i->dm_range.intersects(range) &&

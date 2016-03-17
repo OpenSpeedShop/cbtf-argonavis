@@ -23,12 +23,14 @@ add_custom_command(
     COMMAND rm -f ${CMAKE_CURRENT_BINARY_DIR}/CUDA_data.c
     COMMAND rpcgen -h -o ${CMAKE_CURRENT_BINARY_DIR}/CUDA_data.h CUDA_data.x
     COMMAND rpcgen -c -o ${CMAKE_CURRENT_BINARY_DIR}/CUDA_data.c CUDA_data.x
+    COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/KrellInstitute/Messages
+    COMMAND ln -s -f ${CMAKE_CURRENT_BINARY_DIR}/CUDA_data.h ${CMAKE_CURRENT_BINARY_DIR}/KrellInstitute/Messages/CUDA_data.h
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/CUDA_data.x
     OUTPUT CUDA_data.h CUDA_data.c
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
-include_directories(
+target_include_directories(cbtf-messages-cuda PUBLIC
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     )
@@ -40,7 +42,7 @@ target_link_libraries(cbtf-messages-cuda
 set_target_properties(cbtf-messages-cuda PROPERTIES VERSION 1.1.0)
 
 install(
-    FILES ${PROJECT_BINARY_DIR}/CUDA/messages/CUDA_data.h 
+    FILES ${PROJECT_BINARY_DIR}/CUDA/messages/CUDA_data.h
     DESTINATION include/KrellInstitute/Messages
     )
 

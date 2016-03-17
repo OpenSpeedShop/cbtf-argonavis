@@ -19,10 +19,12 @@
 
 add_library(argonavis-base SHARED
     ArgoNavis/Base/Address.hpp
-    ArgoNavis/Base/AddressBitmap.hpp AddressBitmap.cpp    
+    ArgoNavis/Base/AddressVisitor.hpp
+    ArgoNavis/Base/AddressBitmap.hpp AddressBitmap.cpp
     ArgoNavis/Base/AddressRange.hpp
     ArgoNavis/Base/AddressSet.hpp AddressSet.cpp
-    ArgoNavis/Base/AddressSpaces.hpp AddressSpaces.cpp 
+    ArgoNavis/Base/AddressSpaces.hpp AddressSpaces.cpp
+    ArgoNavis/Base/BlobVisitor.hpp
     ArgoNavis/Base/FileName.hpp FileName.cpp
     ArgoNavis/Base/Function.hpp Function.cpp
     ArgoNavis/Base/FunctionVisitor.hpp
@@ -34,6 +36,7 @@ add_library(argonavis-base SHARED
     ArgoNavis/Base/MappingVisitor.hpp
     ArgoNavis/Base/Raise.hpp
     ArgoNavis/Base/Resolver.hpp Resolver.cpp
+    ArgoNavis/Base/StackTrace.hpp
     ArgoNavis/Base/Statement.hpp Statement.cpp
     ArgoNavis/Base/StatementVisitor.hpp
     ArgoNavis/Base/ThreadName.hpp ThreadName.cpp
@@ -46,7 +49,7 @@ add_library(argonavis-base SHARED
     SymbolTable.hpp SymbolTable.cpp
     )
 
-include_directories(
+target_include_directories(argonavis-base PUBLIC
     ${Boost_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     )
@@ -58,14 +61,18 @@ target_link_libraries(argonavis-base
     ${CBTF_KRELL_MESSAGES_LIBRARIES}
     )
 
-set_target_properties(argonavis-base PROPERTIES VERSION 1.1.0)
-
 add_executable(test-base test.cpp)
+
+target_include_directories(test-base PUBLIC
+    ${Boost_INCLUDE_DIRS}
+    )
 
 target_link_libraries(test-base
     argonavis-base
     ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
     )
+
+set_target_properties(argonavis-base PROPERTIES VERSION 1.1.0)
 
 install(DIRECTORY ArgoNavis DESTINATION include)
 

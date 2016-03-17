@@ -141,11 +141,7 @@ namespace ArgoNavis { namespace Base { namespace Impl {
             return dm_entities[uid].first;
         }
         
-        /**
-         * Get the size of this table.
-         *
-         * @return    Size of this table.
-         */
+        /** Get the size of this table. */
         EntityUID size() const
         {
             return dm_entities.size();
@@ -160,6 +156,9 @@ namespace ArgoNavis { namespace Base { namespace Impl {
          * @param symbol_table    Symbol table containing this table.
          * @param visitor         Visitor invoked for each entity
          *                        contained within this table.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          */
         template <typename E, typename V>
         void visit(const boost::shared_ptr<SymbolTable>& symbol_table,
@@ -168,8 +167,8 @@ namespace ArgoNavis { namespace Base { namespace Impl {
             E entity(symbol_table, 0);
             bool terminate = false;
             
-            for (EntityUID i = 0, iEnd = dm_entities.size();
-                 !terminate && (i != iEnd); 
+            for (EntityUID i = 0, i_end = dm_entities.size();
+                 !terminate && (i != i_end); 
                  ++i)
             {
                 entity.dm_unique_identifier = i;
@@ -187,6 +186,9 @@ namespace ArgoNavis { namespace Base { namespace Impl {
          * @param symbol_table    Symbol table containing this table.
          * @param visitor         Visitor invoked for each entity
          *                        contained within this table.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          *
          * @todo    The current implementation of AddressSet is not efficient
          *          at storing a single AddressRange. Once that inadequacy is
@@ -211,10 +213,10 @@ namespace ArgoNavis { namespace Base { namespace Impl {
                 --i;
             }
             
-            AddressRangeIndex::nth_index<1>::type::const_iterator iEnd = 
+            AddressRangeIndex::nth_index<1>::type::const_iterator i_end = 
                 dm_index.get<1>().upper_bound(range.end());
             
-            for (; !terminate && (i != iEnd); ++i)
+            for (; !terminate && (i != i_end); ++i)
             {
                 if (i->dm_range.intersects(range) &&
                     (i->dm_uid < visited.size()) &&
@@ -237,6 +239,9 @@ namespace ArgoNavis { namespace Base { namespace Impl {
          * @param symbol_table    Symbol table containing this table.
          * @param visitor         Visitor invoked for each entity
          *                        contained within this table.
+         *
+         * @note    The visitation is terminated immediately if "false" is
+         *          returned by the visitor.
          *
          * @todo    The current implementation of AddressSet does not provide
          *          an interface for visiting the address ranges in the set.
@@ -267,10 +272,10 @@ namespace ArgoNavis { namespace Base { namespace Impl {
                     --i;
                 }
                 
-                AddressRangeIndex::nth_index<1>::type::const_iterator iEnd = 
+                AddressRangeIndex::nth_index<1>::type::const_iterator i_end = 
                     dm_index.get<1>().upper_bound(range.end());
                 
-                for (; !terminate && (i != iEnd); ++i)
+                for (; !terminate && (i != i_end); ++i)
                 {
                     if (i->dm_range.intersects(range) &&
                         (i->dm_uid < visited.size()) &&
