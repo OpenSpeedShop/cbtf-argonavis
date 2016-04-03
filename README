@@ -1,30 +1,44 @@
 
 NOTES ON BUILDING
 
-# Setup cmake environment if it is not default on your system
+# Use a version of cmake: 2.8.12 or greater.
+# if not installed by default on the build system.
 module load cmake
 
-# This is an example where some of the individual components are in the externals directory: 
-# /opt/krellroot_v2.1u3oldmr
+An example cmake run script is as follows:
 
-# The install-cbtf line builds all the cbtf-argonavis subdirectories.
-# Not all the --with-<component> options below are needed (have arguments), but are shown
-# to show that they are available if your particular build needs to specify an alternative install location.
+$ cat run_cmake_argo.sh
+rm -rf  build
+mkdir build
+pushd build
 
-./install-cbtf --install-prefix /opt/cbtf_only_v1.1u1oldmr 
-               --with-cbtf-root /opt/krellroot_v2.1u3oldmr 
-               --with-binutils-root 
-               --with-libelf-root 
-               --with-libdwarf-root /opt/krellroot_v2.1u3oldmr 
-               --with-libunwind-root /opt/krellroot_v2.1u3oldmr 
-               --with-papi-root /opt/krellroot_v2.1u3oldmr 
-               --with-libmonitor-root /opt/krellroot_v2.1u3oldmr 
-               --with-dyninst-root /opt/krellroot_v2.1u3oldmr 
-               --with-mrnet-root /opt/krellroot_v2.1u3oldmr 
-               --with-boost-root 
-               --with-xercesc-root 
-               --with-openmpi /opt/openmpi-1.6.5
+export CC=`which gcc`
+export CXX=`which g++`
 
-# If you build again, remove the CUDA/build directory.
+export KRELL_ROOT=/opt/krellroot_v2.2.2
+export DYNINST_ROOT=/opt/krellroot_v2.2.2
+export CBTF_ROOT=/opt/cbtf_v2.2.2
+export CBTF_KRELL_ROOT=/opt/cbtf_v2.2.2
+export CBTF_ARGO_PREFIX=/opt/cbtf_v2.2.2
+export MY_CUDA_ROOT=/usr/local/cuda
 
+export MY_CMAKE_PREFIX_PATH="${KRELL_ROOT}:${CBTF_ROOT}:${CBTF_KRELL_ROOT}"
+
+cmake .. \
+        -DCMAKE_BUILD_TYPE=None \
+        -DCMAKE_CXX_FLAGS="-g -O2" \
+        -DCMAKE_C_FLAGS="-g -O2" \
+	-DCMAKE_VERBOSE_MAKEFILE=ON \
+	-DCMAKE_INSTALL_PREFIX=${CBTF_ARGO_PREFIX} \
+	-DCMAKE_PREFIX_PATH=${MY_CMAKE_PREFIX_PATH} \
+	-DCBTF_DIR=${CBTF_ROOT} \
+	-DCBTF_KRELL_DIR=${CBTF_KRELL_ROOT} \
+        -DCUPTI_DIR=${MY_CUDA_ROOT}/extras/CUPTI \
+        -DCUDA_INSTALL_PATH=${MY_CUDA_ROOT}\
+        -DCUDA_DIR=${MY_CUDA_ROOT} \
+	-DMRNET_DIR=${KRELL_ROOT} 
+
+make clean
+make
+make install
 
