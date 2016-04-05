@@ -176,7 +176,25 @@ void TLS_send_data(TLS* tls)
 {
     Assert(tls != NULL);
 
-    if (tls->data.messages.messages_len > 0)
+    bool send = FALSE;
+
+#if defined(PAPI_FOUND)
+    if (OverflowSamplingCount > 0)
+    {
+        send = (tls->data.messages.messages_len > 2) ||
+            (tls->overflow_samples.message->pcs.pcs_len > 0) ||
+            (tls->periodic_samples.message->deltas.deltas_len > 0);
+    }
+    else
+    {
+        send = (tls->data.messages.messages_len > 1) ||
+            (tls->periodic_samples.message->deltas.deltas_len > 0);
+    }
+#else
+    send = (tls->data.messages.messages_len > 0);
+#endif
+    
+    if (send)
     {
 #if !defined(NDEBUG)
         if (IsDebugEnabled)

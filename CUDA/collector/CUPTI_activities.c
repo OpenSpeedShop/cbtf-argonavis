@@ -44,6 +44,16 @@
 
 
 
+#if (CUPTI_API_VERSION >= 4)
+/**
+ * Fake (actually process-wide) thread-local storage. Used to store and send
+ * activities for CUPTI API versions 4 and above.
+ */
+static TLS FakeTLS;
+#endif
+
+
+
 /**
  * Convert a CUpti_ActivityMemcpyKind enumerant to a CUDA_CopyKind enumerant.
  *
@@ -438,11 +448,8 @@ static void allocate(uint8_t** buffer, size_t* allocated, size_t* max_records)
 static void callback(CUcontext context, uint32_t stream_id,
                      uint8_t* buffer, size_t allocated, size_t size)
 {
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-    
     /* Actually add these activities */
-    add(tls, context, stream_id, buffer, size);
+    add(&FakeTLS, context, stream_id, buffer, size);
 }
 #endif
 
@@ -461,6 +468,9 @@ void CUPTI_activities_start()
                     BUFFER_SIZE
                     ));
 #else
+    /* Initialize the process-wide performance data header and blob */
+    TLS_initialize_data(&FakeTLS);
+
     /* Register callbacks with CUPTI for activity buffer handling */
     CUPTI_CHECK(cuptiActivityRegisterCallbacks(allocate, callback));
 #endif
@@ -524,7 +534,7 @@ void CUPTI_activities_add(TLS* tls, CUcontext context, CUstream stream)
 
 
 /**
- * Ensure that all CUPTI activity data for this process has been flushed.
+ * Ensure all CUPTI activity data for this process has been flushed.
  */
 void CUPTI_activities_flush()
 {
@@ -549,4 +559,9 @@ void CUPTI_activities_stop()
     CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_DEVICE));
     CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_MEMCPY));
     CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_KERNEL));
+
+#if (CUPTI_API_VERSION >= 4)
+    /* Send any remaining performance data for this process */
+    TLS_send_data(&FakeTLS);
+#endif
 }

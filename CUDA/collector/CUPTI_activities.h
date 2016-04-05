@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -37,7 +37,7 @@ void CUPTI_activities_start();
  */
 void CUPTI_activities_add(TLS* tls, CUcontext context, CUstream stream);
 
-/* Ensure that all CUPTI activity data for this process has been flushed. */
+/* Ensure all CUPTI activity data for this process has been flushed. */
 void CUPTI_activities_flush();
 
 /* Stop CUPTI activity data collection for this process. */

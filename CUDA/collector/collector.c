@@ -20,7 +20,6 @@
 
 #include <inttypes.h>
 #include <pthread.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -387,6 +386,9 @@ void cbtf_collector_stop()
 
     if (ThreadCount.value == 0)
     {
+        /* Ensure all CUPTI activity data for this process has been flushed. */
+        CUPTI_activities_flush();
+
         /* Stop CUPTI activity data collection for this process */
         CUPTI_activities_stop();
         
