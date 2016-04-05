@@ -131,6 +131,9 @@ typedef struct {
     CBTF_Protocol_Address stack_traces[MAX_ADDRESSES_PER_BLOB];
 
 #if defined(PAPI_FOUND)
+    /** Flag indicating if CUDA_SamplingConfig was appended for this thread. */
+    bool appended_sampling_config;
+
     /** Number of eventsets for this thread. */
     int eventset_count;
     
@@ -157,16 +160,10 @@ typedef struct {
     /** Current overflow samples for this thread. */
     struct {
 
-        /**
-         * Pointer to the message containing the overflow event samples. There
-         * is always one such message within every performance data blob when
-         * overflow event sampling is enabled.
-         */
-        CUDA_OverflowSamples* message;
+        /** Message containing the overflow event samples. */
+        CUDA_OverflowSamples message;
 
-        /**
-         * Program counter (PC) addresses. Pointed to by the above message.
-         */
+        /** Program counter (PC) addresses. Pointed to by the above message. */
         CBTF_Protocol_Address pcs[MAX_OVERFLOW_PCS_PER_BLOB];
 
         /**
@@ -188,16 +185,10 @@ typedef struct {
     /** Current periodic event samples for this thread. */
     struct {
         
-        /**
-         * Pointer to the message containing the periodic event samples. There
-         * is always one such message within every performance data blob when
-         * periodic event sampling is enabled.
-         */
-        CUDA_PeriodicSamples* message;
+        /** Message containing the periodic event samples. */
+        CUDA_PeriodicSamples message;
         
-        /**
-         * Time and event count deltas. Pointed to by the above message.
-         */
+        /** Time and event count deltas. Pointed to by the above message. */
         uint8_t deltas[MAX_DELTAS_BYTES_PER_BLOB];
         
         /** Previously taken event sample. */

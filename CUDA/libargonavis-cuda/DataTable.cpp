@@ -786,7 +786,7 @@ bool DataTable::generate(const PerProcessData& per_process,
         return false; // Terminate the iteration
     }
         
-    message->type = SamplingConfig;    
+    message->type = SamplingConfig;
     CUDA_SamplingConfig& config = message->CBTF_cuda_message_u.sampling_config;
 
     config.interval = 0; // TODO: Use the real interval!?

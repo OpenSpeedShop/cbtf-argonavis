@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -174,7 +174,7 @@ static void papi_callback(int eventset, void* address,
              * in the existing overflow samples to add this sample's PC address.
              * Doing so frees up enoguh space for this sample.
              */
-            if (tls->overflow_samples.message->pcs.pcs_len == 
+            if (tls->overflow_samples.message.pcs.pcs_len == 
                 MAX_OVERFLOW_PCS_PER_BLOB)
             {
                 TLS_send_data(tls);
@@ -182,11 +182,11 @@ static void papi_callback(int eventset, void* address,
             }
 
             /* Add an entry for this sample to the existing overflow samples */
-            pcs[tls->overflow_samples.message->pcs.pcs_len] = pc;
-            memset(&counts[tls->overflow_samples.message->counts.counts_len],
+            pcs[tls->overflow_samples.message.pcs.pcs_len] = pc;
+            memset(&counts[tls->overflow_samples.message.counts.counts_len],
                    0, OverflowSamplingCount * sizeof(uint64_t));            
-            hash_table[bucket] = ++tls->overflow_samples.message->pcs.pcs_len;
-            tls->overflow_samples.message->counts.counts_len += 
+            hash_table[bucket] = ++tls->overflow_samples.message.pcs.pcs_len;
+            tls->overflow_samples.message.counts.counts_len += 
                 OverflowSamplingCount;
                                     
             /* Update the header with this sample's address */
@@ -214,13 +214,13 @@ static void papi_callback(int eventset, void* address,
 
     TLS_update_header_with_time(tls, time);
 
-    if (time < tls->overflow_samples.message->time_begin)
+    if (time < tls->overflow_samples.message.time_begin)
     {
-        tls->overflow_samples.message->time_begin = time;
+        tls->overflow_samples.message.time_begin = time;
     }
-    if (time >= tls->overflow_samples.message->time_end)
+    if (time >= tls->overflow_samples.message.time_end)
     {
-        tls->overflow_samples.message->time_end = time;
+        tls->overflow_samples.message.time_end = time;
     }
 }
 #endif
@@ -272,7 +272,7 @@ static void timer_callback(const ucontext_t* context)
      * This facilitates easy restarting of the encoding in the event there
      * isn't enough room left in the array for the entire encoding.
      */
-    int index = tls->periodic_samples.message->deltas.deltas_len;
+    int index = tls->periodic_samples.message.deltas.deltas_len;
 
     /*
      * Get pointers to the values in the new (current) and previous event
@@ -336,7 +336,7 @@ static void timer_callback(const ucontext_t* context)
         if ((index + num_bytes) > MAX_DELTAS_BYTES_PER_BLOB)
         {
             TLS_send_data(tls);
-            index = tls->periodic_samples.message->deltas.deltas_len;
+            index = tls->periodic_samples.message.deltas.deltas_len;
             previous = &tls->periodic_samples.previous.time - 1;
             current = &sample.time - 1;
             i = -1;
@@ -363,7 +363,7 @@ static void timer_callback(const ucontext_t* context)
     }
 
     /* Update the length of the periodic samples deltas array */
-    tls->periodic_samples.message->deltas.deltas_len = index;
+    tls->periodic_samples.message.deltas.deltas_len = index;
 
     /* Update the header with this sample time */
     TLS_update_header_with_time(tls, sample.time);
@@ -472,7 +472,8 @@ void PAPI_start_data_collection()
     if (ContextCount.value > 0)
     {
         /* Append event sampling configuration to our performance data blob */
-        if (TheSamplingConfig.events.events_len > 0)
+        if (tls->appended_sampling_config &&
+            (TheSamplingConfig.events.events_len > 0))
         {
             CBTF_cuda_message* raw_message = TLS_add_message(tls);
             Assert(raw_message != NULL);
@@ -482,6 +483,8 @@ void PAPI_start_data_collection()
                 &raw_message->CBTF_cuda_message_u.sampling_config;
             
             memcpy(message, &TheSamplingConfig, sizeof(CUDA_SamplingConfig));
+
+            tls->appended_sampling_config = TRUE;
         }
 
         /* Iterate over each event in our event sampling configuration */

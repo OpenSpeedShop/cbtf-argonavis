@@ -127,36 +127,22 @@ void TLS_initialize_data(TLS* tls)
 #if defined(PAPI_FOUND)
     if (OverflowSamplingCount > 0)
     {
-        CBTF_cuda_message* raw_message = 
-            &(tls->messages[tls->data.messages.messages_len++]);
-        raw_message->type = OverflowSamples;
+        tls->overflow_samples.message.time_begin = ~0;
+        tls->overflow_samples.message.time_end = 0;
         
-        tls->overflow_samples.message =
-            &raw_message->CBTF_cuda_message_u.overflow_samples;
-
-        tls->overflow_samples.message->time_begin = ~0;
-        tls->overflow_samples.message->time_end = 0;
+        tls->overflow_samples.message.pcs.pcs_len = 0;
+        tls->overflow_samples.message.pcs.pcs_val = tls->overflow_samples.pcs;
         
-        tls->overflow_samples.message->pcs.pcs_len = 0;
-        tls->overflow_samples.message->pcs.pcs_val = tls->overflow_samples.pcs;
-        
-        tls->overflow_samples.message->counts.counts_len = 0;
-        tls->overflow_samples.message->counts.counts_val = 
+        tls->overflow_samples.message.counts.counts_len = 0;
+        tls->overflow_samples.message.counts.counts_val = 
             tls->overflow_samples.counts;
         
         memset(tls->overflow_samples.hash_table, 0,
                sizeof(tls->overflow_samples.hash_table));
     }
 
-    CBTF_cuda_message* raw_message = 
-        &(tls->messages[tls->data.messages.messages_len++]);
-    raw_message->type = PeriodicSamples;
-    
-    tls->periodic_samples.message =
-        &raw_message->CBTF_cuda_message_u.periodic_samples;
-    
-    tls->periodic_samples.message->deltas.deltas_len = 0;
-    tls->periodic_samples.message->deltas.deltas_val = 
+    tls->periodic_samples.message.deltas.deltas_len = 0;
+    tls->periodic_samples.message.deltas.deltas_val = 
         tls->periodic_samples.deltas;
     
     memset(&tls->periodic_samples.previous, 0, sizeof(EventSample));
@@ -176,22 +162,39 @@ void TLS_send_data(TLS* tls)
 {
     Assert(tls != NULL);
 
-    bool send = FALSE;
+    bool send = (tls->data.messages.messages_len > 0);
 
 #if defined(PAPI_FOUND)
-    if (OverflowSamplingCount > 0)
+    if ((OverflowSamplingCount > 0) &&
+        (tls->overflow_samples.message.pcs.pcs_len > 0))
     {
-        send = (tls->data.messages.messages_len > 2) ||
-            (tls->overflow_samples.message->pcs.pcs_len > 0) ||
-            (tls->periodic_samples.message->deltas.deltas_len > 0);
+        CBTF_cuda_message* raw_message =
+            &(tls->messages[tls->data.messages.messages_len++]);
+        raw_message->type = OverflowSamples;
+        
+        CUDA_OverflowSamples* message =
+            &raw_message->CBTF_cuda_message_u.overflow_samples;
+
+        memcpy(message, &tls->overflow_samples.message,
+               sizeof(CUDA_OverflowSamples));
+
+        send = TRUE;
     }
-    else
+
+    if (tls->periodic_samples.message.deltas.deltas_len > 0)
     {
-        send = (tls->data.messages.messages_len > 1) ||
-            (tls->periodic_samples.message->deltas.deltas_len > 0);
+        CBTF_cuda_message* raw_message =
+            &(tls->messages[tls->data.messages.messages_len++]);
+        raw_message->type = PeriodicSamples;
+
+        CUDA_PeriodicSamples* message =
+            &raw_message->CBTF_cuda_message_u.periodic_samples;
+        
+        memcpy(message, &tls->periodic_samples.message,
+               sizeof(CUDA_PeriodicSamples));
+
+        send = TRUE;
     }
-#else
-    send = (tls->data.messages.messages_len > 0);
 #endif
     
     if (send)
@@ -227,7 +230,22 @@ CBTF_cuda_message* TLS_add_message(TLS* tls)
 {
     Assert(tls != NULL);
 
-    if (tls->data.messages.messages_len == MAX_MESSAGES_PER_BLOB)
+    u_int max_messages_per_blob = MAX_MESSAGES_PER_BLOB;
+
+#if defined(PAPI_FOUND)
+    if ((OverflowSamplingCount > 0) &&
+        (tls->overflow_samples.message.pcs.pcs_len > 0))
+    {
+        --max_messages_per_blob;
+    }
+
+    if (tls->periodic_samples.message.deltas.deltas_len > 0)
+    {
+        --max_messages_per_blob;
+    }
+#endif
+
+    if (tls->data.messages.messages_len == max_messages_per_blob)
     {
         TLS_send_data(tls);
     }
