@@ -19,7 +19,6 @@
 /** @file Definition of the TLS support functions. */
 
 #include <malloc.h>
-#include <monitor.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -31,6 +30,12 @@
 
 #include "collector.h"
 #include "TLS.h"
+
+
+
+/* Declare externals coming from libmonitor to avoid locating its header. */
+extern int monitor_mpi_comm_rank();
+extern int monitor_get_thread_num();
 
 
 
