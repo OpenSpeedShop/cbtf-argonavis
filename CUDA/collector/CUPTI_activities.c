@@ -20,6 +20,7 @@
 
 #include <malloc.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <KrellInstitute/Messages/CUDA_data.h>
 
@@ -468,7 +469,12 @@ void CUPTI_activities_start()
                     BUFFER_SIZE
                     ));
 #else
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
     /* Initialize the process-wide performance data header and blob */
+    memset(&FakeTLS, 0, sizeof(TLS));
+    memcpy(&FakeTLS.data_header, &tls->data_header, sizeof(CBTF_DataHeader));
     TLS_initialize_data(&FakeTLS);
 
     /* Register callbacks with CUPTI for activity buffer handling */

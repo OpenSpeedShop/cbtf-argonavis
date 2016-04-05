@@ -224,6 +224,15 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     }
 #endif
 
+    /* Create and zero-initialize our thread-local storage */
+    TLS_initialize();
+    
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Copy the header into our thread-local storage for future use */
+    memcpy(&tls->data_header, header, sizeof(CBTF_DataHeader));
+
     /* Atomically increment the active thread count */
 
     PTHREAD_CHECK(pthread_mutex_lock(&ThreadCount.mutex));
@@ -272,15 +281,6 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     ThreadCount.value++;
 
     PTHREAD_CHECK(pthread_mutex_unlock(&ThreadCount.mutex));
-
-    /* Create and zero-initialize our thread-local storage */
-    TLS_initialize();
-    
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-
-    /* Copy the header into our thread-local storage for future use */
-    memcpy(&tls->data_header, header, sizeof(CBTF_DataHeader));
 
     /* Initialize our performance data header and blob */
     TLS_initialize_data(tls);
@@ -354,21 +354,6 @@ void cbtf_collector_stop()
     }
 #endif
     
-    /* Stop PAPI data collection for this thread */
-    PAPI_stop_data_collection();
-
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-
-    /* Pause (stop) data collection for this thread */
-    tls->paused = TRUE;
-    
-    /* Send any remaining performance data for this thread */
-    TLS_send_data(tls);
-    
-    /* Destroy our thread-local storage */
-    TLS_destroy();
-
     /* Atomically decrement the active thread count */
     
     PTHREAD_CHECK(pthread_mutex_lock(&ThreadCount.mutex));
@@ -397,4 +382,19 @@ void cbtf_collector_stop()
     }
     
     PTHREAD_CHECK(pthread_mutex_unlock(&ThreadCount.mutex));
+
+    /* Stop PAPI data collection for this thread */
+    PAPI_stop_data_collection();
+
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Pause (stop) data collection for this thread */
+    tls->paused = TRUE;
+    
+    /* Send any remaining performance data for this thread */
+    TLS_send_data(tls);
+    
+    /* Destroy our thread-local storage */
+    TLS_destroy();
 }
