@@ -472,7 +472,7 @@ void PAPI_start_data_collection()
     if (ContextCount.value > 0)
     {
         /* Append event sampling configuration to our performance data blob */
-        if (tls->appended_sampling_config &&
+        if (!tls->appended_sampling_config &&
             (TheSamplingConfig.events.events_len > 0))
         {
             CBTF_cuda_message* raw_message = TLS_add_message(tls);
