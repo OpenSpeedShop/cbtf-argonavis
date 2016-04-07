@@ -53,6 +53,37 @@ static __thread TLS Implicit;
 
 
 /**
+ * Is the performance data blob in the given thread-local storage already
+ * full? I.e. does it already contain the maximum number of messages?
+ *
+ * @param tls    Thread-local storage to be tested.
+ * @return       Boolean flag indicating if the performance data blob is full.
+ */
+static bool is_full(TLS* tls)
+{
+    Assert(tls != NULL);
+
+    u_int max_messages_per_blob = MAX_MESSAGES_PER_BLOB;
+    
+#if defined(PAPI_FOUND)
+    if ((OverflowSamplingCount > 0) &&
+        (tls->overflow_samples.message.pcs.pcs_len > 0))
+    {
+        --max_messages_per_blob;
+    }
+
+    if (tls->periodic_samples.message.deltas.deltas_len > 0)
+    {
+        --max_messages_per_blob;
+    }
+#endif
+
+    return tls->data.messages.messages_len == max_messages_per_blob;
+}
+
+
+
+/**
  * Allocate and zero-initialize the thread-local storage for the current thread.
  * This function <em>must</em> be called by a thread before that thread attempts
  * to call any of this file's other functions or memory corruption will result!
@@ -246,22 +277,7 @@ CBTF_cuda_message* TLS_add_message(TLS* tls)
 {
     Assert(tls != NULL);
 
-    u_int max_messages_per_blob = MAX_MESSAGES_PER_BLOB;
-
-#if defined(PAPI_FOUND)
-    if ((OverflowSamplingCount > 0) &&
-        (tls->overflow_samples.message.pcs.pcs_len > 0))
-    {
-        --max_messages_per_blob;
-    }
-
-    if (tls->periodic_samples.message.deltas.deltas_len > 0)
-    {
-        --max_messages_per_blob;
-    }
-#endif
-
-    if (tls->data.messages.messages_len == max_messages_per_blob)
+    if (is_full(tls))
     {
         TLS_send_data(tls);
     }
@@ -341,7 +357,7 @@ uint32_t TLS_add_current_call_site(TLS* tls)
      * hold another message. See the note in this function's header.
      */
 
-    if (tls->data.messages.messages_len == MAX_MESSAGES_PER_BLOB)
+    if (is_full(tls))
     {
         TLS_send_data(tls);
     }
