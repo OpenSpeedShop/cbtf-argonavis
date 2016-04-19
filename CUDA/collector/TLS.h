@@ -48,6 +48,16 @@
  */
 #define MAX_MESSAGES_PER_BLOB 128
 
+/**
+ * Maximum supported number of concurrently sampled events. Controls the fixed
+ * size of several of the tables related to event sampling.
+ *
+ * @note    This value should not be construed to be the actual number of
+ *          concurrent events supported by any particular hardware. It is
+ *          the maximum supported by this performance data collector.
+ */
+#define MAX_EVENTS 16
+
 #if defined(PAPI_FOUND)
 /**
  * Maximum number of bytes used to store the periodic sampling deltas within
@@ -62,16 +72,6 @@
  *          which seems reasonable.
  */
 #define MAX_DELTAS_BYTES_PER_BLOB (32 * 1024 /* 32 KB */)
-
-/**
- * Maximum supported number of concurrently sampled events. Controls the fixed
- * size of several of the tables related to event sampling.
- *
- * @note    This value should not be construed to be the actual number of
- *          concurrent events supported by any particular hardware. It is
- *          the maximum supported by this performance data collector.
- */
-#define MAX_EVENTS 16
 
 /**
  * Maximum number of (CBTF_Protocol_Address) unique overflow PC addresses
