@@ -22,6 +22,7 @@ set(SOURCES
     CUPTI_callbacks.c CUPTI_callbacks.h
     CUPTI_check.h
     CUPTI_context.h CUPTI_context.c
+    CUPTI_events.h CUPTI_events.c
     CUPTI_stream.h CUPTI_stream.c
     CUPTI_time.h CUPTI_time.c
     PAPI.h PAPI.c

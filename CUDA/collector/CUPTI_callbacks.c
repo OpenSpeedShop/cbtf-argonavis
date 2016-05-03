@@ -32,8 +32,8 @@
 #include "CUPTI_callbacks.h"
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
+#include "CUPTI_events.h"
 #include "CUPTI_stream.h"
-#include "PAPI.h"
 #include "TLS.h"
 
 
@@ -161,19 +161,22 @@ static void callback(void* userdata,
     if ((domain == CUPTI_CB_DOMAIN_RESOURCE) &&
         (id == CUPTI_CBID_RESOURCE_CONTEXT_CREATED))
     {
-        /* Start (initialize) PAPI */
-        PAPI_notify_cuda_context_created();
-
-        /* Start PAPI data collection for this thread */
-        PAPI_start_data_collection();
+        if (TheSamplingConfig.events.events_len > 0)
+        {
+            /* Start CUPTI events collection for this context */
+            CUPTI_events_start(((CUpti_ResourceData*)data)->context);
+        }
     }
     
     /* Is a CUDA context being destroyed? */
     if ((domain == CUPTI_CB_DOMAIN_RESOURCE) &&
         (id == CUPTI_CBID_RESOURCE_CONTEXT_DESTROY_STARTING))
     {
-        /* Stop (shutdown) PAPI */
-        PAPI_notify_cuda_context_destroyed();
+        if (TheSamplingConfig.events.events_len > 0)
+        {
+            /* Stop CUPTI events collection for this context */
+            CUPTI_events_stop(((CUpti_ResourceData*)data)->context);
+        }
     }
 
     /* Access our thread-local storage */

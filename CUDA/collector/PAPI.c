@@ -32,7 +32,6 @@
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Time.h>
-#include <KrellInstitute/Services/Timer.h>
 
 #include "collector.h"
 #include "PAPI.h"
@@ -75,27 +74,6 @@
 
 #if defined(PAPI_FOUND)
 /**
- * The number of active CUDA contexts in this process. This value is atomically
- * incremented and decremented in PAPI_notify_cuda_context_[created|destroyed]()
- * and is used within them to determine when to perform PAPI initialization and
- * and finalization.
- *
- * Initializing the PAPI CUDA component before the application has itself called
- * cuInit() causes the process to hang on some systems. Thus PAPI initialization
- * must be deferred until after the application calls cuInit(), and must also be
- * tracked separately from the regular process-wide initialization controlled by
- * ThreadCount in "collector.c".
- */
-static struct {
-    int value;
-    pthread_mutex_t mutex;
-} ContextCount = { 0, PTHREAD_MUTEX_INITIALIZER };
-#endif
-
-
-
-#if defined(PAPI_FOUND)
-/**
  * Callback invoked by PAPI every time an event counter overflows. I.e. reaches
  * the threshold value previously specified in parse_configuration().
  *
@@ -109,335 +87,76 @@ static struct {
 static void papi_callback(int eventset, void* address,
                           long long overflow_vector, void* context)
 {
-    Assert(OverflowSamplingCount > 0);
-
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
-    
+
     /* Do nothing if data collection is paused for this thread */
     if (tls->paused)
     {
         return;
     }
 
-    /* Get the time at which the overflow occurred */
-    CBTF_Protocol_Time time = CBTF_GetTime();
-
-    /* Get the PC at which the overflow occurred */
-    CBTF_Protocol_Address pc = (CBTF_Protocol_Address)address;
+    /* Initialize a new overflow sample */
+    OverflowSample sample;
+    memset(&sample, 0, sizeof(OverflowSample));
+    sample.time = CBTF_GetTime();
+    sample.pc = (CBTF_Protocol_Address)address;
     
     /* Find this eventset in the TLS for this thread */
     int s;
-    for (s = 0; s < tls->eventset_count; ++s)
+    for (s = 0; s < tls->papi_eventset_count; ++s)
     {
-        if (tls->eventsets[s].eventset == eventset)
+        if (tls->papi_eventsets[s].eventset == eventset)
         {
             break;
         }
     }
-    Assert(s < tls->eventset_count);
+    Assert(s < tls->papi_eventset_count);
     
     /* Determine which events overflowed */
     int events[MAX_EVENTS];
     memset(events, 0, sizeof(events));
-    int event_count = tls->eventsets[s].event_count;
-    PAPI_CHECK(PAPI_get_overflow_event_index(eventset, overflow_vector, events,
-                                             &event_count));
+    int event_count = tls->papi_eventsets[s].event_count;
+    PAPI_CHECK(PAPI_get_overflow_event_index(eventset, overflow_vector,
+                                             events, &event_count));
     
-    /* Get a pointer to the overflow samples PCs for this thread */
-    uint64_t* const pcs = tls->overflow_samples.pcs;
-
-    /* Get a pointer to the overflow samples counts for this thread */
-    uint64_t* const counts = tls->overflow_samples.counts;
+    /*
+     * Mark (in this sample) the events that actually overflowed. The funky
+     * triple-nested array indexing selects each event that overflowed, and
+     * maps its PAPI event index to its index in the overflow counts array.
+     */
+    int e;
+    for (e = 0; e < event_count; ++e)
+    {
+        sample.overflowed[
+            tls->papi_eventsets[s].event_to_overflow[events[e]]
+            ] = TRUE;
+    }
     
-    /* Get a pointer to the overflow samples hash table for this thread */
-    uint32_t* const hash_table = tls->overflow_samples.hash_table;
-
-    /* Iterate until this sample is successfully added */
-    while (true)
-    {
-        /*
-         * Search the existing overflow samples for this sample's PC address.
-         * Accelerate the search using the hash table and a simple linear probe.
-         */
-        uint32_t bucket = (pc >> 4) % OVERFLOW_HASH_TABLE_SIZE;
-        while ((hash_table[bucket] > 0) && (pcs[hash_table[bucket] - 1] != pc))
-        {
-            bucket = (bucket + 1) % OVERFLOW_HASH_TABLE_SIZE;
-        }
-        
-        /* Did the search fail? */
-        if (hash_table[bucket] == 0)
-        {
-            /*
-             * Send performance data for this thread if there isn't enough room
-             * in the existing overflow samples to add this sample's PC address.
-             * Doing so frees up enoguh space for this sample.
-             */
-            if (tls->overflow_samples.message.pcs.pcs_len == 
-                MAX_OVERFLOW_PCS_PER_BLOB)
-            {
-                TLS_send_data(tls);
-                continue;
-            }
-
-            /* Add an entry for this sample to the existing overflow samples */
-            pcs[tls->overflow_samples.message.pcs.pcs_len] = pc;
-            memset(&counts[tls->overflow_samples.message.counts.counts_len],
-                   0, OverflowSamplingCount * sizeof(uint64_t));            
-            hash_table[bucket] = ++tls->overflow_samples.message.pcs.pcs_len;
-            tls->overflow_samples.message.counts.counts_len += 
-                OverflowSamplingCount;
-                                    
-            /* Update the header with this sample's address */
-            TLS_update_header_with_address(tls, pc);            
-        }
-
-        /*
-         * Increment the counts for the events that actually overflowed for
-         * this sample. The funky triple-nested array indexing selects each
-         * event that overflowed, maps its PAPI event index to its index in
-         * the counts array, and then adds that result to the base index of
-         * this PC address within the counts array.
-         */
-        int e, base = (hash_table[bucket] - 1) * OverflowSamplingCount;
-        for (e = 0; e < event_count; ++e)
-        {
-            counts[base + tls->eventsets[s].event_to_overflow[events[e]]]++;
-        }
-
-        /* This sample has now been successfully added */
-        break;
-    }
-
-    /* Update the header (and overflow samples message) with this sample time */
-
-    TLS_update_header_with_time(tls, time);
-
-    if (time < tls->overflow_samples.message.time_begin)
-    {
-        tls->overflow_samples.message.time_begin = time;
-    }
-    if (time >= tls->overflow_samples.message.time_end)
-    {
-        tls->overflow_samples.message.time_end = time;
-    }
+    /* Add this sample to the performance data blob for this thread */
+    TLS_add_overflow_sample(tls, &sample);
 }
 #endif
 
 
 
-#if defined(PAPI_FOUND)
 /**
- * Callback invoked by the timer service each time a timer interrupt occurs.
- *
- * @param context    Thread context at this timer interrupt.
+ * Initialize PAPI for this process.
  */
-static void timer_callback(const ucontext_t* context)
-{
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-
-    /* Do nothing if data collection is paused for this thread */
-    if (tls->paused)
-    {
-        return;
-    }
-
-    /* Collect a new event sample */
-
-    EventSample sample;
-    memset(&sample, 0, sizeof(EventSample));
-    sample.time = CBTF_GetTime();
-    
-    int s;
-    for (s = 0; s < tls->eventset_count; ++s)
-    {
-        long long counts[MAX_EVENTS];
-        PAPI_CHECK(PAPI_read(tls->eventsets[s].eventset, (long long*)&counts));
-
-        int e;
-        for (e = 0; e < tls->eventsets[s].event_count; ++e)
-        {
-            sample.count[tls->eventsets[s].event_to_periodic[e]] = counts[e];
-        }
-    }
-
-    /* Get a pointer to the periodic samples deltas for this thread */
-    uint8_t* const deltas = tls->periodic_samples.deltas;
-    
-    /*
-     * Get the current index within the periodic samples deltas. The length
-     * isn't updated until the ENTIRE event sample encoding has been added.
-     * This facilitates easy restarting of the encoding in the event there
-     * isn't enough room left in the array for the entire encoding.
-     */
-    int index = tls->periodic_samples.message.deltas.deltas_len;
-
-    /*
-     * Get pointers to the values in the new (current) and previous event
-     * samples. Note that the time and the actual event counts are treated
-     * identically as 64-bit unsigned integers.
-     */
-
-    const uint64_t* previous = &tls->periodic_samples.previous.time;
-    const uint64_t* current = &sample.time;
-
-    /* Iterate over each time and event count value in this event sample */
-    int i, iEnd = TheSamplingConfig.events.events_len + 1;
-    for (i = 0; i < iEnd; ++i, ++previous, ++current)
-    {
-        /*
-         * Compute the delta between the previous and current samples for this
-         * value. The previous event sample is zeroed by TLS_initialize_data(),
-         * so there is no need to treat the first sample specially here.
-         */
-
-        uint64_t delta = *current - *previous;
-
-        /*
-         * Select the appropriate top 2 bits of the first encoded byte (called
-         * the "prefix" here) and number of bytes in the encoding based on the
-         * actual numerical magnitude of the delta.
-         */
-
-        uint8_t prefix = 0;
-        int num_bytes = 0;
-
-        if (delta < 0x3FULL)
-        {
-            prefix = 0x00;
-            num_bytes = 1;
-        }
-        else if (delta < 0x3FFFFFULL)
-        {
-            prefix = 0x40;
-            num_bytes = 3;
-        }
-        else if (delta < 0x3FFFFFFFULL)
-        {
-            prefix = 0x80;
-            num_bytes = 4;
-        }
-        else
-        {
-            prefix = 0xC0;
-            num_bytes = 9;
-        }
-
-        /*
-         * Send performance data for this thread if there isn't enough room in
-         * the existing periodic samples deltas array to add this delta. Doing
-         * so frees up enough space for this delta. Restart this event sample's
-         * encoding by reseting the loop variables, keeping in mind that loop
-         * increment expressions are still applied after a continue statement.
-         */
-
-        if ((index + num_bytes) > MAX_DELTAS_BYTES_PER_BLOB)
-        {
-            TLS_send_data(tls);
-            index = tls->periodic_samples.message.deltas.deltas_len;
-            previous = &tls->periodic_samples.previous.time - 1;
-            current = &sample.time - 1;
-            i = -1;
-            continue;
-        }
-
-        /*
-         * Add the encoding of this delta to the periodic samples deltas one
-         * byte at a time. The loop adds the full bytes from the delta, last
-         * byte first, allowing the use of fixed-size shift. Finally, after
-         * the loop, add the first byte, which includes the encoding prefix
-         * and the first 6 bits of the delta.
-         */
-
-        int j;
-        for (j = index + num_bytes - 1; j > index; --j, delta >>= 8)
-        {
-            deltas[j] = delta & 0xFF;
-        }
-        deltas[j] = prefix | (delta & 0x3F);
-        
-        /* Advance the current index within the periodic samples deltas */
-        index += num_bytes;
-    }
-
-    /* Update the length of the periodic samples deltas array */
-    tls->periodic_samples.message.deltas.deltas_len = index;
-
-    /* Update the header with this sample time */
-    TLS_update_header_with_time(tls, sample.time);
-    
-    /* Replace the previous event sample with the new event sample */
-    memcpy(&tls->periodic_samples.previous, &sample, sizeof(EventSample));
-}
-#endif
-
-
-
-/**
- * Called by the CUPTI callback to notify when a CUDA context is created.
-*/
-void PAPI_notify_cuda_context_created()
+void PAPI_initialize()
 {
 #if defined(PAPI_FOUND)
-    /* Atomically increment the active CUDA context count */
 
-    PTHREAD_CHECK(pthread_mutex_lock(&ContextCount.mutex));
-    
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] PAPI_notify_cuda_context_created(): "
-               "ContextCount.value = %d --> %d\n",
-               ContextCount.value, ContextCount.value + 1);
+        printf("[CBTF/CUDA] PAPI_initialize()\n");
     }
 #endif
-    
-    if (ContextCount.value == 0)
-    {
-        /* Initialize PAPI */
-        PAPI_CHECK(PAPI_library_init(PAPI_VER_CURRENT));
-        PAPI_CHECK(PAPI_thread_init((unsigned long (*)())(pthread_self)));
-        PAPI_CHECK(PAPI_multiplex_init());
-    }
-    
-    ContextCount.value++;
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&ContextCount.mutex));
-#endif
-}
 
-
-
-/**
- * Called by the CUPTI callback to notify when a CUDA context is destroyed.
- */
-void PAPI_notify_cuda_context_destroyed()
-{
-#if defined(PAPI_FOUND)
-    /* Atomically decrement the active CUDA context count */
-    
-    PTHREAD_CHECK(pthread_mutex_lock(&ContextCount.mutex));
-    
-#if !defined(NDEBUG)
-    if (IsDebugEnabled)
-    {
-        printf("[CBTF/CUDA] PAPI_notify_cuda_context_destroyed(): "
-               "ContextCount.value = %d --> %d\n",
-               ContextCount.value, ContextCount.value - 1);
-    }
-#endif
-    
-    ContextCount.value--;
-
-    if (ContextCount.value == 0)
-    {
-        /* Shutdown PAPI */
-        PAPI_shutdown();
-    }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&ContextCount.mutex));
+    PAPI_CHECK(PAPI_library_init(PAPI_VER_CURRENT));
+    PAPI_CHECK(PAPI_thread_init((unsigned long (*)())(pthread_self)));
+    PAPI_CHECK(PAPI_multiplex_init());
 #endif
 }
 
@@ -449,14 +168,6 @@ void PAPI_notify_cuda_context_destroyed()
 void PAPI_start_data_collection()
 {
 #if defined(PAPI_FOUND)
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-
-    /* Was PAPI data collection already started for this thread? */
-    if (tls->eventset_count > 0)
-    {
-        return;
-    }
 
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
@@ -465,99 +176,115 @@ void PAPI_start_data_collection()
     }
 #endif
 
-    /* Atomically test whether PAPI has been started */
-    
-    PTHREAD_CHECK(pthread_mutex_lock(&ContextCount.mutex));
-    
-    if (ContextCount.value > 0)
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Iterate over each event in our event sampling configuration */
+    uint i;
+    for (i = 0; i < TheSamplingConfig.events.events_len; ++i)
     {
-        /* Append event sampling configuration to our performance data blob */
-        if (!tls->appended_sampling_config &&
-            (TheSamplingConfig.events.events_len > 0))
+        CUDA_EventDescription* event = &TheSamplingConfig.events.events_val[i];
+        
+        /*
+         * Look up the event code for this event. Note that an unidentified
+         * event is NOT treated as fatal since it may be simply be an event
+         * that will be handled by CUPTI. Just continue to the next event.
+         */
+        int code = PAPI_NULL;
+        if (PAPI_event_name_to_code(event->name, &code) != PAPI_OK)
         {
-            CBTF_cuda_message* raw_message = TLS_add_message(tls);
-            Assert(raw_message != NULL);
-            raw_message->type = SamplingConfig;
-            
-            CUDA_SamplingConfig* message = 
-                &raw_message->CBTF_cuda_message_u.sampling_config;
-            
-            memcpy(message, &TheSamplingConfig, sizeof(CUDA_SamplingConfig));
-
-            tls->appended_sampling_config = TRUE;
-        }
-
-        /* Iterate over each event in our event sampling configuration */
-        uint i, overflow_count = 0, periodic_count = 0;
-        for (i = 0; i < TheSamplingConfig.events.events_len; ++i)
-        {
-            CUDA_EventDescription* event = 
-                &TheSamplingConfig.events.events_val[i];
-
-            /* Look up the event code for this event */
-            int code = PAPI_NULL;
-            PAPI_CHECK(PAPI_event_name_to_code(event->name, &code));
-            
-            /* Look up the component for this event code */
-            int component = PAPI_get_event_component(code);
-            
-            /* Search for an eventset corresponding to this component */
-            int s;
-            for (s = 0; s < tls->eventset_count; ++s)
-            {
-                if (tls->eventsets[s].component == component)
-                {
-                    break;
-                }
-            }
-
-            /* Create a new eventset if one didn't already exist */
-            if (s == tls->eventset_count)
-            {
-                tls->eventsets[s].component = component;
-                tls->eventsets[s].eventset = PAPI_NULL;
-                PAPI_CHECK(PAPI_create_eventset(&tls->eventsets[s].eventset));
-                tls->eventsets[s].event_count = 0;
-                tls->eventset_count++;
-            }
-            
-            /* Add this event to the eventset */
-            
-            PAPI_CHECK(PAPI_add_event(tls->eventsets[s].eventset, code));
-            
-            tls->eventsets[s].event_to_periodic[
-                tls->eventsets[s].event_count
-                ] = periodic_count++;
-            
-            /* Setup overflow for this event if a threshold was specified */
-            if (event->threshold > 0)
-            {
-                tls->eventsets[s].event_to_overflow[
-                    tls->eventsets[s].event_count
-                    ] = overflow_count++;
-                
-                PAPI_CHECK(PAPI_overflow(tls->eventsets[s].eventset,
-                                         code,
-                                         event->threshold,
-                                         PAPI_OVERFLOW_FORCE_SW,
-                                         papi_callback));
-            }
-            
-            /* Increment the number of events in this eventset */
-            ++tls->eventsets[s].event_count;
-        }
-
-        /* Start the sampling of our eventsets */
-        int s;
-        for (s = 0; s < tls->eventset_count; ++s)
-        {
-            PAPI_CHECK(PAPI_start(tls->eventsets[s].eventset));
+            continue;
         }
         
-        CBTF_Timer(TheSamplingConfig.interval, timer_callback);
+        /* Look up the component for this event code */
+        int component = PAPI_get_event_component(code);
+
+        /* Search for an eventset corresponding to this component */
+        int s;
+        for (s = 0; s < tls->papi_eventset_count; ++s)
+        {
+            if (tls->papi_eventsets[s].component == component)
+            {
+                break;
+            }
+        }
+        
+        /* Create a new eventset if one didn't already exist */
+        if (s == tls->papi_eventset_count)
+        {
+            tls->papi_eventsets[s].component = component;
+            tls->papi_eventsets[s].eventset = PAPI_NULL;
+            PAPI_CHECK(PAPI_create_eventset(&tls->papi_eventsets[s].eventset));
+            tls->papi_eventsets[s].event_count = 0;
+            tls->papi_eventset_count++;
+        }
+        
+        /* Add this event to the eventset */
+        
+        PAPI_CHECK(PAPI_add_event(tls->papi_eventsets[s].eventset, code));
+        
+        tls->papi_eventsets[s].event_to_periodic[
+            tls->papi_eventsets[s].event_count
+            ] = i;
+        
+        /* Setup overflow for this event if a threshold was specified */
+        if (event->threshold > 0)
+        {
+            tls->papi_eventsets[s].event_to_overflow[
+                tls->papi_eventsets[s].event_count
+                ] = i;
+            
+            PAPI_CHECK(PAPI_overflow(tls->papi_eventsets[s].eventset,
+                                     code,
+                                     event->threshold,
+                                     PAPI_OVERFLOW_FORCE_SW,
+                                     papi_callback));
+        }
+        
+        /* Increment the number of events in this eventset */
+        ++tls->papi_eventsets[s].event_count;
     }
     
-    PTHREAD_CHECK(pthread_mutex_unlock(&ContextCount.mutex));
+    /* Start the sampling of our eventsets */
+    int s;
+    for (s = 0; s < tls->papi_eventset_count; ++s)
+    {
+        PAPI_CHECK(PAPI_start(tls->papi_eventsets[s].eventset));
+    }
+#endif
+}
+
+
+
+/**
+ * Sample the PAPI counters for the current thread.
+ *
+ * @param sample    Sample into which to place the PAPI counts.
+ */
+void PAPI_sample(PeriodicSample* sample)
+{
+#if defined(PAPI_FOUND)
+    Assert(sample != NULL);
+    
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+    
+    /* Read the counters for each of our eventsets */
+    int s;
+    for (s = 0; s < tls->papi_eventset_count; ++s)
+    {
+        long long counts[MAX_EVENTS];
+        PAPI_CHECK(PAPI_read(tls->papi_eventsets[s].eventset,
+                             (long long*)&counts));
+        
+        int e;
+        for (e = 0; e < tls->papi_eventsets[s].event_count; ++e)
+        {
+            sample->count[
+                tls->papi_eventsets[s].event_to_periodic[e]
+                ] = counts[e];
+        }
+    }
 #endif
 }
 
@@ -569,14 +296,6 @@ void PAPI_start_data_collection()
 void PAPI_stop_data_collection()
 {
 #if defined(PAPI_FOUND)
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-
-    /* Was PAPI data collection not started for this thread? */
-    if (tls->eventset_count == 0)
-    {
-        return;
-    }
 
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
@@ -585,30 +304,42 @@ void PAPI_stop_data_collection()
     }
 #endif
 
-    /* Atomically test whether PAPI has been started */
-    
-    PTHREAD_CHECK(pthread_mutex_lock(&ContextCount.mutex));
-    
-    if (ContextCount.value > 0)
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Stop the sampling of our eventsets */
+    int s;
+    for (s = 0; s < tls->papi_eventset_count; ++s)
     {
-        /* Stop the sampling of our eventsets */
-        CBTF_Timer(0, NULL);
-
-        int s;
-        for (s = 0; s < tls->eventset_count; ++s)
-        {
-            PAPI_CHECK(PAPI_stop(tls->eventsets[s].eventset, NULL));
-        }
-
-        /* Cleanup and destroy our eventsets */
-        for (s = 0; s < tls->eventset_count; ++s)
-        {
-            PAPI_CHECK(PAPI_cleanup_eventset(tls->eventsets[s].eventset));
-            PAPI_CHECK(PAPI_destroy_eventset(&tls->eventsets[s].eventset));
-        }
-        tls->eventset_count = 0;
+        PAPI_CHECK(PAPI_stop(tls->papi_eventsets[s].eventset, NULL));
     }
     
-    PTHREAD_CHECK(pthread_mutex_unlock(&ContextCount.mutex));
+    /* Cleanup and destroy our eventsets */
+    for (s = 0; s < tls->papi_eventset_count; ++s)
+    {
+        PAPI_CHECK(PAPI_cleanup_eventset(tls->papi_eventsets[s].eventset));
+        PAPI_CHECK(PAPI_destroy_eventset(&tls->papi_eventsets[s].eventset));
+    }
+    tls->papi_eventset_count = 0;
+#endif
+}
+
+
+
+/**
+ * Finalize PAPI for this process.
+ */
+void PAPI_finalize()
+{
+#if defined(PAPI_FOUND)
+
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] PAPI_finalize()\n");
+    }
+#endif
+
+    PAPI_shutdown();
 #endif
 }
