@@ -1190,6 +1190,8 @@ void DataTable::processPeriodicSamples(const boost::uint8_t* begin,
 
         if (n == N)
         {
+            dm_interval |= Time(samples[0]);
+            
             per_thread.dm_periodic_samples.insert(
                 std::make_pair(
                     samples[0],
