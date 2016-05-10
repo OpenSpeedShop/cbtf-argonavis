@@ -18,27 +18,45 @@
 
 /** @file Definition of CUPTI events functions. */
 
+#include <cuda.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <KrellInstitute/Messages/DataHeader.h>
+
 #include <KrellInstitute/Services/Assert.h>
 
 #include "CUDA_check.h"
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
 #include "CUPTI_events.h"
+#include "Pthread_check.h"
 #include "TLS.h"
 
 
 
-#if defined(DISABLE_FOR_NOW)
 /**
- * Table used to map CUDA context pointers to CUPTI event groups.
- *
- * ... notes on thread safety ...
+ * Performance data header for this process. Used when constructing the fake
+ * thread-local storage for each CUDA context.
+ */
+CBTF_DataHeader DataHeader;
+
+/**
+ * Table used to map CUDA context pointers to CUPTI event groups and fake
+ * thread-local storage. This table must be protected with a mutex because
+ * there is no guarantee that a CUDA context won't be created or destroyed
+ * at the same time that a sample is taken.
  */
 static struct {
-    CUcontext context;
-    CUpti_EventGroup eventgroup;
-} EventGroups[MAX_CONTEXTS] = { 0 };
-#endif
+    struct {
+        CUcontext context;
+        CUpti_EventGroup eventgroup;
+        TLS tls;
+    } values[MAX_CONTEXTS];
+    pthread_mutex_t mutex;
+} EventGroups = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
 
 
 
@@ -47,7 +65,11 @@ static struct {
  */
 void CUPTI_events_initialize()
 {
-    // ...
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+    
+    /* Initialize the performance data header for this process */
+    memcpy(&DataHeader, &tls->data_header, sizeof(CBTF_DataHeader));
 }
 
 
@@ -59,15 +81,19 @@ void CUPTI_events_initialize()
  */
 void CUPTI_events_start(CUcontext context)
 {
-#if defined(DISABLE_FOR_NOW)
+    PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
+
+    /* Find an empty entry in the table for this context */
+
     int i;
-    for (i = 0; (i < MAX_CONTEXTS) && (EventGroups[i].context != NULL); ++i)
+    for (i = 0;
+         (i < MAX_CONTEXTS) && (EventGroups.values[i].context != NULL);
+         ++i)
     {
-        if (EventsGroups[i].context == context)
+        if (EventGroups.values[i].context == context)
         {
             fprintf(stderr, "[CBTF/CUDA] CUPTI_events_start(): "
-                    "Redundant call for CUPTI context pointer (%p) encountered!",
-                    context);
+                    "Redundant call for CUPTI context pointer (%p)!", context);
             fflush(stderr);
             abort();
         }
@@ -82,6 +108,13 @@ void CUPTI_events_start(CUcontext context)
         abort();
     }
 
+    EventGroups.values[i].context = context;
+
+    /*
+     * Get the current context, saving it for possible later restoration,
+     * and insure that the specified context is now the current context.
+     */
+    
     CUcontext current = NULL;
     CUDA_CHECK(cuCtxGetCurrent(&current));
     
@@ -90,30 +123,41 @@ void CUPTI_events_start(CUcontext context)
         CUDA_CHECK(cuCtxPopCurrent(&current));
         CUDA_CHECK(cuCtxPushCurrent(context));
     }
+
+    /*
+     * ...
+     */
+    
+    CUPTI_CHECK(cuptiSetEventCollectionMode(
+                    context, CUPTI_EVENT_COLLECTION_MODE_CONTINUOUS
+                    ));
+    
+    CUPTI_CHECK(cuptiEventGroupCreate(
+                    context, &EventGroups.values[i].eventgroup, 0
+                    ));
     
     CUdevice device;
     CUDA_CHECK(cuCtxGetDevice(&device));
 
+    // ...
     
-
-
-    CUPTI_CHECK(cuptiSetEventCollectionMode(
-                    context, CUPTI_EVENT_COLLECTION_MODE_CONTINUOUS
-                    ));
-
-    CUPTI_CHECK(cuptiEventGroupCreate(context, &EventGroups[i].eventgroup, 0));
+    CUPTI_CHECK(cuptiEventGroupEnable(&EventGroups.values[i].eventgroup));
     
+    /* Initialize this context's fake thread-local storage */
+    memset(&EventGroups.values[i].tls, 0, sizeof(TLS));
+    memcpy(&EventGroups.values[i].tls.data_header, &DataHeader,
+           sizeof(CBTF_DataHeader));
+    EventGroups.values[i].tls.data_header.posix_tid = (int64_t)context;
+    TLS_initialize_data(&EventGroups.values[i].tls);
     
-    
-
+    /* Restore (if necessary) the previous value of the current context */
     if (current != context)
     {
         CUDA_CHECK(cuCtxPopCurrent(&context));
         CUDA_CHECK(cuCtxPushCurrent(current));
     }
-
-    EventGroups[i].context = context;
-#endif
+    
+    PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
 }
 
 
@@ -123,32 +167,11 @@ void CUPTI_events_start(CUcontext context)
  */
 void CUPTI_events_sample()
 {
-#if defined(DISABLE_FOR_NOW)
-    Assert(sample != NULL);
-
-    CUcontext context = NULL;
-    CUDA_CHECK(cuCtxGetCurrent(&context));
-    
-    int i;
-    for (i = 0; (i < MAX_CONTEXTS) && (EventGroups[i].context != NULL); ++i)
-    {
-        if (EventsGroups[i].context == context)
-        {
-            break;
-        }
-    }
-
-    if (i == MAX_CONTEXTS)
-    {
-        fprintf(stderr, "[CBTF/CUDA] CUPTI_events_sample(): "
-                "Unknown CUDA context pointer (%p) encountered!\n", context);
-        fflush(stderr);
-        abort();
-    }
+    PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
 
     // ...
 
-#endif
+    PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
 }
 
 
@@ -160,16 +183,21 @@ void CUPTI_events_sample()
  */
 void CUPTI_events_stop(CUcontext context)
 {
-#if defined(DISABLE_FOR_NOW)
+    PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
+
+    /* Find the specified context in the table */
+
     int i;
-    for (i = 0; (i < MAX_CONTEXTS) && (EventGroups[i].context != NULL); ++i)
+    for (i = 0;
+         (i < MAX_CONTEXTS) && (EventGroups.values[i].context != NULL);
+         ++i)
     {
-        if (EventsGroups[i].context == context)
+        if (EventGroups.values[i].context == context)
         {
             break;
         }
     }
-
+    
     if (i == MAX_CONTEXTS)
     {
         fprintf(stderr, "[CBTF/CUDA] CUPTI_events_stop(): "
@@ -178,11 +206,14 @@ void CUPTI_events_stop(CUcontext context)
         abort();
     }
 
-    CUPTI_CHECK(cuptiEventGroupDisable(&EventGroups[i].eventgroup));
-    CUPTI_CHECK(cuptiEventGroupDestroy(&EventGroups[i].eventgroup));
+    /*
+     * ...
+     */
 
-    EventGroups[i].context = NULL;
-#endif
+    CUPTI_CHECK(cuptiEventGroupDisable(&EventGroups.values[i].eventgroup));
+    CUPTI_CHECK(cuptiEventGroupDestroy(&EventGroups.values[i].eventgroup));
+
+    PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
 }
 
 

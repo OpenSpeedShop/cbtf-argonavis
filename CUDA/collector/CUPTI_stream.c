@@ -19,6 +19,8 @@
 /** @file Definition of the CUPTI stream support functions. */
 
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "collector.h"
 #include "CUPTI_stream.h"
