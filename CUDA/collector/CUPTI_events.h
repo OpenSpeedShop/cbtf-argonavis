@@ -22,25 +22,25 @@
 
 #include <cupti.h>
 
-#include "TLS.h"
+/* Initialize CUPTI events data collection for this process. */
+void CUPTI_events_initialize();
 
 /*
- * Start CUPTI events collection for the specified CUDA context.
+ * Start CUPTI events data collection for the specified CUDA context.
  *
- * @param context    CUDA context for which events collection is to be started.
+ * @param context    CUDA context for which data collection is to be started.
  */
 void CUPTI_events_start(CUcontext context);
 
-/*
- * Sample the CUPTI events for the current thread.
- *
- * @parma sample    Sample into which to place the CUPTI event counts.
- */
-void CUPTI_events_sample(PeriodicSample* sample);
+/* Sample the CUPTI events for all active CUDA contexts. */
+void CUPTI_events_sample();
 
 /*
- * Stop CUPTI events collection for the specified CUDA context.
+ * Stop CUPTI events data collection for the specified CUDA context.
  *
- * @param context    CUDA context for which events collection is to be stopped.
+ * @param context    CUDA context for which data collection is to be stopped.
  */
 void CUPTI_events_stop(CUcontext context);
+
+/* Finalize CUPTI events data collection for this process. */
+void CUPTI_events_finalize();

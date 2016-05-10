@@ -59,6 +59,13 @@ CUDA_SamplingConfig TheSamplingConfig;
 static CUDA_EventDescription EventDescriptions[MAX_EVENTS];
 
 /**
+ * Pthread ID of the main (first seen) thread. Initialized by the process-wide
+ * initialization in cbtf_collector_start(). Used by timer_callback() to decide
+ * if it should sample CUPTI events.
+ */
+static pthread_t TheMainThread;
+
+/**
  * The number of threads for which are are collecting data (actively or not).
  * This value is atomically incremented in cbtf_collector_start(), decremented
  * in cbtf_collector_stop(), and is used by those functions to determine when
@@ -213,6 +220,12 @@ static void parse_configuration(const char* const configuration)
  */
 static void timer_callback(const ucontext_t* context)
 {
+    /* Sample the CUPTI events from the main thread (only) */
+    if (pthread_equal(pthread_self(), TheMainThread))
+    {
+        CUPTI_events_sample();
+    }
+    
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
 
@@ -230,9 +243,6 @@ static void timer_callback(const ucontext_t* context)
     /* Sample the PAPI counters for this thread */
     PAPI_sample(&sample);
 
-    /* Sample the CUPTI events for this thread */
-    CUPTI_events_sample(&sample);
-    
     /* Add this sample to the performance data blob for this thread */
     TLS_add_periodic_sample(tls, &sample);
 }
@@ -297,9 +307,15 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 
         if (TheSamplingConfig.events.events_len > 0)
         {
+            /* Initialize CUPTI events data collection for this process */
+            CUPTI_events_initialize();
+            
             /* Initialize PAPI for this process */
             PAPI_initialize();
         }
+
+        /* Get the Pthread ID of the main (first seen) thread */
+        TheMainThread = pthread_self();
 
         /* Start CUPTI activity data collection for this process */
         CUPTI_activities_start();
@@ -334,6 +350,12 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 
     /* Resume data collection for this thread */
     cbtf_collector_resume();
+
+    if (TheSamplingConfig.events.events_len > 0)
+    {
+        /* Start the periodic sampling timer for this thread */
+        CBTF_Timer(TheSamplingConfig.interval, timer_callback);
+    }
 }
 
 
@@ -358,9 +380,6 @@ void cbtf_collector_pause()
 
     if (TheSamplingConfig.events.events_len > 0)
     {
-        /* Stop the periodic sampling timer for this thread */
-        CBTF_Timer(0, NULL);
-
         /* Stop PAPI data collection for this thread */
         PAPI_stop_data_collection();
     }
@@ -384,9 +403,6 @@ void cbtf_collector_resume()
     {
         /* Start PAPI data collection for this thread */
         PAPI_start_data_collection();
-
-        /* Start the periodic sampling timer for this thread */
-        CBTF_Timer(TheSamplingConfig.interval, timer_callback);
     }
 
     /* Access our thread-local storage */
@@ -409,6 +425,12 @@ void cbtf_collector_stop()
         printf("[CBTF/CUDA] cbtf_collector_stop()\n");
     }
 #endif
+
+    if (TheSamplingConfig.events.events_len > 0)
+    {
+        /* Stop the periodic sampling timer for this thread */
+        CBTF_Timer(0, NULL);
+    }
 
     /* Pause data collection for this thread */
     cbtf_collector_pause();
@@ -441,6 +463,9 @@ void cbtf_collector_stop()
 
         if (TheSamplingConfig.events.events_len > 0)
         {
+            /* Finalize CUPTI events data collection for this process */
+            CUPTI_events_finalize();
+            
             /* Finalize PAPI for this process */
             PAPI_finalize();
         }

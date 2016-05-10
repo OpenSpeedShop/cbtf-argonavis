@@ -24,6 +24,7 @@
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
 #include "CUPTI_events.h"
+#include "TLS.h"
 
 
 
@@ -42,9 +43,19 @@ static struct {
 
 
 /**
- * Start events collection for the specified CUDA context.
+ * Initialize CUPTI events data collection for this process.
+ */
+void CUPTI_events_initialize()
+{
+    // ...
+}
+
+
+
+/**
+ * Start events data collection for the specified CUDA context.
  *
- * @param context    CUDA context for which events collection is to be started.
+ * @param context    CUDA context for which data collection is to be started.
  */
 void CUPTI_events_start(CUcontext context)
 {
@@ -108,11 +119,9 @@ void CUPTI_events_start(CUcontext context)
 
 
 /**
- * Sample the CUPTI events for the current thread.
- *
- * @parma sample    Sample into which to place the CUPTI event counts.
+ * Sample the CUPTI events for all active CUDA contexts.
  */
-void CUPTI_events_sample(PeriodicSample* sample)
+void CUPTI_events_sample()
 {
 #if defined(DISABLE_FOR_NOW)
     Assert(sample != NULL);
@@ -138,15 +147,16 @@ void CUPTI_events_sample(PeriodicSample* sample)
     }
 
     // ...
+
 #endif
 }
 
 
 
 /**
- * Stop CUPTI events collection for the specified CUDA context.
+ * Stop CUPTI events data collection for the specified CUDA context.
  *
- * @param context    CUDA context for which events collection is to be stopped.
+ * @param context    CUDA context for which data collection is to be stopped.
  */
 void CUPTI_events_stop(CUcontext context)
 {
@@ -173,4 +183,14 @@ void CUPTI_events_stop(CUcontext context)
 
     EventGroups[i].context = NULL;
 #endif
+}
+
+
+
+/**
+ * Finalize CUPTI events data collection for this process.
+ */
+void CUPTI_events_finalize()
+{
+    // ...
 }
