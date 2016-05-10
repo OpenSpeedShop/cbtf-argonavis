@@ -26,17 +26,6 @@
 
 
 
-/** 
- * Maximum supported number of CUDA contexts. Controls the size of the table
- * used to translate between CUPTI context IDs and CUDA context pointers.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than testing indicates it is usually sufficient.
- */
-#define MAX_CONTEXTS 32
-
-
-
 /** Table used to translate CUPTI context IDs to CUDA context pointers. */
 static struct {
     struct {

@@ -26,17 +26,6 @@
 
 
 
-/** 
- * Maximum supported number of CUDA streams. Controls the size of the table
- * used to translate between CUPTI stream IDs and CUDA stream pointers.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than testing indicates it is usually sufficient.
- */
-#define MAX_STREAMS 32
-
-
-
 /** Table used to translate CUPTI stream IDs to CUDA stream pointers. */
 static struct {
     struct {

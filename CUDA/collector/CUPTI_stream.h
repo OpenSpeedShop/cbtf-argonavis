@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,15 @@
 
 #include <cupti.h>
 #include <inttypes.h>
+
+/** 
+ * Maximum supported number of CUDA streams. Controls the size of the table
+ * used to translate between CUPTI stream IDs and CUDA stream pointers.
+ *
+ * @note    Currently there is no specific basis for the selection of this
+ *          value other than testing indicates it is usually sufficient.
+ */
+#define MAX_STREAMS 32
 
 /*
  * Add the specified mapping of CUPTI stream ID to CUDA stream pointer.

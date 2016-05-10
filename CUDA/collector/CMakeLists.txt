@@ -18,6 +18,7 @@
 
 set(SOURCES
     collector.h collector.c
+    CUDA_check.h
     CUPTI_activities.c CUPTI_activities.h
     CUPTI_callbacks.c CUPTI_callbacks.h
     CUPTI_check.h
