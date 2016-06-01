@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA  02111-1307  USA
+-->
+
+<MRNet xmlns="http://www.krellinst.org/CBTF/MRNet.xsd">
+
+  <!--
+     Template for a CBTF/MRNet distributed component network performing cluster
+     analysis on performance data. Multiple cluster features are evaluated in a
+     distributed manner. Only those features which produce "useful" clusterings
+     are kept. And for those features which are kept, only one "representative"
+     set of performance data for each of that feature's clusters is sent to the
+     tool (e.g. Open|SpeedShop) residing at the frontend (root) of the network.
+
+     To create a cluster analysis implementation for an existing Open|SpeedShop
+     performance data collector one must:
+
+     1) Create a cluster feature generator deriving from the abstract base
+        class found in the file "ArgoNavis/Clustering/FeatureGenerator.hpp".
+        This CBTF component should be compiled and linked into a DSO whose
+        name is that of the data collector (e.g. "CUDA.so") and it should
+        be installed into "<PREFIX>/lib/KrellInstitute/Components".
+
+     2) Replace the existing collector XML file (e.g. "cuda.xml") with a copy
+        of this template and make the following string substitutions:
+
+        GENERATOR: Name of feature generator component (e.g. "FeaturesForCUDA").
+        COLLECTOR: Name of performance data collector (e.g. "cuda").
+           PLUGIN: Name of CBTF component library (e.g. "CUDA.so").
+
+  -->
+
+  <Type>COLLECTOR_clustering</Type>
+  <Version>1.0.0</Version>
+
+  <!--
+     List of the network's outputs.
+      
+     These outputs are connected to similarly named frontend outputs. They
+     should be bound within the tool (e.g. Open|SpeedShop) to handlers for
+     the various types of data.
+  -->
+  
+  <Output>
+    <Name>addressbuffer_output</Name>
+    <From><Output>OutgoingAddressBuffer</Output></From>
+  </Output>
+
+  <Output>
+    <Name>attached_to_threads_xdr_output</Name>
+    <From><Output>OutgoingAttachedToThreads</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>linkedobjectgroup_xdr_output</Name>
+    <From><Output>OutgoingLinkedObjectGroup</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>perfdata_xdr_output</Name>
+    <From><Output>OutgoingPerformanceData</Output></From>
+  </Output>
+  
+  <Output>
+    <Name>threads_finished</Name>
+    <From><Output>OutgoingThreadsFinished</Output></From>
+  </Output>
+  
+  <!--
+     List of the network's stream declarations.
+
+     The data collector utilizes lightweight MRNet to feed packets upward into
+     the CBTF/MRNet distributed component network. And since lightweight MRNet
+     cannot easily contain an event loop accepting downward travelling packets
+     from the network, it isn't notified of any stream tags that were selected
+     dynamically. Instead, stream tags must be hard-coded in the collector and
+     explicitly bound to named streams within the network here.
+  -->
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS</Name>
+    <Tag>1101</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_LOADED_LINKED_OBJECT</Name>
+    <Tag>1116</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED</Name>
+    <Tag>1124</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_UNLOADED_LINKED_OBJECT</Name>
+    <Tag>1126</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP</Name>
+    <Tag>1128</Tag>
+  </Stream>
+  
+  <Stream>
+    <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
+    <Tag>10000</Tag>
+  </Stream>
+
+  <Stream><Name>AddressBuffer</Name></Stream>
+  <Stream><Name>Feature</Name></Stream>
+  <Stream><Name>ThreadsFinished</Name></Stream>
+
+  <!-- ... -->
+ 
+  <!-- Frontend of the network -->
+  
+  <Frontend>
+    
+    <!-- Component network for the frontend -->
+    
+    <Network xmlns="http://www.krellinst.org/CBTF/Network">
+      
+      <Type>COLLECTOR_clustering_frontend</Type>
+      <Version>1.0.0</Version>
+      
+      <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
+      
+      <Plugin>Clustering.so</Plugin>
+      
+      <!-- List of the frontend network's component instances -->
+
+      <Component>
+        <Name>Manager</Name>
+        <Type>ClusteringManager</Type>
+      </Component>
+      
+      <!-- List of the frontend network's inputs -->
+
+      <!-- ... -->
+      
+      <!-- List of the frontend network's outputs -->
+
+      <Output>
+        <Name>OutgoingAddressBuffer</Name>
+        <From><Name>Manager</Name><Output>AddressBuffer</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingAttachedToThreads</Name>
+        <From><Name>Manager</Name><Output>AttachedToThreads</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingLinkedObjectGroup</Name>
+        <From><Name>Manager</Name><Output>LinkedObjectGroup</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingPerformanceData</Name>
+        <From><Name>Manager</Name><Output>Data</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingThreadsFinished</Name>
+        <From><Name>Manager</Name><Output>ThreadsFinished</Output></From>
+      </Output>
+      
+    </Network>
+
+    <!-- List of the frontend's incoming upstreams -->
+
+    <!-- ... -->
+
+    <!-- List of the frontend's outgoing downstreams -->
+
+    <!-- ... -->
+            
+  </Frontend>
+
+  <!-- Filter for the network residing only on the bottom CP nodes -->
+  
+  <Filter>
+
+    <Depth><Expression>cp:bottom</Expression></Depth>
+    
+    <!-- Component network for this filter -->
+    
+    <Network xmlns="http://www.krellinst.org/CBTF/Network">
+      
+      <Type>COLLECTOR_clustering_filter_bottom</Type>
+      <Version>1.0.0</Version>
+      
+      <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
+      
+      <Plugin>Clustering.so</Plugin>
+      <Plugin>PLUGIN</Plugin>
+      
+      <!-- List of this filter network's component instances -->
+
+      <Component>
+        <Name>Leaf</Name>
+        <Type>ClusteringLeaf</Type>
+      </Component>
+
+      <Component>
+        <Name>Generator</Name>
+        <Type>COMPONENT</Type>
+      </Component>
+      
+      <!-- List of this filter network's inputs -->
+
+      <Input>
+        <Name>IncomingAttachedToThreads</Name>
+        <To><Name>Leaf</Name><Input>AttachedToThreads</Input></To>
+      </Input>
+      
+      <Input>
+        <Name>IncomingLinkedObjectGroup</Name>
+        <To><Name>Generator</Name><Input>InitialLinkedObjects</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingLoadedLinkedObject</Name>
+        <To><Name>Generator</Name><Input>LoadedLinkedObject</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingPerformanceData</Name>
+        <To><Name>Generator</Name><Input>Data</Input></To>
+      </Input>
+      
+      <Input>
+        <Name>IncomingThreadsStateChanged</Name>
+        <To><Name>Leaf</Name><Input>ThreadsStateChanged</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingUnloadedLinkedObject</Name>
+        <To><Name>Generator</Name><Input>UnloadedLinkedObject</Input></To>
+      </Input>
+
+      <!-- List of this filter network's connections -->
+
+      <Connection>
+        <From><Name>Leaf</Name><Output>EmitAddressBuffer</Output></From>
+        <To><Name>Generator</Name><Input>EmitAddressBuffer</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>Leaf</Name><Output>EmitData</Output></From>
+        <To><Name>Generator</Name><Input>EmitData</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>Leaf</Name><Output>EmitFeatures</Output></From>
+        <To><Name>Generator</Name><Input>EmitFeatures</Input></To>
+      </Connection>
+
+      <!-- List of this filter network's outputs -->
+
+      <Output>
+        <Name>OutgoingAddressBuffer</Name>
+        <From><Name>Generator</Name><Output>AddressBuffer</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingAttachedToThreads</Name>
+        <From><Name>Leaf</Name><Output>AttachedToThreads</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingFeature</Name>
+        <From><Name>Generator</Name><Output>Feature</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingLinkedObjectGroup</Name>
+        <From><Name>Generator</Name><Output>LinkedObjectGroup</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingPerformanceData</Name>
+        <From><Name>Generator</Name><Output>Data</Output></From>
+      </Output>
+      
+      <Output>
+        <Name>OutgoingThreadsFinished</Name>
+        <From><Name>Leaf</Name><Output>ThreadsFinished</Output></From>
+      </Output>
+
+    </Network>
+
+    <!-- List of this filter's incoming downstreams -->
+
+    <!-- ... -->
+
+    <!-- List of this filter's incoming upstreams -->
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS</Name>
+      <To><Input>IncomingAttachedToThreads</Input></To>
+    </IncomingUpstream>
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP</Name>
+      <To><Input>IncomingLinkedObjectGroup</Input></To>
+    </IncomingUpstream>
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_LOADED_LINKED_OBJECT</Name>
+      <To><Input>IncomingLoadedLinkedObject</Input></To>
+    </IncomingUpstream>
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
+      <To><Input>IncomingPerformanceData</Input></To>
+    </IncomingUpstream>
+    
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED</Name>
+      <To><Input>IncomingThreadsStateChanged</Input></To>
+    </IncomingUpstream>
+
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_UNLOADED_LINKED_OBJECT</Name>
+      <To><Input>IncomingUnloadedLinkedObject</Input></To>
+    </IncomingUpstream>
+
+    <!-- List of this filter's outgoing upstreams -->
+
+    <OutgoingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS</Name>
+      <From><Output>OutgoingAttachedToThreads</Output></From>
+    </OutgoingUpstream>
+    
+    <OutgoingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP</Name>
+      <From><Output>OutgoingLinkedObjectGroup</Output></From>
+    </OutgoingUpstream>
+    
+    <OutgoingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
+      <From><Output>OutgoingPerformanceData</Output></From>
+    </OutgoingUpstream>
+
+    <OutgoingUpstream>
+      <Name>AddressBuffer</Name>
+      <From><Output>OutgoingAddressBuffer</Output></From>
+    </OutgoingUpstream>
+
+    <OutgoingUpstream>
+      <Name>Feature</Name>
+      <From><Output>OutgoingFeature</Output></From>
+    </OutgoingUpstream>
+
+    <OutgoingUpstream>
+      <Name>ThreadsFinished</Name>
+      <From><Output>OutgoingThreadsFinished</Output></From>
+    </OutgoingUpstream>
+ 
+    <!-- ... -->
+       
+  </Filter>
+  
+  <!-- Filter for the network residing on all other nodes -->
+  
+  <Filter>
+
+    <Depth><AllOther/></Depth>
+    
+    <!-- Component network for this filter -->
+    
+    <Network xmlns="http://www.krellinst.org/CBTF/Network">
+      
+      <Type>COLLECTOR_clustering_filter_other</Type>
+      <Version>1.0.0</Version>
+      
+      <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
+      
+      <Plugin>Clustering.so</Plugin>
+      
+      <!-- List of this filter network's component instances -->
+
+      <Component>
+        <Name>Filter</Name>
+        <Type>ClusteringFilter</Type>
+      </Component>
+      
+      <!-- List of this filter network's inputs -->
+
+      <!-- ... -->
+
+      <!-- List of this filter network's connections -->
+
+      <!-- ... -->
+
+      <!-- List of this filter network's outputs -->
+
+      <!-- ... -->
+
+    </Network>
+
+    <!-- List of this filter's incoming downstreams -->
+
+    <!-- ... -->
+
+    <!-- List of this filter's outgoing downstreams -->
+
+    <!-- ... -->
+
+    <!-- List of this filter's incoming upstreams -->
+
+    <!-- ... -->
+
+    <!-- List of this filter's outgoing upstreams -->
+ 
+    <!-- ... -->
+       
+  </Filter>
+
+</MRNet>
