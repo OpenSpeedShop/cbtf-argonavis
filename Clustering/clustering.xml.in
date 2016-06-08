@@ -50,6 +50,18 @@ Place, Suite 330, Boston, MA  02111-1307  USA
   <Version>1.0.0</Version>
 
   <!--
+     List of the network's inputs.
+
+     These inputs are connected to similarly named frontend inputs. They
+     should be set by the tool (e.g. Open|SpeedShop).
+  -->
+
+  <Input>
+    <Name>numBE</Name>
+    <From><Output>IncomingBackendCount</Output></From>
+  </Input>
+
+  <!--
      List of the network's outputs.
       
      These outputs are connected to similarly named frontend outputs. They
@@ -124,10 +136,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
   </Stream>
 
   <Stream><Name>AddressBuffer</Name></Stream>
-  <Stream><Name>Feature</Name></Stream>
-  <Stream><Name>ThreadsFinished</Name></Stream>
-
-  <!-- ... -->
+  <Stream><Name>EmitPerformanceData</Name></Stream>
  
   <!-- Frontend of the network -->
   
@@ -153,7 +162,25 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       
       <!-- List of the frontend network's inputs -->
 
-      <!-- ... -->
+      <Input>
+        <Name>IncomingAddressBuffer</Name>
+        <To><Name>Manager</Name><Input>AddressBuffer</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingBackendCount</Name>
+        <To><Name>Manager</Name><Input>BackendCount</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingLinkedObjectGroup</Name>
+        <To><Name>Manager</Name><Input>LinkedObjectGroup</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingPerformanceData</Name>
+        <To><Name>Manager</Name><Input>Performance</Input></To>
+      </Input>
       
       <!-- List of the frontend network's outputs -->
 
@@ -168,13 +195,18 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       </Output>
 
       <Output>
+        <Name>OutgoingEmitPerformanceData</Name>
+        <From><Name>Manager</Name><Output>EmitPerformanceData</Output></From>
+      </Output>
+
+      <Output>
         <Name>OutgoingLinkedObjectGroup</Name>
         <From><Name>Manager</Name><Output>LinkedObjectGroup</Output></From>
       </Output>
       
       <Output>
         <Name>OutgoingPerformanceData</Name>
-        <From><Name>Manager</Name><Output>Data</Output></From>
+        <From><Name>Manager</Name><Output>PerformanceData</Output></From>
       </Output>
       
       <Output>
@@ -186,11 +218,27 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
     <!-- List of the frontend's incoming upstreams -->
 
-    <!-- ... -->
+    <IncomingUpstream>
+      <Name>AddressBuffer</Name>
+      <To><Input>IncomingAddressBuffer</Input></To>
+    </IncomingUpstream>
+
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP</Name>
+      <To><Input>IncomingLinkedObjectGroup</Input></To>
+    </IncomingUpstream>
+
+    <IncomingUpstream>
+      <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
+      <To><Input>IncomingPerformanceData</Input></To>
+    </IncomingUpstream>
 
     <!-- List of the frontend's outgoing downstreams -->
 
-    <!-- ... -->
+    <OutgoingDownstream>
+      <Name>EmitPerformanceData</Name>
+      <From><Output>OutgoingEmitPerformanceData</Output></From>
+    </OutgoingDownstream>
             
   </Frontend>
 
@@ -230,20 +278,25 @@ Place, Suite 330, Boston, MA  02111-1307  USA
         <Name>IncomingAttachedToThreads</Name>
         <To><Name>Leaf</Name><Input>AttachedToThreads</Input></To>
       </Input>
+
+      <Input>
+        <Name>IncomingEmitPerformanceData</Name>
+        <To><Name>Leaf</Name><Input>EmitPerformanceData</Input></To>
+      </Input>
       
       <Input>
         <Name>IncomingLinkedObjectGroup</Name>
-        <To><Name>Generator</Name><Input>InitialLinkedObjects</Input></To>
+        <To><Name>Leaf</Name><Input>InitialLinkedObjects</Input></To>
       </Input>
 
       <Input>
         <Name>IncomingLoadedLinkedObject</Name>
-        <To><Name>Generator</Name><Input>LoadedLinkedObject</Input></To>
+        <To><Name>Leaf</Name><Input>LoadedLinkedObject</Input></To>
       </Input>
 
       <Input>
         <Name>IncomingPerformanceData</Name>
-        <To><Name>Generator</Name><Input>Data</Input></To>
+        <To><Name>Generator</Name><Input>PerformanceData</Input></To>
       </Input>
       
       <Input>
@@ -253,19 +306,14 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
       <Input>
         <Name>IncomingUnloadedLinkedObject</Name>
-        <To><Name>Generator</Name><Input>UnloadedLinkedObject</Input></To>
+        <To><Name>Leaf</Name><Input>UnloadedLinkedObject</Input></To>
       </Input>
 
       <!-- List of this filter network's connections -->
 
       <Connection>
-        <From><Name>Leaf</Name><Output>EmitAddressBuffer</Output></From>
-        <To><Name>Generator</Name><Input>EmitAddressBuffer</Input></To>
-      </Connection>
-
-      <Connection>
-        <From><Name>Leaf</Name><Output>EmitData</Output></From>
-        <To><Name>Generator</Name><Input>EmitData</Input></To>
+        <From><Name>Leaf</Name><Output>AddressSpaces</Output></From>
+        <To><Name>Generator</Name><Input>AddressSpaces</Input></To>
       </Connection>
 
       <Connection>
@@ -273,43 +321,46 @@ Place, Suite 330, Boston, MA  02111-1307  USA
         <To><Name>Generator</Name><Input>EmitFeatures</Input></To>
       </Connection>
 
+      <Connection>
+        <From><Name>Leaf</Name><Output>EmitPerformanceData</Output></From>
+        <To><Name>Generator</Name><Input>EmitPerformanceData</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>Generator</Name><Output>Feature</Output></From>
+        <To><Name>Leaf</Name><Input>Feature</Input></To>
+      </Connection>
+
+      <Connection>
+        <From><Name>Generator</Name><Output>ObservedAddress</Output></From>
+        <To><Name>Leaf</Name><Input>ObservedAddress</Input></To>
+      </Connection>
+
       <!-- List of this filter network's outputs -->
 
       <Output>
         <Name>OutgoingAddressBuffer</Name>
-        <From><Name>Generator</Name><Output>AddressBuffer</Output></From>
+        <From><Name>Leaf</Name><Output>AddressBuffer</Output></From>
       </Output>
 
-      <Output>
-        <Name>OutgoingAttachedToThreads</Name>
-        <From><Name>Leaf</Name><Output>AttachedToThreads</Output></From>
-      </Output>
-
-      <Output>
-        <Name>OutgoingFeature</Name>
-        <From><Name>Generator</Name><Output>Feature</Output></From>
-      </Output>
-      
       <Output>
         <Name>OutgoingLinkedObjectGroup</Name>
-        <From><Name>Generator</Name><Output>LinkedObjectGroup</Output></From>
+        <From><Name>Leaf</Name><Output>LinkedObjectGroup</Output></From>
       </Output>
       
       <Output>
         <Name>OutgoingPerformanceData</Name>
-        <From><Name>Generator</Name><Output>Data</Output></From>
+        <From><Name>Generator</Name><Output>PerformanceData</Output></From>
       </Output>
       
-      <Output>
-        <Name>OutgoingThreadsFinished</Name>
-        <From><Name>Leaf</Name><Output>ThreadsFinished</Output></From>
-      </Output>
-
     </Network>
 
     <!-- List of this filter's incoming downstreams -->
 
-    <!-- ... -->
+    <IncomingDownstream>
+      <Name>EmitPerformanceData</Name>
+      <To><Input>IncomingEmitPerformanceData</Input></To>
+    </IncomingDownstream>
 
     <!-- List of this filter's incoming upstreams -->
     
@@ -346,11 +397,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <!-- List of this filter's outgoing upstreams -->
 
     <OutgoingUpstream>
-      <Name>CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS</Name>
-      <From><Output>OutgoingAttachedToThreads</Output></From>
-    </OutgoingUpstream>
-    
-    <OutgoingUpstream>
       <Name>CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP</Name>
       <From><Output>OutgoingLinkedObjectGroup</Output></From>
     </OutgoingUpstream>
@@ -365,18 +411,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <From><Output>OutgoingAddressBuffer</Output></From>
     </OutgoingUpstream>
 
-    <OutgoingUpstream>
-      <Name>Feature</Name>
-      <From><Output>OutgoingFeature</Output></From>
-    </OutgoingUpstream>
-
-    <OutgoingUpstream>
-      <Name>ThreadsFinished</Name>
-      <From><Output>OutgoingThreadsFinished</Output></From>
-    </OutgoingUpstream>
- 
-    <!-- ... -->
-       
   </Filter>
   
   <!-- Filter for the network residing on all other nodes -->
@@ -405,34 +439,58 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       
       <!-- List of this filter network's inputs -->
 
-      <!-- ... -->
+      <Input>
+        <Name>IncomingAddressBuffer</Name>
+        <To><Name>Filter</Name><Input>AddressBuffer</Input></To>
+      </Input>
 
-      <!-- List of this filter network's connections -->
-
-      <!-- ... -->
+      <Input>
+        <Name>IncomingEmitPerformanceData</Name>
+        <To><Name>Filter</Name><Input>EmitPerformanceData</Input></To>
+      </Input>
 
       <!-- List of this filter network's outputs -->
 
-      <!-- ... -->
+      <Output>
+        <Name>OutgoingAddressBuffer</Name>
+        <From><Name>Filter</Name><Output>AddressBuffer</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingEmitPerformanceData</Name>
+        <From><Name>Filter</Name><Output>EmitPerformanceData</Output></From>
+      </Output>
 
     </Network>
 
     <!-- List of this filter's incoming downstreams -->
 
-    <!-- ... -->
+    <IncomingDownstream>
+      <Name>EmitPerformanceData</Name>
+      <To><Input>IncomingEmitPerformanceData</Input></To>
+    </IncomingDownstream>
 
     <!-- List of this filter's outgoing downstreams -->
 
-    <!-- ... -->
+    <OutgoingDownstream>
+      <Name>EmitPerformanceData</Name>
+      <From><Output>OutgoingEmitPerformanceData</Output></From>
+    </OutgoingDownstream>
 
     <!-- List of this filter's incoming upstreams -->
 
-    <!-- ... -->
+    <IncomingUpstream>
+      <Name>AddressBuffer</Name>
+      <To><Input>IncomingAddressBuffer</Input></To>
+    </IncomingUpstream>
 
     <!-- List of this filter's outgoing upstreams -->
- 
-    <!-- ... -->
-       
+
+    <OutgoingUpstream>
+      <Name>AddressBuffer</Name>
+      <From><Output>OutgoingAddressBuffer</Output></From>
+    </OutgoingUpstream>
+
   </Filter>
 
 </MRNet>

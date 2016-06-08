@@ -19,14 +19,12 @@
 /** @file Definition of the FeatureGenerator class. */
 
 #include <boost/bind.hpp>
-#include <vector>
 
 #include <ArgoNavis/Clustering/FeatureGenerator.hpp>
 
 using namespace ArgoNavis::Base;
 using namespace ArgoNavis::Clustering;
 using namespace KrellInstitute::CBTF;
-using namespace KrellInstitute::Core;
 
 
 
@@ -34,71 +32,65 @@ using namespace KrellInstitute::Core;
 //------------------------------------------------------------------------------
 FeatureGenerator::FeatureGenerator(const Type& type, const Version& version):
     Component(type, version),
-    dm_addresses(),
-    dm_address_spaces()
+    dm_spaces()
 {
+    // Performance Data Collector Interface
+    
     declareInput<boost::shared_ptr<CBTF_Protocol_Blob> >(
-        "Data",
-        boost::bind(&FeatureGenerator::handleData, this, _1)
+        "PerformanceData",
+        boost::bind(&FeatureGenerator::handlePerformanceData, this, _1)
         );
-    declareInput<bool>(
-        "EmitAddressBuffer",
-        boost::bind(&FeatureGenerator::handleEmitAddressBuffer, this, _1)
-        );
-    declareInput<ThreadName>(
-        "EmitData",
-        boost::bind(&FeatureGenerator::handleEmitData, this, _1)
+
+    // ClusteringLeaf Interface
+
+    declareInput<AddressSpaces>(
+        "AddressSpaces",
+        boost::bind(&FeatureGenerator::handleAddressSpaces, this, _1)
         );
     declareInput<ThreadName>(
         "EmitFeatures",
         boost::bind(&FeatureGenerator::handleEmitFeatures, this, _1)
         );
-    declareInput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
-        "InitialLinkedObjects",
-        boost::bind(&FeatureGenerator::handleInitialLinkedObjects, this, _1)
+    declareInput<ThreadName>(
+        "EmitPerformanceData",
+        boost::bind(&FeatureGenerator::handleEmitPerformanceData, this, _1)
         );
-    declareInput<boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject> >(
-        "LoadedLinkedObject",
-        boost::bind(&FeatureGenerator::handleLoadedLinkedObject, this, _1)
-        );
-    declareInput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
-        "UnloadedLinkedObject",
-        boost::bind(&FeatureGenerator::handleUnloadedLinkedObject, this, _1)
-        );
+    
+    declareOutput<FeatureVector>("Feature");
+    declareOutput<Address>("ObservedAddress");
 
-    declareOutput<AddressBuffer>("AddressBuffer");
-    declareOutput<boost::shared_ptr<CBTF_Protocol_Blob> >("Data");
-    //declareOutput<...>("Feature");
-    declareOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
-        "LinkedObjectGroup"
-        );
+    // ClusteringManager Interface (not intercepted by ClusteringFilter)
+    
+    declareOutput<boost::shared_ptr<CBTF_Protocol_Blob> >("PerformanceData");
 }
 
 
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void FeatureGenerator::emit(const boost::shared_ptr<CBTF_Protocol_Blob>& blob)
+void FeatureGenerator::emitFeature(const FeatureVector& feature)
 {
-    emitOutput<boost::shared_ptr<CBTF_Protocol_Blob> >("Data", blob);
+    emitOutput<FeatureVector>("Feature", feature);
 }
 
 
-        
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void FeatureGenerator::emit(/*  ... feature */)
+void FeatureGenerator::emitObservedAddress(const Address& address)
 {
-    // emitOutput<...>("Feature", feature);
+    emitOutput<Address>("ObservedAddress", address);
 }
 
 
-        
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void FeatureGenerator::observed(const Base::Address& address)
+void FeatureGenerator::emitPerformanceData(
+    const boost::shared_ptr<CBTF_Protocol_Blob>& blob
+    )
 {
-    dm_addresses.updateAddressCounts(address, 1);
+    emitOutput<boost::shared_ptr<CBTF_Protocol_Blob> >("PerformanceData", blob);
 }
 
 
@@ -107,53 +99,16 @@ void FeatureGenerator::observed(const Base::Address& address)
 //------------------------------------------------------------------------------
 const AddressSpaces& FeatureGenerator::spaces() const
 {
-    return dm_address_spaces;
+    return dm_spaces;
 }
 
 
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void FeatureGenerator::handleData(
-    const boost::shared_ptr<CBTF_Protocol_Blob>& message
-    )
+void FeatureGenerator::handleAddressSpaces(const AddressSpaces& spaces)
 {
-    onReceivedData(message);
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-void FeatureGenerator::handleEmitAddressBuffer(const bool& value)
-{
-    emitOutput<AddressBuffer>("AddressBuffer", dm_addresses);    
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-void FeatureGenerator::handleEmitData(const ThreadName& thread)
-{
-    onEmitData(thread);
-    
-    std::vector<CBTF_Protocol_LinkedObjectGroup> groups = dm_address_spaces;
-    
-    for (std::vector<CBTF_Protocol_LinkedObjectGroup>::const_iterator
-             i = groups.begin(); i != groups.end(); ++i)
-    {
-        if (ThreadName(i->thread) == thread)
-        {
-            emitOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
-                "LinkedObjectGroup",
-                boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>(
-                    new CBTF_Protocol_LinkedObjectGroup(*i)
-                    )
-                );
-            break;
-        }
-    }
+    dm_spaces = spaces;
 }
 
 
@@ -169,31 +124,18 @@ void FeatureGenerator::handleEmitFeatures(const ThreadName& thread)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void FeatureGenerator::handleInitialLinkedObjects(
-    const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
-    )
+void FeatureGenerator::handleEmitPerformanceData(const ThreadName& thread)
 {
-    dm_address_spaces.apply(*message);
+    onEmitPerformanceData(thread);
 }
 
 
-
+        
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void FeatureGenerator::handleLoadedLinkedObject(
-    const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
+void FeatureGenerator::handlePerformanceData(
+    const boost::shared_ptr<CBTF_Protocol_Blob>& message
     )
 {
-    dm_address_spaces.apply(*message);
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-void FeatureGenerator::handleUnloadedLinkedObject(
-    const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
-    )
-{
-    dm_address_spaces.apply(*message);
+    onPerformanceData(message);
 }

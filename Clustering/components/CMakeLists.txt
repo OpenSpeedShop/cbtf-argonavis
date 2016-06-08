@@ -17,7 +17,9 @@
 ################################################################################
 
 add_library(Clustering SHARED
+    ArgoNavis/Clustering/Feature.hpp
     ArgoNavis/Clustering/FeatureGenerator.hpp
+    ArgoNavis/Clustering/FeatureVector.hpp
     ClusteringFilter.cpp
     ClusteringLeaf.cpp
     ClusteringManager.cpp

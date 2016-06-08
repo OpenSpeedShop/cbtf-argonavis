@@ -24,20 +24,20 @@
 #include <KrellInstitute/CBTF/Type.hpp>
 #include <KrellInstitute/CBTF/Version.hpp>
 
-#include <KrellInstitute/Core/AddressBuffer.hpp>
-
 #include <KrellInstitute/Messages/Blob.h>
-#include <KrellInstitute/Messages/LinkedObjectEvents.h>
 
 #include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/AddressSpaces.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 
+#include <ArgoNavis/Clustering/FeatureVector.hpp>
+
 namespace ArgoNavis { namespace Clustering {
 
     /**
-     * Abstract base class for a component that generates clustering features.
-     * ...
+     * Abstract base class for a CBTF component that generates feature vectors
+     * for clustering analysis. Such components work directly with performance
+     * data blobs and thus are typically specific to a particular collector.
      */
     class FeatureGenerator :
         public KrellInstitute::CBTF::Component
@@ -57,65 +57,32 @@ namespace ArgoNavis { namespace Clustering {
                          const KrellInstitute::CBTF::Version& version);
 
         /**
-         * Emit the given performance data blob on an outgoing upstream towards
-         * the distributed component network's frontend (root). Called zero or
-         * more times by the derived class' onEmitData() implementation.
+         * Emit the given clustering feature. Called zero or more times by the
+         * derived class' onEmitFeatures() implementation.
          *
-         * @param blob    Performance data blob to be emitted.
+         * @param feature    Clustering feature vector to be emitted.
          */
-        void emit(const boost::shared_ptr<CBTF_Protocol_Blob>& blob);
-        
+        void emitFeature(const FeatureVector& feature);
+
         /**
-         * Emit the given clustering feature on an outgoing upstream towards
-         * the distributed component network's frontend (root). Called zero
-         * or more times by the derived class' onEmitFeatures() implementation.
-         *
-         * @param feature    Clustering feature to be emitted.
-         */
-        void emit(/* ... feature */);
-        
-        /**
-         * Note the observation of the given address. Called zero or more times
-         * by the derived class' onReceivedData() implementation. These observed
-         * addresses are used to inform Open|SpeedShop which addresses need to
-         * be resolved to symbols in order to view the performance data.
+         * Emit the given observed address. Called zero or more times by the
+         * derived class' onPerformanceData() implementation. These observed
+         * addresses are used to inform Open|SpeedShop which addresses need
+         * to be resolved to symbols in order to view the performance data.
          *
          * @param address    Address observed in a performance data blob.
          */
-        void observed(const Base::Address& address);
+        void emitObservedAddress(const Base::Address& address);
 
         /**
-         * Callback invoked when a performance data blob is received from the
-         * collector. The derived class' implementation should store the blob,
-         * possibly in a form suitable for clustering feature generation, and
-         * be prepared to emit the performance data blobs associated with a
-         * particular thread when requested via onEmitData().
+         * Emit the given performance data blob. Called zero or more times by
+         * the derived class' onEmitPerformanceData() implementation.
          *
-         * @param blob    Performance data blob received from the collector.
+         * @param blob    Performance data blob to be emitted.
          */
-        virtual void onReceivedData(
+        void emitPerformanceData(
             const boost::shared_ptr<CBTF_Protocol_Blob>& blob
-            ) = 0;
-        
-        /**
-         * Callback invoked in order to request the emission of all performance
-         * data blobs associated with the specified thread. The derived class'
-         * implementation should emit the requested performance data blobs via
-         * emit().
-         *
-         * @param thread    Thread for which to emit performance data blobs.
-         */
-        virtual void onEmitData(const Base::ThreadName& thread) = 0;
-
-        /**
-         * Callback invoked in order to request the emission of all clustering
-         * features associated with the specified thread. The derived class'
-         * implementation should emit the requested clustering metrics via
-         * emit().
-         *
-         * @param thread    Thread for which to emit clustering features.
-         */
-        virtual void onEmitFeatures(const Base::ThreadName& thread) = 0;
+            );
 
         /**
          * Get the address spaces of all observed threads. Called by the derived
@@ -126,40 +93,57 @@ namespace ArgoNavis { namespace Clustering {
          */
         const Base::AddressSpaces& spaces() const;
 
+        /**
+         * Callback invoked in order to request the emission of all clustering
+         * features associated with the specified thread. The derived class'
+         * implementation should emit the requested clustering features via
+         * emitFeature().
+         *
+         * @param thread    Thread for which to emit clustering features.
+         */
+        virtual void onEmitFeatures(const Base::ThreadName& thread) = 0;
+
+        /**
+         * Callback invoked in order to request the emission of all performance
+         * data blobs associated with the specified thread. The derived class'
+         * implementation should emit the requested performance data blobs via
+         * emitPerformanceData().
+         *
+         * @param thread    Thread for which to emit performance data blobs.
+         */
+        virtual void onEmitPerformanceData(const Base::ThreadName& thread) = 0;
+        
+        /**
+         * Callback invoked when a performance data blob is received from the
+         * collector. The derived class' implementation should store the blob,
+         * possibly in a form suitable for clustering feature generation, and
+         * be prepared to emit the performance data blobs associated with a
+         * particular thread when requested via onEmitPerformanceData().
+         *
+         * @param blob    Performance data blob received from the collector.
+         */
+        virtual void onPerformanceData(
+            const boost::shared_ptr<CBTF_Protocol_Blob>& blob
+            ) = 0;
+
     private:
 
-        /** Handler for the "Data" input. */
-        void handleData(const boost::shared_ptr<CBTF_Protocol_Blob>& message);
-
-        /** Handler for the "EmitAddressBuffer" input. */
-        void handleEmitAddressBuffer(const bool& value);
-
-        /** Handler for the "EmitData" input. */
-        void handleEmitData(const Base::ThreadName& thread);
+        /** Handler for the "AddressSpaces" input. */
+        void handleAddressSpaces(const Base::AddressSpaces& spaces);
 
         /** Handler for the "EmitFeatures" input. */
         void handleEmitFeatures(const Base::ThreadName& thread);
-
-        /** Handler for the "InitialLinkedObjects" input. */
-        void handleInitialLinkedObjects(
-            const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
-            );
         
-        /** Handler for the "LoadedLinkedObject" input. */
-        void handleLoadedLinkedObject(
-            const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
+        /** Handler for the "EmitPerformanceData" input. */
+        void handleEmitPerformanceData(const Base::ThreadName& thread);
+
+        /** Handler for the "PerformanceData" input. */
+        void handlePerformanceData(
+            const boost::shared_ptr<CBTF_Protocol_Blob>& message
             );
 
-        /** Handler for the "UnloadedLinkedObject" input. */
-        void handleUnloadedLinkedObject(
-            const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
-            );
-
-        /** Address buffer containing all of the observed addresses. */
-        KrellInstitute::Core::AddressBuffer dm_addresses;
-        
         /** Address spaces of all observed threads. */
-        Base::AddressSpaces dm_address_spaces;
+        Base::AddressSpaces dm_spaces;
         
     }; // class FeatureGenerator
 

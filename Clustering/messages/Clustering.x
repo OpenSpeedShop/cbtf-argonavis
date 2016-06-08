@@ -23,9 +23,11 @@
 
 
 /**
- * Dummy message to get something compiling for now. Real messages to follow...
+ * Emit performance data for the specified thread. Issued by ClusteringManager
+ * to request the performance data and associated address space information for
+ * a single thread.
  */
-struct Clustering_Dummy
+struct Clustering_EmitPerformanceData
 {
-    uint64_t value;
+    CBTF_Protocol_ThreadName thread;
 };

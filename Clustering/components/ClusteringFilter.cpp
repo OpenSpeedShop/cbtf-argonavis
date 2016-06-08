@@ -16,15 +16,22 @@
 // Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
-/** @file Component ... */
+/** @file Cluster analysis filter component. */
 
+#include <boost/bind.hpp>
+#include <boost/shared_ptr.hpp>
 #include <typeinfo>
 
 #include <KrellInstitute/CBTF/Component.hpp>
 #include <KrellInstitute/CBTF/Type.hpp>
 #include <KrellInstitute/CBTF/Version.hpp>
 
+#include <KrellInstitute/Core/AddressBuffer.hpp>
+
+#include <KrellInstitute/Messages/Clustering.h>
+
 using namespace KrellInstitute::CBTF;
+using namespace KrellInstitute::Core;
 
 
 
@@ -49,6 +56,14 @@ private:
 
     /** Default constructor. */
     ClusteringFilter();
+
+    /** Handler for the "AddressBuffer" input. */
+    void handleAddressBuffer(const AddressBuffer& buffer);
+
+    /** Handler for the "EmitPerformanceData" input. */
+    void handleEmitPerformanceData(
+        const boost::shared_ptr<Clustering_EmitPerformanceData>& message
+        );
     
 }; // class ClusteringFilter
 
@@ -61,4 +76,43 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringFilter)
 ClusteringFilter::ClusteringFilter():
     Component(Type(typeid(ClusteringFilter)), Version(1, 0, 0))
 {
+    // ClusteringLeaf/ClusteringFilter Interface
+
+    declareInput<AddressBuffer>(
+        "AddressBuffer",
+        boost::bind(&ClusteringFilter::handleAddressBuffer, this, _1)
+        );
+    
+    declareOutput<boost::shared_ptr<Clustering_EmitPerformanceData> >(
+        "EmitPerformanceData"
+        );
+    
+    // ClusteringManager/ClusteringFilter Interface
+    
+    declareInput<boost::shared_ptr<Clustering_EmitPerformanceData> >(
+        "EmitPerformanceData",
+        boost::bind(&ClusteringFilter::handleEmitPerformanceData, this, _1)
+        );
+
+    declareOutput<AddressBuffer>("AddressBuffer");
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringFilter::handleAddressBuffer(const AddressBuffer& buffer)
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringFilter::handleEmitPerformanceData(
+    const boost::shared_ptr<Clustering_EmitPerformanceData>& message
+    )
+{
+    // ...
 }

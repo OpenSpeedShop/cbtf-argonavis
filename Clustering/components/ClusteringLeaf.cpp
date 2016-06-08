@@ -16,7 +16,7 @@
 // Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
-/** @file Component ... */
+/** @file Cluster analysis leaf component. */
 
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
@@ -27,12 +27,21 @@
 #include <KrellInstitute/CBTF/Type.hpp>
 #include <KrellInstitute/CBTF/Version.hpp>
 
+#include <KrellInstitute/Core/AddressBuffer.hpp>
+
+#include <KrellInstitute/Messages/Clustering.h>
+#include <KrellInstitute/Messages/LinkedObjectEvents.h>
 #include <KrellInstitute/Messages/ThreadEvents.h>
 
+#include <ArgoNavis/Base/AddressSpaces.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 
+#include <ArgoNavis/Clustering/FeatureVector.hpp>
+
 using namespace ArgoNavis::Base;
+using namespace ArgoNavis::Clustering;
 using namespace KrellInstitute::CBTF;
+using namespace KrellInstitute::Core;
 
 
 
@@ -44,7 +53,7 @@ class __attribute__ ((visibility ("hidden"))) ClusteringLeaf :
 {
     
 public:
-
+    
     /** Factory function for this component type. */
     static Component::Instance factoryFunction()
     {
@@ -63,10 +72,42 @@ private:
         const boost::shared_ptr<CBTF_Protocol_AttachedToThreads>& message
         );
 
+    /** Handler for the "EmitPerformanceData" input. */
+    void handleEmitPerformanceData(
+        const boost::shared_ptr<Clustering_EmitPerformanceData>& message
+        );
+    
+    /** Handler for the "Feature" input. */
+    void handleFeature(const FeatureVector& feature);
+    
+    /** Handler for the "InitialLinkedObjects" input. */
+    void handleInitialLinkedObjects(
+        const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
+        );
+    
+    /** Handler for the "LoadedLinkedObject" input. */
+    void handleLoadedLinkedObject(
+        const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
+        );
+
+    /** Handler for the "ObservedAddress" input. */
+    void handleObservedAddress(const ArgoNavis::Base::Address& address);
+    
     /** Handler for the "ThreadsStateChanged" input. */
     void handleThreadsStateChanged(
         const boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged>& message
         );
+
+    /** Handler for the "UnloadedLinkedObject" input. */
+    void handleUnloadedLinkedObject(
+        const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
+        );
+
+    /** Address buffer containing all of the observed addresses. */
+    AddressBuffer dm_addresses;
+
+    /** Address spaces of all observed threads. */
+    AddressSpaces dm_spaces;
 
     /** Names of all active (non-terminated) threads. */
     std::set<ThreadName> dm_threads;
@@ -81,24 +122,62 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringLeaf)
 //------------------------------------------------------------------------------
 ClusteringLeaf::ClusteringLeaf():
     Component(Type(typeid(ClusteringLeaf)), Version(1, 0, 0)),
+    dm_addresses(),
+    dm_spaces(),
     dm_threads()
 {
+    // Performance Data Collector Interface
+    
     declareInput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
         "AttachedToThreads",
         boost::bind(&ClusteringLeaf::handleAttachedToThreads, this, _1)
+        );
+    declareInput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
+        "InitialLinkedObjects",
+        boost::bind(&ClusteringLeaf::handleInitialLinkedObjects, this, _1)
+        );
+    declareInput<boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject> >(
+        "LoadedLinkedObject",
+        boost::bind(&ClusteringLeaf::handleLoadedLinkedObject, this, _1)
         );
     declareInput<boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged> >(
         "ThreadsStateChanged",
         boost::bind(&ClusteringLeaf::handleThreadsStateChanged, this, _1)
         );
-        
-    declareOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
-        "AttachedToThreads"
+    declareInput<boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject> >(
+        "UnloadedLinkedObject",
+        boost::bind(&ClusteringLeaf::handleUnloadedLinkedObject, this, _1)
         );
-    declareOutput<bool>("ThreadsFinished");
-    declareOutput<bool>("EmitAddressBuffer");
-    declareOutput<ThreadName>("EmitData");
+
+    // FeatureGenerator Interface
+
+    declareInput<FeatureVector>(
+        "Feature",
+        boost::bind(&ClusteringLeaf::handleFeature, this, _1)
+        );
+    declareInput<ArgoNavis::Base::Address>(
+        "ObservedAddress",
+        boost::bind(&ClusteringLeaf::handleObservedAddress, this, _1)
+        );
+
+    declareOutput<AddressSpaces>("AddressSpaces");
     declareOutput<ThreadName>("EmitFeatures");
+    declareOutput<ThreadName>("EmitPerformanceData");
+
+    // ClusteringFilter Interface
+
+    declareInput<boost::shared_ptr<Clustering_EmitPerformanceData> >(
+        "EmitPerformanceData",
+        boost::bind(&ClusteringLeaf::handleEmitPerformanceData, this, _1)
+        );
+    
+    declareOutput<AddressBuffer>("AddressBuffer");
+
+    // ClusteringManager Interface (not intercepted by ClusteringFilter)
+    
+    declareOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
+        "LinkedObjectGroup"
+        );
 }
 
 
@@ -113,6 +192,59 @@ void ClusteringLeaf::handleAttachedToThreads(
     {
         dm_threads.insert(ThreadName(message->threads.names.names_val[i]));
     }
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringLeaf::handleEmitPerformanceData(
+    const boost::shared_ptr<Clustering_EmitPerformanceData>& message
+    )
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringLeaf::handleFeature(const FeatureVector& feature)
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringLeaf::handleInitialLinkedObjects(
+    const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
+    )
+{
+    dm_spaces.apply(*message);
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringLeaf::handleLoadedLinkedObject(
+    const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
+    )
+{
+    dm_spaces.apply(*message);
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringLeaf::handleObservedAddress(
+    const ArgoNavis::Base::Address& address
+    )
+{
+    dm_addresses.updateAddressCounts(address, 1);
 }
 
 
@@ -134,9 +266,46 @@ void ClusteringLeaf::handleThreadsStateChanged(
         
         if (dm_threads.empty())
         {
-            // ...
+#if defined(HIDE_FOR_NOW)
+            emitOutput<bool>("TriggerData", true);
+            
+            CBTF_Protocol_AttachedToThreads threads = dm_spaces;
+
+            emitOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
+                "AttachedToThreads",
+                boost::shared_ptr<CBTF_Protocol_AttachedToThreads>(
+                    new CBTF_Protocol_AttachedToThreads(threads)
+                    )
+                );
+
+            emitOutput<bool>("TriggerAddressBuffer", true);
+
+            std::vector<CBTF_Protocol_LinkedObjectGroup> groups = dm_spaces;
+            
+            for (std::vector<CBTF_Protocol_LinkedObjectGroup>::const_iterator
+                     i = groups.begin(); i != groups.end(); ++i)
+            {
+                emitOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
+                    "LinkedObjectGroup",
+                    boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>(
+                        new CBTF_Protocol_LinkedObjectGroup(*i)
+                        )
+                    );
+            }
             
             emitOutput<bool>("ThreadsFinished", true);
+#endif
         }
     }
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringLeaf::handleUnloadedLinkedObject(
+    const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
+    )
+{
+    dm_spaces.apply(*message);
 }
