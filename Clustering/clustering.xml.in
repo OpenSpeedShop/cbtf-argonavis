@@ -137,6 +137,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 
   <Stream><Name>AddressBuffer</Name></Stream>
   <Stream><Name>EmitPerformanceData</Name></Stream>
+  <Stream><Name>State</Name></Stream>
  
   <!-- Frontend of the network -->
   
@@ -180,6 +181,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <Input>
         <Name>IncomingPerformanceData</Name>
         <To><Name>Manager</Name><Input>Performance</Input></To>
+      </Input>
+
+      <Input>
+        <Name>IncomingState</Name>
+        <To><Name>Manager</Name><Input>State</Input></To>
       </Input>
       
       <!-- List of the frontend network's outputs -->
@@ -231,6 +237,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <IncomingUpstream>
       <Name>CBTF_PROTOCOL_TAG_PERFORMANCE_DATA</Name>
       <To><Input>IncomingPerformanceData</Input></To>
+    </IncomingUpstream>
+
+    <IncomingUpstream>
+      <Name>State</Name>
+      <To><Input>IncomingState</Input></To>
     </IncomingUpstream>
 
     <!-- List of the frontend's outgoing downstreams -->
@@ -352,7 +363,12 @@ Place, Suite 330, Boston, MA  02111-1307  USA
         <Name>OutgoingPerformanceData</Name>
         <From><Name>Generator</Name><Output>PerformanceData</Output></From>
       </Output>
-      
+
+      <Output>
+        <Name>OutgoingState</Name>
+        <From><Name>Leaf</Name><Output>State</Output></From>
+      </Output>
+            
     </Network>
 
     <!-- List of this filter's incoming downstreams -->
@@ -411,6 +427,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <From><Output>OutgoingAddressBuffer</Output></From>
     </OutgoingUpstream>
 
+    <OutgoingUpstream>
+      <Name>State</Name>
+      <From><Output>OutgoingState</Output></From>
+    </OutgoingUpstream>
+
   </Filter>
   
   <!-- Filter for the network residing on all other nodes -->
@@ -449,6 +470,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
         <To><Name>Filter</Name><Input>EmitPerformanceData</Input></To>
       </Input>
 
+      <Input>
+        <Name>IncomingState</Name>
+        <To><Name>Filter</Name><Input>State</Input></To>
+      </Input>
+
       <!-- List of this filter network's outputs -->
 
       <Output>
@@ -459,6 +485,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <Output>
         <Name>OutgoingEmitPerformanceData</Name>
         <From><Name>Filter</Name><Output>EmitPerformanceData</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingState</Name>
+        <From><Name>Filter</Name><Output>State</Output></From>
       </Output>
 
     </Network>
@@ -484,11 +515,21 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <To><Input>IncomingAddressBuffer</Input></To>
     </IncomingUpstream>
 
+    <IncomingUpstream>
+      <Name>State</Name>
+      <To><Input>IncomingState</Input></To>
+    </IncomingUpstream>
+
     <!-- List of this filter's outgoing upstreams -->
 
     <OutgoingUpstream>
       <Name>AddressBuffer</Name>
       <From><Output>OutgoingAddressBuffer</Output></From>
+    </OutgoingUpstream>
+
+    <OutgoingUpstream>
+      <Name>State</Name>
+      <From><Output>OutgoingState</Output></From>
     </OutgoingUpstream>
 
   </Filter>

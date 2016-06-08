@@ -75,10 +75,29 @@ private:
     void handlePerformanceData(
         const boost::shared_ptr<CBTF_Protocol_Blob>& message
         );
+
+    /** Handler for the "State" input. */
+    void handleState(const boost::shared_ptr<Clustering_State>& message);
     
 }; // class ClusteringManager
 
 KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringManager)
+
+
+
+//------------------------------------------------------------------------------
+// TEMPORARY NOTE TO SELF (WDH)
+//
+// The proper order to emit messages in order for Open|SpeedShop to properly
+// process everything is:
+//
+// 1) One or more CBTF_Protocol_Blob containing the performance data.
+// 2) Exactly one CBTF_Protocol_AttachedToThreads for all found threads.
+// 3) Exactly one AddressBuffer for all threads.
+// 4) One CBTF_Protocol_LinkedObjectGroup for each found thread.
+// 5) Single emission of "true" on the "ThreadsFinished" output.
+//
+//------------------------------------------------------------------------------
 
 
 
@@ -106,6 +125,9 @@ ClusteringManager::ClusteringManager():
     declareInput<AddressBuffer>(
         "AddressBuffer",
         boost::bind(&ClusteringManager::handleAddressBuffer, this, _1)
+        );
+    declareInput<boost::shared_ptr<Clustering_State> >(
+        "State", boost::bind(&ClusteringManager::handleState, this, _1)
         );
     
     declareOutput<boost::shared_ptr<Clustering_EmitPerformanceData> >(
@@ -165,6 +187,17 @@ void ClusteringManager::handleLinkedObjectGroup(
 //------------------------------------------------------------------------------
 void ClusteringManager::handlePerformanceData(
     const boost::shared_ptr<CBTF_Protocol_Blob>& message
+    )
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringManager::handleState(
+    const boost::shared_ptr<Clustering_State>& message
     )
 {
     // ...

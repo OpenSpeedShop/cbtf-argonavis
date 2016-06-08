@@ -29,5 +29,15 @@
  */
 struct Clustering_EmitPerformanceData
 {
-    CBTF_Protocol_ThreadName thread;
+    CBTF_Protocol_ThreadName thread; /**< Name of the requested thread. */
+};
+
+
+
+/**
+ * Current state of the cluster analysis. ...
+ */
+struct Clustering_State
+{
+    int dummy; /**< Temporary dummy value. */
 };

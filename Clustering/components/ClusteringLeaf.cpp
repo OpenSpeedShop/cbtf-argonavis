@@ -20,6 +20,7 @@
 
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
+#include <list>
 #include <set>
 #include <typeinfo>
 
@@ -67,6 +68,9 @@ private:
     /** Default constructor. */
     ClusteringLeaf();
 
+    /** Generate and emit the initial cluster analysis state. */
+    void emitState();
+    
     /** Handler for the "AttachedToThreads" input. */
     void handleAttachedToThreads(
         const boost::shared_ptr<CBTF_Protocol_AttachedToThreads>& message
@@ -103,15 +107,21 @@ private:
         const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
         );
 
-    /** Address buffer containing all of the observed addresses. */
-    AddressBuffer dm_addresses;
+    /** Names of all active (non-terminated) threads. */
+    std::set<ThreadName> dm_active;
 
+    /** Names of all inactive (terminated) threads. */
+    std::set<ThreadName> dm_inactive;
+    
+    /** Address buffer containing all observed addresses. */
+    AddressBuffer dm_addresses;
+    
     /** Address spaces of all observed threads. */
     AddressSpaces dm_spaces;
 
-    /** Names of all active (non-terminated) threads. */
-    std::set<ThreadName> dm_threads;
-
+    /** List of feature vectors for all observed threads. */
+    std::list<FeatureVector> dm_features;
+    
 }; // class ClusteringLeaf
 
 KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringLeaf)
@@ -122,9 +132,11 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringLeaf)
 //------------------------------------------------------------------------------
 ClusteringLeaf::ClusteringLeaf():
     Component(Type(typeid(ClusteringLeaf)), Version(1, 0, 0)),
+    dm_active(),
+    dm_inactive(),
     dm_addresses(),
     dm_spaces(),
-    dm_threads()
+    dm_features()
 {
     // Performance Data Collector Interface
     
@@ -172,6 +184,7 @@ ClusteringLeaf::ClusteringLeaf():
         );
     
     declareOutput<AddressBuffer>("AddressBuffer");
+    declareOutput<boost::shared_ptr<Clustering_State> >("State");
 
     // ClusteringManager Interface (not intercepted by ClusteringFilter)
     
@@ -184,39 +197,72 @@ ClusteringLeaf::ClusteringLeaf():
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+void ClusteringLeaf::emitState()
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+// Update the set of active threads.
+//------------------------------------------------------------------------------
 void ClusteringLeaf::handleAttachedToThreads(
     const boost::shared_ptr<CBTF_Protocol_AttachedToThreads>& message
     )
 {
     for (u_int i = 0; i < message->threads.names.names_len; ++i)
     {
-        dm_threads.insert(ThreadName(message->threads.names.names_val[i]));
+        ThreadName thread(message->threads.names.names_val[i]);
+        dm_active.insert(thread);
     }
 }
 
 
 
 //------------------------------------------------------------------------------
+// Ask the FeatureGenerator to emit the performance data for the requested
+// thread and then emit the LinkedObjectGroup for that thread.
 //------------------------------------------------------------------------------
 void ClusteringLeaf::handleEmitPerformanceData(
     const boost::shared_ptr<Clustering_EmitPerformanceData>& message
     )
 {
-    // ...
+    ThreadName thread(message->thread);
+    
+    emitOutput<ThreadName>("EmitPerformanceData", thread);
+    
+    std::vector<CBTF_Protocol_LinkedObjectGroup> groups = dm_spaces;
+            
+    for (std::vector<CBTF_Protocol_LinkedObjectGroup>::const_iterator
+             i = groups.begin(); i != groups.end(); ++i)
+    {
+        if (ThreadName(i->thread) == thread)
+        {
+            emitOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
+                "LinkedObjectGroup",
+                boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>(
+                    new CBTF_Protocol_LinkedObjectGroup(*i)
+                    )
+                );
+        }
+    }
 }
 
 
 
 //------------------------------------------------------------------------------
+// Update the list of feature vectors for all observed threads.
 //------------------------------------------------------------------------------
 void ClusteringLeaf::handleFeature(const FeatureVector& feature)
 {
-    // ...
+    dm_features.push_back(feature);
 }
 
 
 
 //------------------------------------------------------------------------------
+// Update the address spaces of all observed threads.
 //------------------------------------------------------------------------------
 void ClusteringLeaf::handleInitialLinkedObjects(
     const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
@@ -228,6 +274,7 @@ void ClusteringLeaf::handleInitialLinkedObjects(
 
 
 //------------------------------------------------------------------------------
+// Update the address spaces of all observed threads.
 //------------------------------------------------------------------------------
 void ClusteringLeaf::handleLoadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
@@ -239,6 +286,7 @@ void ClusteringLeaf::handleLoadedLinkedObject(
 
 
 //------------------------------------------------------------------------------
+// Update the address buffer containing all observed addresses.
 //------------------------------------------------------------------------------
 void ClusteringLeaf::handleObservedAddress(
     const ArgoNavis::Base::Address& address
@@ -250,51 +298,45 @@ void ClusteringLeaf::handleObservedAddress(
 
 
 //------------------------------------------------------------------------------
-// If threads are terminating, update the list of active threads and, if that
-// list is empty, ...
 //------------------------------------------------------------------------------
 void ClusteringLeaf::handleThreadsStateChanged(
     const boost::shared_ptr<CBTF_Protocol_ThreadsStateChanged>& message
     )
 {
+    // Are threads terminating?
     if (message->state == Terminated)
     {
+        // Update the sets of active and inactive threads
         for (u_int i = 0; i < message->threads.names.names_len; ++i)
         {
-            dm_threads.erase(ThreadName(message->threads.names.names_val[i]));
+            ThreadName thread(message->threads.names.names_val[i]);
+            dm_active.erase(thread);
+            dm_inactive.insert(thread);
         }
         
-        if (dm_threads.empty())
+        // Are all threads now inactive?
+        if (dm_active.empty())
         {
-#if defined(HIDE_FOR_NOW)
-            emitOutput<bool>("TriggerData", true);
+            // Emit the address buffer containing all observed addresses
+            emitOutput<AddressBuffer>("AddressBuffer", dm_addresses);
             
-            CBTF_Protocol_AttachedToThreads threads = dm_spaces;
+            //
+            // Provide the FeatureGenerator with the address spaces of all
+            // observed threads. Then ask it to emit the features for each
+            // of the inactive threads. Each feature vector is accumulated
+            // into dm_features.
+            //
 
-            emitOutput<boost::shared_ptr<CBTF_Protocol_AttachedToThreads> >(
-                "AttachedToThreads",
-                boost::shared_ptr<CBTF_Protocol_AttachedToThreads>(
-                    new CBTF_Protocol_AttachedToThreads(threads)
-                    )
-                );
+            emitOutput<AddressSpaces>("AddressSpaces", dm_spaces);
 
-            emitOutput<bool>("TriggerAddressBuffer", true);
-
-            std::vector<CBTF_Protocol_LinkedObjectGroup> groups = dm_spaces;
-            
-            for (std::vector<CBTF_Protocol_LinkedObjectGroup>::const_iterator
-                     i = groups.begin(); i != groups.end(); ++i)
+            for (std::set<ThreadName>::const_iterator
+                     i = dm_inactive.begin(); i != dm_inactive.end(); ++i)
             {
-                emitOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
-                    "LinkedObjectGroup",
-                    boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>(
-                        new CBTF_Protocol_LinkedObjectGroup(*i)
-                        )
-                    );
+                emitOutput<ThreadName>("EmitFeatures", *i);
             }
-            
-            emitOutput<bool>("ThreadsFinished", true);
-#endif
+
+            // Generate and emit the initial cluster analysis state
+            emitState();
         }
     }
 }
@@ -302,6 +344,7 @@ void ClusteringLeaf::handleThreadsStateChanged(
 
 
 //------------------------------------------------------------------------------
+// Update the address spaces of all observed threads.
 //------------------------------------------------------------------------------
 void ClusteringLeaf::handleUnloadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message

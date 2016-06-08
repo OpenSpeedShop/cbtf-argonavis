@@ -64,6 +64,9 @@ private:
     void handleEmitPerformanceData(
         const boost::shared_ptr<Clustering_EmitPerformanceData>& message
         );
+
+    /** Handler for the "State" input. */
+    void handleState(const boost::shared_ptr<Clustering_State>& message);
     
 }; // class ClusteringFilter
 
@@ -82,6 +85,9 @@ ClusteringFilter::ClusteringFilter():
         "AddressBuffer",
         boost::bind(&ClusteringFilter::handleAddressBuffer, this, _1)
         );
+    declareInput<boost::shared_ptr<Clustering_State> >(
+        "State", boost::bind(&ClusteringFilter::handleState, this, _1)
+        );
     
     declareOutput<boost::shared_ptr<Clustering_EmitPerformanceData> >(
         "EmitPerformanceData"
@@ -95,6 +101,7 @@ ClusteringFilter::ClusteringFilter():
         );
 
     declareOutput<AddressBuffer>("AddressBuffer");
+    declareOutput<boost::shared_ptr<Clustering_State> >("State");
 }
 
 
@@ -112,6 +119,17 @@ void ClusteringFilter::handleAddressBuffer(const AddressBuffer& buffer)
 //------------------------------------------------------------------------------
 void ClusteringFilter::handleEmitPerformanceData(
     const boost::shared_ptr<Clustering_EmitPerformanceData>& message
+    )
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void ClusteringFilter::handleState(
+    const boost::shared_ptr<Clustering_State>& message
     )
 {
     // ...
