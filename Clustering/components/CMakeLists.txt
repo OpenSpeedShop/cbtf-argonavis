@@ -18,13 +18,25 @@
 
 add_library(Clustering SHARED
     ArgoNavis/Clustering/Feature.hpp
-    ArgoNavis/Clustering/FeatureGenerator.hpp
+    ArgoNavis/Clustering/FeatureGenerator.hpp FeatureGenerator.cpp
     ArgoNavis/Clustering/FeatureVector.hpp
     ClusteringFilter.cpp
     ClusteringLeaf.cpp
     ClusteringManager.cpp
-    FeatureGenerator.cpp
+    Messages.h Messages.c
+    ThreadTable.hpp ThreadTable.cpp
+    ThreadUID.hpp
     XDR.cpp
+    )
+
+add_custom_command(
+    COMMAND rm -f ${CMAKE_CURRENT_BINARY_DIR}/Messages.h
+    COMMAND rm -f ${CMAKE_CURRENT_BINARY_DIR}/Messages.c
+    COMMAND rpcgen -h -o ${CMAKE_CURRENT_BINARY_DIR}/Messages.h Messages.x
+    COMMAND rpcgen -c -o ${CMAKE_CURRENT_BINARY_DIR}/Messages.c Messages.x
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Messages.x
+    OUTPUT Messages.h Messages.c
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
 target_include_directories(Clustering PUBLIC

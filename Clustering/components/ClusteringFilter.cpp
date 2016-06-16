@@ -28,8 +28,10 @@
 
 #include <KrellInstitute/Core/AddressBuffer.hpp>
 
-#include <KrellInstitute/Messages/Clustering.h>
+#include "Messages.h"
+#include "ThreadTable.hpp"
 
+using namespace ArgoNavis::Clustering::Impl;
 using namespace KrellInstitute::CBTF;
 using namespace KrellInstitute::Core;
 
@@ -62,12 +64,21 @@ private:
 
     /** Handler for the "EmitPerformanceData" input. */
     void handleEmitPerformanceData(
-        const boost::shared_ptr<Clustering_EmitPerformanceData>& message
+        const boost::shared_ptr<ANCI_EmitPerformanceData>& message
         );
 
     /** Handler for the "State" input. */
-    void handleState(const boost::shared_ptr<Clustering_State>& message);
+    void handleState(const boost::shared_ptr<ANCI_State>& message);
     
+    /** Handler for the "ThreadTable" input. */
+    void handleThreadTable(const boost::shared_ptr<ANCI_ThreadTable>& message);
+
+    /** Address buffer containing all observed addresses. */
+    AddressBuffer dm_addresses;
+
+    /** Table of all observed threads. */
+    ThreadTable dm_threads;
+        
 }; // class ClusteringFilter
 
 KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringFilter)
@@ -77,7 +88,9 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringFilter)
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 ClusteringFilter::ClusteringFilter():
-    Component(Type(typeid(ClusteringFilter)), Version(1, 0, 0))
+    Component(Type(typeid(ClusteringFilter)), Version(1, 0, 0)),
+    dm_addresses(),
+    dm_threads()
 {
     // ClusteringLeaf/ClusteringFilter Interface
 
@@ -85,43 +98,56 @@ ClusteringFilter::ClusteringFilter():
         "AddressBuffer",
         boost::bind(&ClusteringFilter::handleAddressBuffer, this, _1)
         );
-    declareInput<boost::shared_ptr<Clustering_State> >(
+    declareInput<boost::shared_ptr<ANCI_State> >(
         "State", boost::bind(&ClusteringFilter::handleState, this, _1)
         );
+    declareInput<boost::shared_ptr<ANCI_ThreadTable> >(
+        "ThreadTable",
+        boost::bind(&ClusteringFilter::handleThreadTable, this, _1)
+        );
     
-    declareOutput<boost::shared_ptr<Clustering_EmitPerformanceData> >(
+    declareOutput<boost::shared_ptr<ANCI_EmitPerformanceData> >(
         "EmitPerformanceData"
         );
     
     // ClusteringManager/ClusteringFilter Interface
     
-    declareInput<boost::shared_ptr<Clustering_EmitPerformanceData> >(
+    declareInput<boost::shared_ptr<ANCI_EmitPerformanceData> >(
         "EmitPerformanceData",
         boost::bind(&ClusteringFilter::handleEmitPerformanceData, this, _1)
         );
 
     declareOutput<AddressBuffer>("AddressBuffer");
-    declareOutput<boost::shared_ptr<Clustering_State> >("State");
+    declareOutput<boost::shared_ptr<ANCI_State> >("State");
+    declareOutput<boost::shared_ptr<ANCI_ThreadTable> >("ThreadTable");
 }
 
 
 
 //------------------------------------------------------------------------------
+// Update the address buffer containing all observed addresses.
 //------------------------------------------------------------------------------
 void ClusteringFilter::handleAddressBuffer(const AddressBuffer& buffer)
 {
-    // ...
+    dm_addresses.updateAddressCounts(const_cast<AddressBuffer&>(buffer));
 }
 
 
 
 //------------------------------------------------------------------------------
+// Reemit the message, but only if the thread is in our thread table, implying
+// that one of our children can actually supply the requested performance data.
 //------------------------------------------------------------------------------
 void ClusteringFilter::handleEmitPerformanceData(
-    const boost::shared_ptr<Clustering_EmitPerformanceData>& message
+    const boost::shared_ptr<ANCI_EmitPerformanceData>& message
     )
 {
-    // ...
+    if (dm_threads.contains(message->thread))
+    {
+        emitOutput<boost::shared_ptr<ANCI_EmitPerformanceData> >(
+            "EmitPerformanceData", message
+            );
+    }
 }
 
 
@@ -129,8 +155,20 @@ void ClusteringFilter::handleEmitPerformanceData(
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 void ClusteringFilter::handleState(
-    const boost::shared_ptr<Clustering_State>& message
+    const boost::shared_ptr<ANCI_State>& message
     )
 {
     // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+// Update the table of all observed threads.
+//------------------------------------------------------------------------------
+void ClusteringFilter::handleThreadTable(
+    const boost::shared_ptr<ANCI_ThreadTable>& message
+    )
+{
+    dm_threads += *message;
 }

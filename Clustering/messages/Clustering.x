@@ -16,28 +16,16 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Specification of the CUDA collector's blobs. */
+/** @file Specification of the cluster analysis communication protocol. */
 
 %#include "KrellInstitute/Messages/Thread.h"
 
 
 
 /**
- * Emit performance data for the specified thread. Issued by ClusteringManager
- * to request the performance data and associated address space information for
- * a single thread.
+ * ...
  */
-struct Clustering_EmitPerformanceData
-{
-    CBTF_Protocol_ThreadName thread; /**< Name of the requested thread. */
-};
-
-
-
-/**
- * Current state of the cluster analysis. ...
- */
-struct Clustering_State
+struct Clustering_Criterion
 {
     int dummy; /**< Temporary dummy value. */
 };

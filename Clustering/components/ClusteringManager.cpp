@@ -33,6 +33,10 @@
 #include <KrellInstitute/Messages/LinkedObjectEvents.h>
 #include <KrellInstitute/Messages/ThreadEvents.h>
 
+#include "Messages.h"
+#include "ThreadTable.hpp"
+
+using namespace ArgoNavis::Clustering::Impl;
 using namespace KrellInstitute::CBTF;
 using namespace KrellInstitute::Core;
 
@@ -77,8 +81,17 @@ private:
         );
 
     /** Handler for the "State" input. */
-    void handleState(const boost::shared_ptr<Clustering_State>& message);
+    void handleState(const boost::shared_ptr<ANCI_State>& message);
     
+    /** Handler for the "ThreadTable" input. */
+    void handleThreadTable(const boost::shared_ptr<ANCI_ThreadTable>& message);
+
+    /** Address buffer containing all observed addresses. */
+    AddressBuffer dm_addresses;
+
+    /** Table of all observed threads. */
+    ThreadTable dm_threads;
+            
 }; // class ClusteringManager
 
 KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringManager)
@@ -126,11 +139,15 @@ ClusteringManager::ClusteringManager():
         "AddressBuffer",
         boost::bind(&ClusteringManager::handleAddressBuffer, this, _1)
         );
-    declareInput<boost::shared_ptr<Clustering_State> >(
+    declareInput<boost::shared_ptr<ANCI_State> >(
         "State", boost::bind(&ClusteringManager::handleState, this, _1)
         );
+    declareInput<boost::shared_ptr<ANCI_ThreadTable> >(
+        "ThreadTable",
+        boost::bind(&ClusteringManager::handleThreadTable, this, _1)
+        );
     
-    declareOutput<boost::shared_ptr<Clustering_EmitPerformanceData> >(
+    declareOutput<boost::shared_ptr<ANCI_EmitPerformanceData> >(
         "EmitPerformanceData"
         );
     
@@ -155,10 +172,11 @@ ClusteringManager::ClusteringManager():
 
 
 //------------------------------------------------------------------------------
+// Update the address buffer containing all observed addresses.
 //------------------------------------------------------------------------------
 void ClusteringManager::handleAddressBuffer(const AddressBuffer& buffer)
 {
-    // ...
+    dm_addresses.updateAddressCounts(const_cast<AddressBuffer&>(buffer));
 }
 
 
@@ -197,8 +215,20 @@ void ClusteringManager::handlePerformanceData(
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 void ClusteringManager::handleState(
-    const boost::shared_ptr<Clustering_State>& message
+    const boost::shared_ptr<ANCI_State>& message
     )
 {
     // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+// Update the table of all observed threads.
+//------------------------------------------------------------------------------
+void ClusteringManager::handleThreadTable(
+    const boost::shared_ptr<ANCI_ThreadTable>& message
+    )
+{
+    dm_threads += *message;
 }

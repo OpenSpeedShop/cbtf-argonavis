@@ -30,7 +30,6 @@
 
 #include <KrellInstitute/Core/AddressBuffer.hpp>
 
-#include <KrellInstitute/Messages/Clustering.h>
 #include <KrellInstitute/Messages/LinkedObjectEvents.h>
 #include <KrellInstitute/Messages/ThreadEvents.h>
 
@@ -39,8 +38,12 @@
 
 #include <ArgoNavis/Clustering/FeatureVector.hpp>
 
+#include "Messages.h"
+#include "ThreadTable.hpp"
+
 using namespace ArgoNavis::Base;
 using namespace ArgoNavis::Clustering;
+using namespace ArgoNavis::Clustering::Impl;
 using namespace KrellInstitute::CBTF;
 using namespace KrellInstitute::Core;
 
@@ -78,7 +81,7 @@ private:
 
     /** Handler for the "EmitPerformanceData" input. */
     void handleEmitPerformanceData(
-        const boost::shared_ptr<Clustering_EmitPerformanceData>& message
+        const boost::shared_ptr<ANCI_EmitPerformanceData>& message
         );
     
     /** Handler for the "Feature" input. */
@@ -110,18 +113,21 @@ private:
     /** Names of all active (non-terminated) threads. */
     std::set<ThreadName> dm_active;
 
-    /** Names of all inactive (terminated) threads. */
-    std::set<ThreadName> dm_inactive;
-    
     /** Address buffer containing all observed addresses. */
     AddressBuffer dm_addresses;
-    
-    /** Address spaces of all observed threads. */
-    AddressSpaces dm_spaces;
 
     /** List of feature vectors for all observed threads. */
     std::list<FeatureVector> dm_features;
-    
+
+    /** Names of all inactive (terminated) threads. */
+    std::set<ThreadName> dm_inactive;
+        
+    /** Address spaces of all observed threads. */
+    AddressSpaces dm_spaces;
+
+    /** Table of all observed threads. */
+    ThreadTable dm_threads;
+
 }; // class ClusteringLeaf
 
 KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringLeaf)
@@ -133,10 +139,11 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringLeaf)
 ClusteringLeaf::ClusteringLeaf():
     Component(Type(typeid(ClusteringLeaf)), Version(1, 0, 0)),
     dm_active(),
-    dm_inactive(),
     dm_addresses(),
+    dm_features(),
+    dm_inactive(),
     dm_spaces(),
-    dm_features()
+    dm_threads()
 {
     // Performance Data Collector Interface
     
@@ -178,13 +185,14 @@ ClusteringLeaf::ClusteringLeaf():
 
     // ClusteringFilter Interface
 
-    declareInput<boost::shared_ptr<Clustering_EmitPerformanceData> >(
+    declareInput<boost::shared_ptr<ANCI_EmitPerformanceData> >(
         "EmitPerformanceData",
         boost::bind(&ClusteringLeaf::handleEmitPerformanceData, this, _1)
         );
     
     declareOutput<AddressBuffer>("AddressBuffer");
-    declareOutput<boost::shared_ptr<Clustering_State> >("State");
+    declareOutput<boost::shared_ptr<ANCI_State> >("State");
+    declareOutput<boost::shared_ptr<ANCI_ThreadTable> >("ThreadTable");
 
     // ClusteringManager Interface (not intercepted by ClusteringFilter)
     
@@ -205,7 +213,7 @@ void ClusteringLeaf::emitState()
 
 
 //------------------------------------------------------------------------------
-// Update the set of active threads.
+// Update the set of active threads and the table of all observed threads.
 //------------------------------------------------------------------------------
 void ClusteringLeaf::handleAttachedToThreads(
     const boost::shared_ptr<CBTF_Protocol_AttachedToThreads>& message
@@ -215,6 +223,7 @@ void ClusteringLeaf::handleAttachedToThreads(
     {
         ThreadName thread(message->threads.names.names_val[i]);
         dm_active.insert(thread);
+        dm_threads += thread;
     }
 }
 
@@ -222,29 +231,34 @@ void ClusteringLeaf::handleAttachedToThreads(
 
 //------------------------------------------------------------------------------
 // Ask the FeatureGenerator to emit the performance data for the requested
-// thread and then emit the LinkedObjectGroup for that thread.
+// thread and then emit the LinkedObjectGroup for that thread. But only if
+// the thread is in our ThreadTable, implying that our FeatureGenerator can
+// actually supply the requested performance data.
 //------------------------------------------------------------------------------
 void ClusteringLeaf::handleEmitPerformanceData(
-    const boost::shared_ptr<Clustering_EmitPerformanceData>& message
+    const boost::shared_ptr<ANCI_EmitPerformanceData>& message
     )
 {
-    ThreadName thread(message->thread);
-    
-    emitOutput<ThreadName>("EmitPerformanceData", thread);
-    
-    std::vector<CBTF_Protocol_LinkedObjectGroup> groups = dm_spaces;
-            
-    for (std::vector<CBTF_Protocol_LinkedObjectGroup>::const_iterator
-             i = groups.begin(); i != groups.end(); ++i)
+    if (dm_threads.contains(message->thread))
     {
-        if (ThreadName(i->thread) == thread)
+        ThreadName thread(dm_threads.name(message->thread));
+    
+        emitOutput<ThreadName>("EmitPerformanceData", thread);
+        
+        std::vector<CBTF_Protocol_LinkedObjectGroup> groups = dm_spaces;
+        
+        for (std::vector<CBTF_Protocol_LinkedObjectGroup>::const_iterator
+                 i = groups.begin(); i != groups.end(); ++i)
         {
-            emitOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
-                "LinkedObjectGroup",
-                boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>(
-                    new CBTF_Protocol_LinkedObjectGroup(*i)
-                    )
-                );
+            if (ThreadName(i->thread) == thread)
+            {
+                emitOutput<boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup> >(
+                    "LinkedObjectGroup",
+                    boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>(
+                        new CBTF_Protocol_LinkedObjectGroup(*i)
+                        )
+                    );
+            }
         }
     }
 }
@@ -337,6 +351,9 @@ void ClusteringLeaf::handleThreadsStateChanged(
 
             // Generate and emit the initial cluster analysis state
             emitState();
+
+            // Emit the table of all observed threads
+            emitOutput<ANCI_ThreadTable>("ThreadTable", dm_threads);
         }
     }
 }

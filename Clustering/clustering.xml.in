@@ -138,6 +138,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
   <Stream><Name>AddressBuffer</Name></Stream>
   <Stream><Name>EmitPerformanceData</Name></Stream>
   <Stream><Name>State</Name></Stream>
+  <Stream><Name>ThreadTable</Name></Stream>
  
   <!-- Frontend of the network -->
   
@@ -186,6 +187,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <Input>
         <Name>IncomingState</Name>
         <To><Name>Manager</Name><Input>State</Input></To>
+      </Input>
+      
+      <Input>
+        <Name>IncomingThreadTable</Name>
+        <To><Name>Manager</Name><Input>ThreadTable</Input></To>
       </Input>
       
       <!-- List of the frontend network's outputs -->
@@ -242,6 +248,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <IncomingUpstream>
       <Name>State</Name>
       <To><Input>IncomingState</Input></To>
+    </IncomingUpstream>
+
+    <IncomingUpstream>
+      <Name>ThreadTable</Name>
+      <To><Input>IncomingThreadTable</Input></To>
     </IncomingUpstream>
 
     <!-- List of the frontend's outgoing downstreams -->
@@ -369,6 +380,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
         <From><Name>Leaf</Name><Output>State</Output></From>
       </Output>
             
+      <Output>
+        <Name>OutgoingThreadTable</Name>
+        <From><Name>Leaf</Name><Output>ThreadTable</Output></From>
+      </Output>
+            
     </Network>
 
     <!-- List of this filter's incoming downstreams -->
@@ -432,6 +448,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <From><Output>OutgoingState</Output></From>
     </OutgoingUpstream>
 
+    <OutgoingUpstream>
+      <Name>ThreadTable</Name>
+      <From><Output>OutgoingThreadTable</Output></From>
+    </OutgoingUpstream>
+
   </Filter>
   
   <!-- Filter for the network residing on all other nodes -->
@@ -475,6 +496,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
         <To><Name>Filter</Name><Input>State</Input></To>
       </Input>
 
+      <Input>
+        <Name>IncomingThreadTable</Name>
+        <To><Name>Filter</Name><Input>ThreadTable</Input></To>
+      </Input>
+
       <!-- List of this filter network's outputs -->
 
       <Output>
@@ -490,6 +516,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <Output>
         <Name>OutgoingState</Name>
         <From><Name>Filter</Name><Output>State</Output></From>
+      </Output>
+
+      <Output>
+        <Name>OutgoingThreadTable</Name>
+        <From><Name>Filter</Name><Output>ThreadTable</Output></From>
       </Output>
 
     </Network>
@@ -520,6 +551,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <To><Input>IncomingState</Input></To>
     </IncomingUpstream>
 
+    <IncomingUpstream>
+      <Name>ThreadTable</Name>
+      <To><Input>IncomingThreadTable</Input></To>
+    </IncomingUpstream>
+
     <!-- List of this filter's outgoing upstreams -->
 
     <OutgoingUpstream>
@@ -530,6 +566,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
     <OutgoingUpstream>
       <Name>State</Name>
       <From><Output>OutgoingState</Output></From>
+    </OutgoingUpstream>
+
+    <OutgoingUpstream>
+      <Name>ThreadTable</Name>
+      <From><Output>OutgoingThreadTable</Output></From>
     </OutgoingUpstream>
 
   </Filter>
