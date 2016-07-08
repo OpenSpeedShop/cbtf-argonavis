@@ -43,6 +43,7 @@ add_library(argonavis-base SHARED
     ArgoNavis/Base/ThreadVisitor.hpp
     ArgoNavis/Base/Time.hpp
     ArgoNavis/Base/TimeInterval.hpp
+    ArgoNavis/Base/XDR.hpp
     AddressRangeIndex.hpp
     EntityTable.hpp
     EntityUID.hpp

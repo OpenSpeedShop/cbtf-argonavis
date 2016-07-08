@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2013 Krell Institute. All Rights Reserved.
-// Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2015, 2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -19,10 +19,10 @@
 
 /** @file Definition of the AddressSet class. */
 
-#include <algorithm>
 #include <deque>
 
 #include <ArgoNavis/Base/AddressSet.hpp>
+#include <ArgoNavis/Base/XDR.hpp>
 
 using namespace ArgoNavis::Base;
 
@@ -234,9 +234,7 @@ void AddressSet::extract(CBTF_Protocol_AddressBitmap*& messages,
 {
     len = dm_bitmaps.size();
     
-    messages = reinterpret_cast<CBTF_Protocol_AddressBitmap*>(
-        malloc(std::max(1U, len) * sizeof(CBTF_Protocol_AddressBitmap))
-        );
+    messages = allocateXDRCountedArray<CBTF_Protocol_AddressBitmap>(len);
     
     for (u_int i = 0; i < len; ++i)
     {

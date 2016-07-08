@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2013 Krell Institute. All Rights Reserved.
-// Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2015, 2016 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,6 @@
 
 /** @file Definition of the AddressSpaces class. */
 
-#include <algorithm>
 #include <boost/bind.hpp>
 #include <boost/ref.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -27,6 +26,7 @@
 #include <set>
 
 #include <ArgoNavis/Base/AddressSpaces.hpp>
+#include <ArgoNavis/Base/XDR.hpp>
 
 using namespace ArgoNavis::Base;
 using namespace ArgoNavis::Base::Impl;
@@ -119,11 +119,10 @@ AddressSpaces::operator CBTF_Protocol_AttachedToThreads() const
 
     message.threads.names.names_len = threads.size();
     message.threads.names.names_val =
-        reinterpret_cast<CBTF_Protocol_ThreadName*>(
-            malloc(std::max(1U, message.threads.names.names_len) *
-                   sizeof(CBTF_Protocol_ThreadName))
+        allocateXDRCountedArray<CBTF_Protocol_ThreadName>(
+            message.threads.names.names_len
             );
-
+    
     u_int m = 0;
     for (std::set<ThreadName>::const_iterator
              i = threads.begin(); i != threads.end(); ++i, ++m)
@@ -162,10 +161,9 @@ AddressSpaces::operator std::vector<CBTF_Protocol_LinkedObjectGroup>() const
 
         entry.linkedobjects.linkedobjects_len = dm_mappings.get<0>().count(*i);
         entry.linkedobjects.linkedobjects_val =
-            reinterpret_cast<CBTF_Protocol_LinkedObject*>(
-                malloc(std::max(1U, entry.linkedobjects.linkedobjects_len) *
-                       sizeof(CBTF_Protocol_LinkedObject))
-                );        
+            allocateXDRCountedArray<CBTF_Protocol_LinkedObject>(
+                entry.linkedobjects.linkedobjects_len
+                );
 
         u_int n = 0;
         for (MappingIndex::nth_index<0>::type::const_iterator

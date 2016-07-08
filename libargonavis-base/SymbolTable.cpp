@@ -19,8 +19,9 @@
 
 /** @file Definition of the SymbolTable class. */
 
-#include <algorithm>
 #include <cstring>
+
+#include <ArgoNavis/Base/XDR.hpp>
 
 #include "SymbolTable.hpp"
 
@@ -104,9 +105,8 @@ SymbolTable::operator CBTF_Protocol_SymbolTable() const
     message.functions.functions_len = dm_functions.size();
     
     message.functions.functions_val =
-        reinterpret_cast<CBTF_Protocol_FunctionEntry*>(
-            malloc(std::max(1U, message.functions.functions_len) *
-                   sizeof(CBTF_Protocol_FunctionEntry))
+        allocateXDRCountedArray<CBTF_Protocol_FunctionEntry>(
+            message.functions.functions_len
             );
 
     for (EntityUID i = 0; i < dm_functions.size(); ++i)
@@ -132,9 +132,8 @@ SymbolTable::operator CBTF_Protocol_SymbolTable() const
     message.statements.statements_len = dm_statements.size();
 
     message.statements.statements_val =
-        reinterpret_cast<CBTF_Protocol_StatementEntry*>(
-            malloc(std::max(1U, message.statements.statements_len) *
-                   sizeof(CBTF_Protocol_StatementEntry))
+        allocateXDRCountedArray<CBTF_Protocol_StatementEntry>(
+            message.statements.statements_len
             );
 
     for (EntityUID i = 0; i < dm_statements.size(); ++i)
