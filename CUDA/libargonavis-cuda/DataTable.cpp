@@ -24,6 +24,7 @@
 #include <utility>
 
 #include <ArgoNavis/Base/Raise.hpp>
+#include <ArgoNavis/Base/XDR.hpp>
 
 #include <ArgoNavis/CUDA/CachePreference.hpp>
 #include <ArgoNavis/CUDA/CopyKind.hpp>
@@ -794,11 +795,10 @@ bool DataTable::generate(const PerProcessData& per_process,
     config.events.events_len = per_thread.dm_counters.size();
 
     config.events.events_val =
-        reinterpret_cast<CUDA_EventDescription*>(
-            malloc(std::max(1U, config.events.events_len) *
-                   sizeof(CUDA_EventDescription))
+        allocateXDRCountedArray<CUDA_EventDescription>(
+            config.events.events_len
             );
-
+    
     for (std::vector<std::vector<std::string>::size_type>::const_iterator
              i = per_thread.dm_counters.begin();
          i  != per_thread.dm_counters.end();
