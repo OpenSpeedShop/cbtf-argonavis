@@ -21,7 +21,6 @@
 #pragma once
 
 #include <boost/bimap.hpp>
-#include <boost/operators.hpp>
 
 #include <ArgoNavis/Base/ThreadName.hpp>
 
@@ -36,9 +35,7 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
      * by cluster analysis state in relatively compact form without having to
      * resort to their full thread name.
      */
-    class ThreadTable :
-        public boost::addable<ThreadTable>,
-        public boost::addable<ThreadTable, Base::ThreadName>
+    class ThreadTable
     {
 	
     public:
@@ -55,24 +52,23 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
         /**
          * Add another thread table to this thread table.
          *
-         * @param other    Thread table to be added to this thread table.
-         * @return         This thread table.
+         * @param threads    Thread table to be added to this thread table.
          *
          * @throw std::invalid_argument    The given thread table contained
          *                                 a thread name and unique identifer
          *                                 pairing that contradicted the one
          *                                 in this thread table.
          */
-        ThreadTable& operator+=(const ThreadTable& other);
+        void add(const ThreadTable& threads);
 
         /** Add a thread to this thread table. */
-        ThreadTable& operator+=(const Base::ThreadName& thread);
+        void add(const Base::ThreadName& thread);
 
         /** Does this thread table contain a thread name? */
-        bool contains(const Base::ThreadName& thread);
+        bool contains(const Base::ThreadName& thread) const;
 
         /** Does this thread table contain a unique identifier? */
-        bool contains(const ThreadUID& uid);
+        bool contains(const ThreadUID& uid) const;
 
         /**
          * Get the unique identifier for the given thread name.
@@ -83,7 +79,7 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
          * @throw std::invalid_argument    The given thread isn't contained
          *                                 within this thread table.
          */
-        ThreadUID uid(const Base::ThreadName& thread);
+        ThreadUID uid(const Base::ThreadName& thread) const;
 
         /**
          * Get the name for the given thread unique identifier.
@@ -94,7 +90,7 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
          * @throw std::invalid_argument    The given thread isn't contained
          *                                 within this thread table.
          */        
-        Base::ThreadName name(const ThreadUID& uid);
+        Base::ThreadName name(const ThreadUID& uid) const;
         
     private:
 

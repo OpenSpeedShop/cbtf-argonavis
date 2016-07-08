@@ -223,7 +223,7 @@ void ClusteringLeaf::handleAttachedToThreads(
     {
         ThreadName thread(message->threads.names.names_val[i]);
         dm_active.insert(thread);
-        dm_threads += thread;
+        dm_threads.add(thread);
     }
 }
 

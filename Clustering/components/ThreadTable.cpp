@@ -20,12 +20,13 @@
 
 #include <algorithm>
 #include <boost/cstdint.hpp>
-#include <stdlib.h>
+#include <cstring>
 #include <stdexcept>
 
 #include <KrellInstitute/CBTF/Impl/MRNet.hpp>
 
 #include <ArgoNavis/Base/Raise.hpp>
+#include <ArgoNavis/Base/XDR.hpp>
 
 #include "ThreadTable.hpp"
 
@@ -71,15 +72,13 @@ ThreadTable::operator ANCI_ThreadTable() const
 
     message.uids.uids_len = dm_threads.size();
 
-    message.uids.uids_val = reinterpret_cast<ANCI_ThreadUID*>(
-        malloc(std::max(1U, message.uids.uids_len) * sizeof(ANCI_ThreadUID))
-        );
+    message.uids.uids_val =
+        allocateXDRCountedArray<ANCI_ThreadUID>(message.uids.uids_len);
     
     message.names.names_len = dm_threads.size();
-
-    message.names.names_val = reinterpret_cast<CBTF_Protocol_ThreadName*>(
-        malloc(std::max(1U, message.names.names_len) * 
-               sizeof(CBTF_Protocol_ThreadName))
+    
+    message.names.names_val = allocateXDRCountedArray<CBTF_Protocol_ThreadName>(
+        message.names.names_len
         );
     
     u_int n = 0;
@@ -97,28 +96,10 @@ ThreadTable::operator ANCI_ThreadTable() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-bool ThreadTable::contains(const Base::ThreadName& thread)
-{
-    return dm_threads.right.find(thread) != dm_threads.right.end();
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-bool ThreadTable::contains(const ThreadUID& uid)
-{
-    return dm_threads.left.find(uid) != dm_threads.left.end();
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-ThreadTable& ThreadTable::operator+=(const ThreadTable& other)
+void ThreadTable::add(const ThreadTable& threads)
 {
     for (boost::bimap<ThreadUID, ThreadName>::const_iterator
-             i = other.dm_threads.begin(); i != other.dm_threads.end(); ++i)
+             i = threads.dm_threads.begin(); i != threads.dm_threads.end(); ++i)
     {
         boost::bimap<ThreadUID, ThreadName>::right_const_iterator j =
             dm_threads.right.find(i->right);
@@ -141,15 +122,13 @@ ThreadTable& ThreadTable::operator+=(const ThreadTable& other)
                 );
         }
     }
-    
-    return *this;
 }
 
 
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-ThreadTable& ThreadTable::operator+=(const ThreadName& thread)
+void ThreadTable::add(const ThreadName& thread)
 {
     boost::bimap<ThreadUID, ThreadName>::right_const_iterator i =
         dm_threads.right.find(thread);
@@ -160,15 +139,31 @@ ThreadTable& ThreadTable::operator+=(const ThreadName& thread)
             boost::bimap<ThreadUID, ThreadName>::value_type(next(), thread)
             );
     }
-
-    return *this;
 }
 
 
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-ThreadUID ThreadTable::uid(const ThreadName& thread)
+bool ThreadTable::contains(const Base::ThreadName& thread) const
+{
+    return dm_threads.right.find(thread) != dm_threads.right.end();
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool ThreadTable::contains(const ThreadUID& uid) const
+{
+    return dm_threads.left.find(uid) != dm_threads.left.end();
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+ThreadUID ThreadTable::uid(const ThreadName& thread) const
 {
     boost::bimap<ThreadUID, ThreadName>::right_const_iterator i =
         dm_threads.right.find(thread);
@@ -188,7 +183,7 @@ ThreadUID ThreadTable::uid(const ThreadName& thread)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-ThreadName ThreadTable::name(const ThreadUID& uid)
+ThreadName ThreadTable::name(const ThreadUID& uid) const
 {
     boost::bimap<ThreadUID, ThreadName>::left_const_iterator i =
         dm_threads.left.find(uid);

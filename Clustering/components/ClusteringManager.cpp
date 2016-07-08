@@ -230,5 +230,5 @@ void ClusteringManager::handleThreadTable(
     const boost::shared_ptr<ANCI_ThreadTable>& message
     )
 {
-    dm_threads += *message;
+    dm_threads.add(ThreadTable(*message));
 }

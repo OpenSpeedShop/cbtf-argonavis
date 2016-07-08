@@ -19,11 +19,15 @@
 add_library(Clustering SHARED
     ArgoNavis/Clustering/Feature.hpp
     ArgoNavis/Clustering/FeatureGenerator.hpp FeatureGenerator.cpp
+    ArgoNavis/Clustering/FeatureName.hpp
     ArgoNavis/Clustering/FeatureVector.hpp
+    BLAS.hpp
     ClusteringFilter.cpp
     ClusteringLeaf.cpp
     ClusteringManager.cpp
+    CompareFeatureNames.hpp
     Messages.h Messages.c
+    State.hpp State.cpp
     ThreadTable.hpp ThreadTable.cpp
     ThreadUID.hpp
     XDR.cpp

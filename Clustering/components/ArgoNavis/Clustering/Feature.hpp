@@ -19,8 +19,10 @@
 /** @file Declaration of the Feature class. */
 
 #include <boost/cstdint.hpp>
+#include <cstring>
 #include <string>
-#include <vector>
+
+#include <ArgoNavis/Clustering/FeatureName.hpp>
 
 namespace ArgoNavis { namespace Clustering {
 
@@ -66,7 +68,7 @@ namespace ArgoNavis { namespace Clustering {
         }
         
         /** Get the name of this feature. */
-        const std::vector<boost::uint8_t>& name() const
+        const FeatureName& name() const
         {
             return dm_name;
         }
@@ -80,7 +82,7 @@ namespace ArgoNavis { namespace Clustering {
     private:
 
         /** Name of this feature. */
-        std::vector<boost::uint8_t> dm_name;
+        FeatureName dm_name;
         
         /** Value of this feature. */
         float dm_value;

@@ -28,12 +28,28 @@
 
 
 
+/** Name of a feature stored as a buffer of raw, untyped, binary data. */
+struct ANCI_FeatureName
+{
+    uint8_t name<>; /**< Name of the feature. */
+};
+
+
+
 /**
  * Unique identifier used to reference threads within the other messages below
  * without having to always resort to CBTF_Protocol_ThreadName, which is quite
  * large in comparison.
  */
 typedef uint64_t ANCI_ThreadUID;
+
+
+
+/** List containing an arbitrary group of thread unique identifiers. */
+struct ANCI_ThreadUIDGroup
+{
+    ANCI_ThreadUID uids<>; /**< Unique identifiers of threads in the group. */
+};
 
 
 
@@ -50,14 +66,62 @@ struct ANCI_EmitPerformanceData
 
 
 /**
- * Current state of the cluster analysis. ...
+ * Current cluster analysis state for a single feature vector name.
+ *
+ * This state is initially produced by each ClusteringLeaf by accumlating all
+ * FeatureVector with a given name produced by the FeatureGenerator, and then
+ * creating clusters containing:
+ *
+ *     - A single thread.
+ *     - A centroid equal to the feature vector for that singular thread.
+ *     - A radius of zero.
+ *
+ * Each ClusteringFilter receives the state sent by its children, accumulates
+ * them into a single new state, and applies agglomerative clustering analysis
+ * to produce (hopefully) a smaller set of clusters with non-zero radii. When
+ * the final state arrives in the ClusteringManager, it determines whether or
+ * not the feature vector produced a "useful" clustering. And, for the feature
+ * vector that did, requests the full performance for a representative thread
+ * from each cluster by issuing ANCI_EmitPerformanceData messages.
+ *
+ * @sa http://en.wikipedia.org/wiki/Cluster_analysis
  */
 struct ANCI_State
 {
-    /** Name of the feature vector. */
-    /** string name<>; */
+    /** Name of the feature vector for which this is the state. */
+    string name<>;
 
-    int dummy; /**< Temporary dummy value. */
+    /**
+     * Name of each feature contained in this feature vector. These feature
+     * names are the columns of the "centroids" matrix below. This array is
+     * empty if the feature vector contains unnamed features. In that case,
+     * the number of features can be calculated as the length of "centroids"
+     * divided by the length of "clusters". 
+     */
+    ANCI_FeatureName features<>;
+
+    /**
+     * Threads contained within each cluster for this feature vector. These
+     * groups are the rows of the "centroid" matrix and "radii" vector below.
+     */
+    ANCI_ThreadUIDGroup clusters<>;
+
+    /**
+     * Matrix (two-dimensional array) of cluster centroids. Each centroid is
+     * in the multi-dimensional space of this feature vector. This matrix is
+     * stored in row-major order, with the rows and columns as noted avove.
+     *
+     * @sa https://en.wikipedia.org/wiki/Row-major_order
+     */
+    float centroids<>;
+
+    /**
+     * Vector (one-dimensional array) of cluster radii. Each radius is an
+     * estimate of the maximum distance from each cluster's centroid to the
+     * feature vector furthest from that centroid. This vector has rows as
+     * noted above.
+     */
+    float radii<>;
 };
 
 
