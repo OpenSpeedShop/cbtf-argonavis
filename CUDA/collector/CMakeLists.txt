@@ -47,6 +47,7 @@ target_include_directories(cuda-collector-monitor-fileio PUBLIC
 
 target_link_libraries(cuda-collector-monitor-fileio
     cbtf-messages-cuda
+    ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_COLLECTOR_MONITOR_FILEIO_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_MONITOR_SHARED_LIBRARY}
@@ -69,6 +70,7 @@ target_include_directories(cuda-collector-monitor-mrnet PUBLIC
 
 target_link_libraries(cuda-collector-monitor-mrnet
     cbtf-messages-cuda
+    ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_COLLECTOR_MONITOR_MRNET_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_MONITOR_SHARED_LIBRARY}
@@ -91,6 +93,7 @@ target_include_directories(cuda-collector-monitor-mrnet-mpi PUBLIC
 
 target_link_libraries(cuda-collector-monitor-mrnet-mpi
     cbtf-messages-cuda
+    ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_COLLECTOR_MONITOR_MRNET_MPI_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_MONITOR_SHARED_LIBRARY}
