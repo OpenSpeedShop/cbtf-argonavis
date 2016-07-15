@@ -1,5 +1,40 @@
+--------------------
+OVERVIEW
+--------------------
 
+The goal of the Component Based Tool Framework (CBTF) project is to create a community
+tool infrastructure that provides individual tool building components to allow others
+to add or replace modules, to integrate parts into their own tools, or to customize
+existing solutions. In other words, the CBTF project provides support for creating a
+compatible interface for components, finding compatible components and defining an
+interface API which facilitates communication between components. In the CBTF framework,
+a component is defined as a “black box” entity with zero or more inputs and zero or more
+outputs. You may connect these components into component networks both distributed and
+non-distributed. The CBTF transport mechanism, based on MRNet, allows distributed tools
+to automatically become highly scalable.
+
+There are four CBTF sub-projects that are represented by their corresponding
+source repositories that comprise the high level CBTF project:
+
+   * CBTF project contains the base code for CBTF that supports creating components,
+component networks and the support to connect these components and component
+networks into sequential and distributed network tools.
+
+   * CBTF Krell project contains the Krell Institute contributions to the CBTF project.
+These contributions include many performance data collectors and support libraries
+as well as some example tools that drive the data collection at HPC levels of scale.
+This is a fundamental, base portion of the OpenSpeedShop performance tool.
+
+   * CBTF Argo Navis project contains the CUDA collector and supporting libraries that
+was done as a result of a DOE SBIR grant and is currently being developed via a NASA
+phase II SBIR.
+
+   * CBTF LANL project contains a memory tool and data center type system command monitoring tool.
+
+
+--------------------
 NOTES ON BUILDING
+--------------------
 
 # Use a version of cmake: 2.8.12 or greater.
 # if not installed by default on the build system.
@@ -36,6 +71,7 @@ cmake .. \
         -DCUPTI_DIR=${MY_CUDA_ROOT}/extras/CUPTI \
         -DCUDA_INSTALL_PATH=${MY_CUDA_ROOT}\
         -DCUDA_DIR=${MY_CUDA_ROOT} \
+	-DPAPI_DIR=${KRELL_ROOT} \
 	-DMRNET_DIR=${KRELL_ROOT} 
 
 make clean
