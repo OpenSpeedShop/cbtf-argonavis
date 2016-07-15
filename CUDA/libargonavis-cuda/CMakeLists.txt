@@ -45,7 +45,7 @@ target_include_directories(argonavis-cuda PUBLIC
 target_link_libraries(argonavis-cuda
     argonavis-base
     cbtf-messages-cuda
-    ${CBTF_KRELL_MESSAGES_LIBRARIES}
+    ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     )
 
 set_target_properties(argonavis-cuda PROPERTIES VERSION 1.1.0)
