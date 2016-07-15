@@ -67,7 +67,7 @@ namespace ArgoNavis { namespace Base { namespace Impl {
          */
         EntityUID add(
             const T& fields,
-            const boost::optional<AddressSet>& addresses = boost::none_t()
+            const boost::optional<AddressSet>& addresses = boost::none
             )
         {
             if (addresses)
