@@ -330,19 +330,113 @@ void State::add(const State& state)
     }
 
     //
-    // All the preconditon checking is done. Finally! Merge the cluster centroid
-    // and, in the case of named features, the feature name map.
+    // All the preconditon checking is done. Finally! Merge the cluster
+    // centroid and, in the case of named features, the feature name map.
     //
 
-    if (dm_features_named == true)
-    {
-
-        // ...
-
-    }
-    else if (dm_features_named == false)
+    if (dm_features_named == false)
     {
         dm_centroids = vertcat(dm_centroids, state.dm_centroids);
+    }
+    else if (dm_features_named == true)
+    {
+        //
+        // The following gets a little bit complicated, so some additional
+        // explanation is in order. The following ASCII art illustrates the
+        // composition of the new cluster centroid matrix:
+        //
+        //
+        //       Existing     New
+        //       Features   Features
+        //     +----------+----------+
+        //     |          |          | \
+        //     | current  |  empty   |  + dm_centroids.size1()
+        //     |          |          | /
+        //     +----------+----------+
+        //     |          |          | \
+        //     | existing |  fresh   |  + state.dm_centroids.size1()
+        //     |          |          | /
+        //     +----------+----------+
+        //       \      /   \      /
+        //        ------     ------
+        //          |           |
+        //          |            # of features in "state" that aren't in "this"
+        //          |
+        //           dm_centroids.size2()
+        //
+        //
+        // 1) The "existing" quadrant is populated by iterating over each of
+        //    features in the state to be added and determining if/where they
+        //    are found within this state.
+        //
+        //    a) When a feature IS found within this state, a single column of
+        //       data is copied from the feature's location within the state to
+        //       be added, to the "existing" quadrant at the feature's location
+        //       within this state.
+        //
+        //    b) When a feature ISN'T found within this state, the feature name
+        //       map is updated. An additional "mapping" map is updated, noting
+        //       the feature's column number within the state to be added, and
+        //       that feature's eventual column number in the "fresh" quadrant.
+        //
+        // 2) The width of the "fresh" and "empty" quadrants are now known. The
+        //    "fresh" quadrant is populated using the "mapping" map.
+        //
+        // 3) The "empty" quadrant is created.
+        //
+        // 4) Finally, 2 vertical concatentations are applied to join "current"
+        //    with "existing", and "empty" with "fresh", and then a horizontal
+        //    concatenation is used to join the 2 vertical concatenations into
+        //    a single new, final, cluster centroid matrix.
+        //
+
+        using namespace boost::numeric::ublas;
+        
+        Matrix existing(state.dm_centroids.size1() /* Rows */,
+                        dm_centroids.size2() /* Columns */);
+        
+        std::map<std::size_t, std::size_t> mapping;
+
+        for (FeatureNameMap::left_const_iterator 
+                 i = state.dm_features.left.begin(); 
+             i != state.dm_features.left.end();
+             ++i)
+        {
+            FeatureNameMap::left_const_iterator j = 
+                dm_features.left.find(i->first);
+
+            if (j != dm_features.left.end())
+            {
+                column(existing, j->second) = 
+                    column(state.dm_centroids, i->second);
+            }
+            else
+            {
+                dm_features.insert(
+                    FeatureNameMap::value_type(
+                        i->first, dm_centroids.size2() + mapping.size()
+                        )
+                    );
+                
+                mapping.insert(std::make_pair(i->second, mapping.size()));
+            }
+        }
+
+        Matrix fresh(state.dm_centroids.size1() /* Rows */,
+                     mapping.size() /* Columns */);
+
+        for (std::map<std::size_t, std::size_t>::const_iterator
+                 i = mapping.begin(); i != mapping.end(); ++i)
+        {
+            column(fresh, i->second) = column(state.dm_centroids, i->first);
+        }
+
+        Matrix empty(dm_centroids.size1() - fresh.size1() /* Rows */,
+                     fresh.size2() /* Columns */);
+        
+        dm_centroids = horzcat(
+            vertcat(dm_centroids, existing), vertcat(empty, fresh)
+            );
     }
 
     //

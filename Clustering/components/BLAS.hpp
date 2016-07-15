@@ -39,7 +39,7 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
     /** Concatenate two matrices horizontally. */
     Matrix horzcat(const Matrix& A, const Matrix& B)
     {
-        using namespace boost::numeric::ublas;        
+        using namespace boost::numeric::ublas;
         
         if (A.size1() != B.size1())
         {            
