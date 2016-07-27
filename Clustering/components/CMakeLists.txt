@@ -21,7 +21,7 @@ add_library(Clustering SHARED
     ArgoNavis/Clustering/FeatureGenerator.hpp FeatureGenerator.cpp
     ArgoNavis/Clustering/FeatureName.hpp
     ArgoNavis/Clustering/FeatureVector.hpp
-    BLAS.hpp
+    BLAS.hpp BLAS.cpp
     ClusteringFilter.cpp
     ClusteringLeaf.cpp
     ClusteringManager.cpp
