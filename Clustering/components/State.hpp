@@ -93,6 +93,8 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
          * @throw std::invalid_argument    The given feature vector is for
          *                                 a thread that is already in this
          *                                 state.
+         *
+         * ...
          */
         void add(const FeatureVector& vector, const ThreadTable& threads);
         
@@ -126,6 +128,12 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
          * @param rows        Row indicies of the clusters to be joined.
          * @param centroid    Centroid of the joined cluster.
          * @param radius      Radius of the joined cluster.
+         *
+         * @throw std::invalid_argument    Cannot join less than 2 rows.
+         *
+         * @throw std::invalid_argument    The given centroid has a different
+         *                                 size than the centroids already in
+         *                                 this state.
          */
         void join(const std::set<size_t>& rows,
                   const Vector& centroid,

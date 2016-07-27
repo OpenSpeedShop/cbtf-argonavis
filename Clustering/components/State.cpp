@@ -207,7 +207,7 @@ State::operator ANCI_State() const
     //
     
     message.centroids.centroids_len = 
-        dm_centroids.size1() /* Rows */ * dm_centroids.size2() /* Columns */;
+        dm_centroids.size1() * dm_centroids.size2();
     
     message.centroids.centroids_val =
         allocateXDRCountedArray<float>(message.centroids.centroids_len);
@@ -220,7 +220,7 @@ State::operator ANCI_State() const
     // contents of the radii vector. Copy that vector into the message.
     //
 
-    message.radii.radii_len = dm_radii.size() /* Rows */;
+    message.radii.radii_len = dm_radii.size();
 
     message.radii.radii_val = 
         allocateXDRCountedArray<float>(message.radii.radii_len);
@@ -320,17 +320,17 @@ void State::add(const State& state)
     }
 
     if ((dm_features_named == false) &&
-        (dm_centroids.size2() != state.dm_centroids.size2() /* Columns */))
+        (dm_centroids.size2() != state.dm_centroids.size2()))
     {
         raise<std::invalid_argument>(
             "The given state contains a different number of "
             "unnamed features (%1%) than this state (%2%).",
-            dm_centroids.size2(), state.dm_centroids.size2()            
+            state.dm_centroids.size2(), dm_centroids.size2()
             );
     }
 
     //
-    // All the preconditon checking is done. Finally! Merge the cluster
+    // All the precondition checking is done. Finally! Merge the cluster
     // centroid and, in the case of named features, the feature name map.
     //
 
@@ -392,10 +392,9 @@ void State::add(const State& state)
 
         using namespace boost::numeric::ublas;
         
-        Matrix existing(state.dm_centroids.size1() /* Rows */,
-                        dm_centroids.size2() /* Columns */);
+        Matrix existing(state.dm_centroids.size1(), dm_centroids.size2());
         
-        std::map<std::size_t, std::size_t> mapping;
+        std::map<size_t, size_t> mapping;
 
         for (FeatureNameMap::left_const_iterator 
                  i = state.dm_features.left.begin(); 
@@ -422,17 +421,15 @@ void State::add(const State& state)
             }
         }
 
-        Matrix fresh(state.dm_centroids.size1() /* Rows */,
-                     mapping.size() /* Columns */);
+        Matrix fresh(state.dm_centroids.size1(), mapping.size());
 
-        for (std::map<std::size_t, std::size_t>::const_iterator
+        for (std::map<size_t, size_t>::const_iterator
                  i = mapping.begin(); i != mapping.end(); ++i)
         {
             column(fresh, i->second) = column(state.dm_centroids, i->first);
         }
 
-        Matrix empty(dm_centroids.size1() - fresh.size1() /* Rows */,
-                     fresh.size2() /* Columns */);
+        Matrix empty(dm_centroids.size1() - fresh.size1(), fresh.size2());
         
         dm_centroids = horzcat(
             vertcat(dm_centroids, existing), vertcat(empty, fresh)
@@ -469,6 +466,10 @@ void State::add(const State& state)
 //------------------------------------------------------------------------------
 void State::add(const FeatureVector& vector, const ThreadTable& threads)
 {
+    ThreadUID uid = threads.uid(vector.thread());
+
+    // Check preconditions on the feature vector names
+
     if (vector.name() != dm_name)
     {
         raise<std::invalid_argument>(
@@ -477,18 +478,141 @@ void State::add(const FeatureVector& vector, const ThreadTable& threads)
             );
     }
 
-    ThreadUID uid = threads.uid(vector.thread());
+    //
+    // If this state is empty, checked by testing if dm_features_named is
+    // indeterminate, indicate whether this state contains named features.
+    // And skip the remainder of the preconditions since they don't apply.
+    //
 
-    if (dm_threads.find(uid) != dm_threads.end())
+    if (dm_features_named == boost::logic::tribool::indeterminate_value)
     {
-        raise<std::invalid_argument>(
-            "The given feature vector is for a thread (%1%) "
-            "that is already in this state.", vector.thread()
-            );
+        dm_features_named = vector.named();
+    }
+    else
+    {
+        // Check preconditions on the threads
+
+        if (dm_threads.find(uid) != dm_threads.end())
+        {
+            raise<std::invalid_argument>(
+                "The given feature vector is for a thread (%1%) "
+                "that is already in this state.", vector.thread()
+                );
+        }
+        
+        // Check preconditions on the features
+        
+        if ((dm_features_named == true) && !vector.named())
+        {
+            raise<std::invalid_argument>(
+                "The given feature vector contains unnamed features "
+                "and this state contains named features."
+                );
+        }
+        
+        if ((dm_features_named == false) && vector.named())
+        {
+            raise<std::invalid_argument>(
+                "The given feature vector contains named features "
+                "and this state contains unnamed features."
+                );        
+        }
+        
+        if ((dm_features_named == false) &&
+            (dm_centroids.size2() /* Columns */ != vector.features().size()))
+        {
+            raise<std::invalid_argument>(
+                "The given feature vector contains a different number "
+                "of unnamed features (%1%) than this state (%2%).",
+                vector.features().size(), dm_centroids.size2()
+                );
+        }
+    }
+    
+    //
+    // All the precondition checking is done. Finally! Update the cluster
+    // centroid and, in the case of named features, the feature name map.
+    //
+    
+    size_t r = dm_centroids.size1();
+    
+    dm_centroids.resize(r + 1, dm_centroids.size2());
+    
+    if (dm_features_named == false)
+    {
+        for (size_t i = 0; i < dm_centroids.size2(); ++i)
+        {
+            dm_centroids(r, i) = vector.features()[i].value();
+        }
+    }
+    else if (dm_features_named == true)
+    {
+        //
+        // Iterate over all of the named features in this feature vector and,
+        // if they aren't already present within this state, add them.
+        //
+        
+        size_t columns = dm_centroids.size2();
+
+        for (std::vector<Feature>::size_type
+                 i = 0; i < vector.features().size(); ++i)
+        {
+            const FeatureName& name = vector.features()[i].name();
+            
+            FeatureNameMap::left_const_iterator j = dm_features.left.find(name);
+
+            if (j == dm_features.left.end())
+            {
+                dm_features.insert(FeatureNameMap::value_type(name, columns++));
+            }
+        }
+        
+        //
+        // Now it is known if (and how many) new columns need to be added to
+        // the centroid matrix. Increase its size appropriately as necessary.
+        //
+
+        if (columns > dm_centroids.size2())
+        {
+            dm_centroids.resize(dm_centroids.size1(), columns);
+        }
+
+        //
+        // Finally all of the feature values for the new feature vector can
+        // be inserted into the centroid matrix. There is no checking on the
+        // value of "j" against "dm_features.left.end()" because ALL feature
+        // names from this feature vector should now be in the map.
+        //
+        
+        for (std::vector<Feature>::size_type
+                 i = 0; i < vector.features().size(); ++i)
+        {
+            FeatureNameMap::left_const_iterator j = dm_features.left.find(
+                vector.features()[i].name()
+                );
+            
+            dm_centroids(r, j->second) = vector.features()[i].value();
+        }
     }
 
-    // ...
+    //
+    // Updating the cluster radii, sizes, and thread groups are not dependent
+    // on whether or not the features are named because they have nothing to
+    // do with the columns of the centroid matrix. Also make sure to update
+    // the dm_threads acceleration structure.
+    //
 
+    dm_radii.resize(r + 1);
+    dm_radii(r) = 0.0f;
+
+    dm_sizes.resize(r + 1);
+    dm_sizes(r) = 1.0f;
+    
+    ThreadUIDGroup group;
+    group.insert(uid);
+    dm_clusters.push_back(group);
+
+    dm_threads.insert(std::make_pair(uid, r));    
 }
 
 
@@ -499,5 +623,95 @@ void State::join(const std::set<size_t>& rows,
                  const Vector& centroid,
                  float radius)
 {
-    // ...
+    using namespace boost::numeric::ublas;
+
+    // Check preconditions
+
+    if (rows.size() < 2)
+    {
+        raise<std::invalid_argument>("Cannot join less than 2 rows.");
+    }
+
+    if (centroid.size() != dm_centroids.size2())
+    {
+        raise<std::invalid_argument>(
+            "The given centroid has a different size (%1%) "
+            "than the centroids already in this state (%2%).", 
+            centroid.size(), dm_centroids.size2()
+            );
+    }
+
+    // Create new, resized, cluster centroid, radii, sizes, and thread groups.
+
+    Matrix centroids(dm_centroids.size1() - rows.size() + 1,
+                     dm_centroids.size2());
+
+    Vector radii(dm_radii.size() - rows.size() + 1);
+    Vector sizes(dm_sizes.size() - rows.size() + 1);
+    
+    std::vector<ThreadUIDGroup> clusters(dm_clusters.size() - rows.size() + 1);
+
+    // Copy over all entries that are NOT being joined into the new cluster
+    
+    size_t r = 0;
+    
+    for (size_t i = 0; i < dm_centroids.size1(); ++i)
+    {
+        if (rows.find(i) == rows.end())
+        {
+            row(centroids, r) = row(dm_centroids, i);
+            radii(r) = dm_radii(i);
+            sizes(r) = dm_sizes(i);
+            clusters[r] = dm_clusters[i];
+
+            //
+            // Only update the dm_threads acceleration structure when
+            // absolutely necessary. I.e. when the row number for this
+            // cluster has changed.
+            //
+            
+            if (r != i)
+            {
+                for (ThreadUIDGroup::const_iterator
+                         j = clusters[r].begin(); j != clusters[r].end(); ++j)
+                {
+                    dm_threads[*j] = r;
+                }
+            }
+            
+            r++;
+        }
+    }
+
+    // Construct the new cluster's thread group
+
+    ThreadUIDGroup threads;
+
+    for (std::set<size_t>::const_iterator
+             i = rows.begin(); i != rows.end(); ++i)
+    {
+        threads.insert(dm_clusters[*i].begin(), dm_clusters[*i].end());
+    }
+
+    // Add the new cluster at the end of the resized data stuctures
+
+    row(centroids, r) = centroid;
+    radii(r) = radius;
+    sizes(r) = threads.size();
+    clusters[r] = threads;
+
+    // Update the dm_threads acceleration structure for the new cluster
+    
+    for (ThreadUIDGroup::const_iterator
+             i = threads.begin(); i != threads.end(); ++i)
+    {
+        dm_threads[*i] = r;
+    }
+    
+    // Swap in the resized data structures
+    
+    dm_centroids.swap(centroids);
+    dm_radii.swap(radii);
+    dm_sizes.swap(sizes);
+    dm_clusters.swap(clusters);
 }
