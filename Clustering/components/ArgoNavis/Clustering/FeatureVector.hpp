@@ -18,6 +18,8 @@
 
 /** @file Declaration of the Feature class. */
 
+#pragma once
+
 #include <stdexcept>
 #include <string>
 #include <vector>

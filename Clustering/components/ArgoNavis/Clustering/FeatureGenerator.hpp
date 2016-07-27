@@ -18,6 +18,8 @@
 
 /** @file Declaration of the FeatureGenerator class. */
 
+#pragma once
+
 #include <boost/shared_ptr.hpp>
 
 #include <KrellInstitute/CBTF/Component.hpp>

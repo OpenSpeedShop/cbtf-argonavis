@@ -18,6 +18,8 @@
 
 /** @file Declaration of the Feature class. */
 
+#pragma once
+
 #include <boost/cstdint.hpp>
 #include <cstring>
 #include <string>
