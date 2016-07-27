@@ -20,11 +20,15 @@
 
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
+#include <map>
+#include <stddef.h>
+#include <string>
 #include <typeinfo>
 
 #include <KrellInstitute/CBTF/Component.hpp>
 #include <KrellInstitute/CBTF/Type.hpp>
 #include <KrellInstitute/CBTF/Version.hpp>
+#include <KrellInstitute/CBTF/Impl/MRNet.hpp>
 
 #include <KrellInstitute/Core/AddressBuffer.hpp>
 
@@ -34,16 +38,21 @@
 #include <KrellInstitute/Messages/ThreadEvents.h>
 
 #include "Messages.h"
+#include "State.hpp"
 #include "ThreadTable.hpp"
 
 using namespace ArgoNavis::Clustering::Impl;
 using namespace KrellInstitute::CBTF;
+using namespace KrellInstitute::CBTF::Impl;
 using namespace KrellInstitute::Core;
 
 
 
 /**
- * ...
+ * Cluster analysis component residing on the frontend node of the CBTF/MRNet
+ * distributed component network. Provides the following functionality:
+ *
+ *     - ...
  */
 class __attribute__ ((visibility ("hidden"))) ClusteringManager :
     public Component
@@ -89,6 +98,12 @@ private:
     /** Address buffer containing all observed addresses. */
     AddressBuffer dm_addresses;
 
+    /** Table of all cluster analysis state. */
+    std::map<std::string, State> dm_states;
+
+    /** Number of child nodes finished sending their cluster analysis state. */
+    size_t dm_states_finished;
+
     /** Table of all observed threads. */
     ThreadTable dm_threads;
             
@@ -117,7 +132,11 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(ClusteringManager)
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 ClusteringManager::ClusteringManager():
-    Component(Type(typeid(ClusteringManager)), Version(1, 0, 0))
+    Component(Type(typeid(ClusteringManager)), Version(1, 0, 0)),
+    dm_addresses(),
+    dm_states(),
+    dm_states_finished(0),
+    dm_threads()
 {
     // ClusteringLeaf Interface (not intercepted by ClusteringFilter)
 
@@ -213,22 +232,53 @@ void ClusteringManager::handlePerformanceData(
 
 
 //------------------------------------------------------------------------------
+// Update the table of all cluster analysis state.    
 //------------------------------------------------------------------------------
 void ClusteringManager::handleState(
     const boost::shared_ptr<ANCI_State>& message
     )
 {
-    // ...
+    State state(*message);
+
+    std::map<std::string, State>::iterator i = dm_states.find(state.name());
+    
+    if (i == dm_states.end())
+    {
+        dm_states.insert(std::make_pair(state.name(), state));
+    }
+    else
+    {
+        i->second.add(state);
+    }
 }
 
 
 
 //------------------------------------------------------------------------------
-// Update the table of all observed threads.
 //------------------------------------------------------------------------------
 void ClusteringManager::handleThreadTable(
     const boost::shared_ptr<ANCI_ThreadTable>& message
     )
 {
+    // Update the table of all observed threads
     dm_threads.add(ThreadTable(*message));
+
+    //
+    // Increment the number of child nodes finished sending their cluster
+    // analysis state, as the receipt of this message is also overloaded
+    // to indicate that. Then check if all child nodes are finished.
+    //
+
+    if (++dm_states_finished == TheTopologyInfo.NumChildren)
+    {
+
+
+        // TODO: Apply an algorithm to determine which State contain
+        //       interesting results. Use this information to request
+        //       performance data for the representative threads and,
+        //       once all the data is received, send the whole ball
+        //       of wax to Open|SpeedShop.
+
+
+    }
 }
