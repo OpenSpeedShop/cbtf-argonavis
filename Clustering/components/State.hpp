@@ -94,7 +94,14 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
          *                                 a thread that is already in this
          *                                 state.
          *
-         * ...
+         * @throw std::invalid_argument    The given feature vector contains
+         *                                 unnamed features and this state
+         *                                 contains named features. Or vice
+         *                                 versa.
+         *
+         * @throw std::invalid_argument    The given feature vector contains
+         *                                 a different number of unnamed
+         *                                 features than this state.
          */
         void add(const FeatureVector& vector, const ThreadTable& threads);
         
