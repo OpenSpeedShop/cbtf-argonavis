@@ -44,6 +44,7 @@ target_include_directories(cuda-collector-monitor-fileio PUBLIC
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
     ${CUPTI_INCLUDE_DIRS}
     )
 
@@ -56,6 +57,7 @@ target_link_libraries(cuda-collector-monitor-fileio
     ${CBTF_KRELL_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
     )
 
@@ -66,6 +68,7 @@ target_include_directories(cuda-collector-monitor-mrnet PUBLIC
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
     ${CUPTI_INCLUDE_DIRS}
     )
 
@@ -78,6 +81,7 @@ target_link_libraries(cuda-collector-monitor-mrnet
     ${CBTF_KRELL_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
     )
 
@@ -88,6 +92,7 @@ target_include_directories(cuda-collector-monitor-mrnet-mpi PUBLIC
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
     ${CUPTI_INCLUDE_DIRS}
     )
 
@@ -100,6 +105,7 @@ target_link_libraries(cuda-collector-monitor-mrnet-mpi
     ${CBTF_KRELL_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
     )
 

@@ -359,12 +359,6 @@ void cbtf_collector_pause()
 
     /* Pause data collection for this thread */
     tls->paused = TRUE;
-
-    if (TheSamplingConfig.events.events_len > 0)
-    {
-        /* Stop PAPI data collection for this thread */
-        PAPI_stop_data_collection();
-    }
 }
 
 
@@ -380,12 +374,6 @@ void cbtf_collector_resume()
         printf("[CBTF/CUDA] cbtf_collector_resume()\n");
     }
 #endif
-
-    if (TheSamplingConfig.events.events_len > 0)
-    {
-        /* Start PAPI data collection for this thread */
-        PAPI_start_data_collection();
-    }
 
     /* Access our thread-local storage */
     TLS* tls = TLS_get();

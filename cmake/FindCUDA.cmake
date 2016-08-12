@@ -1,6 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
-# Copyright (c) 2013 Krell Institute. All Rights Reserved.
+# Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,50 +18,50 @@
 
 include(FindPackageHandleStandardArgs)
 
-find_library(CUPTI_LIBRARY NAMES libcupti.so 
-    HINTS $ENV{CUDA_INSTALL_PATH}/extras/CUPTI $ENV{CUPTI_DIR}
-    PATH_SUFFIXES lib lib64
+find_library(CUDA_LIBRARY NAMES libcuda.so
+    HINTS $ENV{CUDA_INSTALL_PATH} $ENV{CUDA_DIR}
+    PATH_SUFFIXES lib lib64 lib64/stubs
     )
 
-find_path(CUPTI_INCLUDE_DIR cupti.h
-    HINTS $ENV{CUDA_INSTALL_PATH}/extras/CUPTI $ENV{CUPTI_DIR}
+find_path(CUDA_INCLUDE_DIR cuda.h
+    HINTS $ENV{CUDA_INSTALL_PATH} $ENV{CUDA_DIR}
     PATH_SUFFIXES include
     )
 
 find_package_handle_standard_args(
-    CUPTI DEFAULT_MSG CUPTI_LIBRARY CUPTI_INCLUDE_DIR
+    CUDA DEFAULT_MSG CUDA_LIBRARY CUDA_INCLUDE_DIR
     )
 
-set(CUPTI_LIBRARIES ${CUPTI_LIBRARY})
-set(CUPTI_INCLUDE_DIRS ${CUPTI_INCLUDE_DIR})
+set(CUDA_LIBRARIES ${CUDA_LIBRARY})
+set(CUDA_INCLUDE_DIRS ${CUDA_INCLUDE_DIR})
 
-mark_as_advanced(CUPTI_LIBRARY CUPTI_INCLUDE_DIR)
+mark_as_advanced(CUDA_LIBRARY CUDA_INCLUDE_DIR)
 
-if(CUPTI_FOUND AND DEFINED CUPTI_INCLUDE_DIR)
+if(CUDA_FOUND AND DEFINED CUDA_INCLUDE_DIR)
   
-    file(READ ${CUPTI_INCLUDE_DIR}/cupti_version.h CUPTI_VERSION_FILE)
+    file(READ ${CUDA_INCLUDE_DIR}/cuda.h CUDA_VERSION_FILE)
   
     string(REGEX REPLACE
-        ".*#define CUPTI_API_VERSION[ \t]+([0-9]+)\n.*" "\\1"
-        CUPTI_API_VERSION ${CUPTI_VERSION_FILE}
+        ".*#define CUDA_VERSION[ \t]+([0-9]+)\n.*" "\\1"
+        CUDA_VERSION ${CUDA_VERSION_FILE}
         )
       
-    message(STATUS "CUPTI API version: " ${CUPTI_API_VERSION})
+    message(STATUS "CUDA version: " ${CUDA_VERSION})
 
-    if(DEFINED CUPTI_FIND_VERSION)
-        if(${CUPTI_API_VERSION} VERSION_LESS ${CUPTI_FIND_VERSION})
+    if(DEFINED CUDA_FIND_VERSION)
+        if(${CUDA_VERSION} VERSION_LESS ${CUDA_FIND_VERSION})
 
-            set(CUPTI_FOUND FALSE)
+            set(CUDA_FOUND FALSE)
 
-            if(DEFINED CUPTI_FIND_REQUIRED)
+            if(DEFINED CUDA_FIND_REQUIRED)
                 message(FATAL_ERROR
-                    "Could NOT find CUPTI  (version < "
-                    ${CUPTI_FIND_VERSION} ")"
+                    "Could NOT find CUDA  (version < "
+                    ${CUDA_FIND_VERSION} ")"
                     )
             else()
                 message(STATUS
-                    "Could NOT find CUPTI  (version < " 
-                    ${CUPTI_FIND_VERSION} ")"
+                    "Could NOT find DA  (version < " 
+                    ${CUDA_FIND_VERSION} ")"
                     )
             endif()
  
