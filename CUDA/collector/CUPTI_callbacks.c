@@ -566,6 +566,13 @@ static void callback(void* userdata,
  */
 void CUPTI_callbacks_subscribe()
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_callbacks_subscribe()\n");
+    }
+#endif
+
     CUPTI_CHECK(cuptiSubscribe(&Handle, callback, NULL));    
     CUPTI_CHECK(cuptiEnableDomain(1, Handle, CUPTI_CB_DOMAIN_DRIVER_API));    
     CUPTI_CHECK(cuptiEnableDomain(1, Handle, CUPTI_CB_DOMAIN_RESOURCE));    
@@ -579,5 +586,12 @@ void CUPTI_callbacks_subscribe()
  */
 void CUPTI_callbacks_unsubscribe()
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_callbacks_unsubscribe()\n");
+    }
+#endif
+
     CUPTI_CHECK(cuptiUnsubscribe(Handle));
 }

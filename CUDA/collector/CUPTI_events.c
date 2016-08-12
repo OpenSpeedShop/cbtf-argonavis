@@ -85,6 +85,13 @@ static struct {
  */
 void CUPTI_events_initialize()
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_events_initialize()\n");
+    }
+#endif
+
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
     
@@ -101,6 +108,13 @@ void CUPTI_events_initialize()
  */
 void CUPTI_events_start(CUcontext context)
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_events_start(%p)\n", context);
+    }
+#endif
+
     PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
 
     /* Find an empty entry in the table for this context */
@@ -313,6 +327,13 @@ void CUPTI_events_sample()
  */
 void CUPTI_events_stop(CUcontext context)
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_events_stop(%p)\n", context);
+    }
+#endif
+
     PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
 
     /* Find the specified context in the table */
@@ -357,6 +378,13 @@ void CUPTI_events_stop(CUcontext context)
  */
 void CUPTI_events_finalize()
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_events_finalize()\n");
+    }
+#endif
+
     /* Send any remaining performance data for this process */
     int i;
     for (i = 0;
