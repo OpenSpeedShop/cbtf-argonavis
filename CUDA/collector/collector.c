@@ -27,7 +27,6 @@
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
-#include <KrellInstitute/Services/Time.h>
 #include <KrellInstitute/Services/Timer.h>
 
 #include "CUPTI_activities.h"
@@ -226,25 +225,8 @@ static void timer_callback(const ucontext_t* context)
         CUPTI_events_sample();
     }
     
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-
-    /* Do nothing if data collection is paused for this thread */
-    if (tls->paused)
-    {
-        return;
-    }
-
-    /* Initialize a new periodic sample */
-    PeriodicSample sample;
-    memset(&sample, 0, sizeof(PeriodicSample));
-    sample.time = CBTF_GetTime();
-    
     /* Sample the PAPI counters for this thread */
-    PAPI_sample(&sample);
-
-    /* Add this sample to the performance data blob for this thread */
-    TLS_add_periodic_sample(tls, &sample);
+    PAPI_sample();
 }
 
 

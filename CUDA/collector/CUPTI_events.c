@@ -27,7 +27,9 @@
 #include <KrellInstitute/Messages/DataHeader.h>
 
 #include <KrellInstitute/Services/Assert.h>
+#include <KrellInstitute/Services/Time.h>
 
+#include "collector.h"
 #include "CUDA_check.h"
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
@@ -51,9 +53,27 @@ CBTF_DataHeader DataHeader;
  */
 static struct {
     struct {
+
+        /** CUDA context pointer. */
         CUcontext context;
-        CUpti_EventGroup eventgroup;
+        
+        /** Handle for this context's event group. */
+        CUpti_EventGroup event_group;
+
+        /** Number of events in this event group. */
+        int event_count;
+
+        /** Identifiers of the events in this event group. */
+        CUpti_EventID event_ids[MAX_EVENTS];
+
+        /**
+         * Map event indicies in this event group to periodic count indicies.
+         */
+        int event_to_periodic[MAX_EVENTS];
+
+        /** Fake (actually per-device-context) thread-local storage. */
         TLS tls;
+
     } values[MAX_CONTEXTS];
     pthread_mutex_t mutex;
 } EventGroups = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
@@ -124,32 +144,83 @@ void CUPTI_events_start(CUcontext context)
         CUDA_CHECK(cuCtxPushCurrent(context));
     }
 
-    /*
-     * ...
-     */
+    /* Get the device for this context */
+    CUdevice device;
+    CUDA_CHECK(cuCtxGetDevice(&device));
     
+    /* Enable continuous event sampling for this context */
     CUPTI_CHECK(cuptiSetEventCollectionMode(
                     context, CUPTI_EVENT_COLLECTION_MODE_CONTINUOUS
                     ));
-    
-    CUPTI_CHECK(cuptiEventGroupCreate(
-                    context, &EventGroups.values[i].eventgroup, 0
-                    ));
-    
-    CUdevice device;
-    CUDA_CHECK(cuCtxGetDevice(&device));
 
-    // ...
-    
-    CUPTI_CHECK(cuptiEventGroupEnable(&EventGroups.values[i].eventgroup));
-    
+    /* Create a new CUPTI event group for this context */
+    CUPTI_CHECK(cuptiEventGroupCreate(
+                    context, &EventGroups.values[i].event_group, 0
+                    ));
+
+    /* Iterate over each event in our event sampling configuration */
+    uint e;
+    for (e = 0; i < TheSamplingConfig.events.events_len; ++e)
+    {
+        CUDA_EventDescription* event = &TheSamplingConfig.events.events_val[e];
+        
+        /*
+         * Look up the event id for this event. Note that an unidentified
+         * event is NOT treated as fatal since it may simply be an event
+         * that will be handled by PAPI. Just continue to the next event.
+         */
+
+        CUpti_EventID* id = 
+            &EventGroups.values[i].event_ids[EventGroups.values[i].event_count];
+        
+        if (cuptiEventGetIdFromName(device, event->name, id) != CUPTI_SUCCESS)
+        {
+            continue;
+        }
+
+        /* Add this event to the event group */
+
+        CUPTI_CHECK(cuptiEventGroupAddEvent(
+                        &EventGroups.values[i].event_group, *id
+                        ));
+        
+        EventGroups.values[i].event_to_periodic[
+            EventGroups.values[i].event_count
+            ] = e;
+        
+        /* Increment the number of events in this event group */
+        ++EventGroups.values[i].event_count;
+    }
+
+    /* Are there any events to collect? */
+    if (EventGroups.values[i].event_count > 0)
+    {
+        /* Enable collection of this event group */
+        CUPTI_CHECK(cuptiEventGroupEnable(&EventGroups.values[i].event_group));
+    }
+
     /* Initialize this context's fake thread-local storage */
     memset(&EventGroups.values[i].tls, 0, sizeof(TLS));
     memcpy(&EventGroups.values[i].tls.data_header, &DataHeader,
            sizeof(CBTF_DataHeader));
     EventGroups.values[i].tls.data_header.posix_tid = (int64_t)context;
     TLS_initialize_data(&EventGroups.values[i].tls);
-    
+
+    if (TheSamplingConfig.events.events_len > 0)
+    {
+        /* Append event sampling configuration to our performance data blob */
+
+        CBTF_cuda_message* raw_message = 
+            TLS_add_message(&EventGroups.values[i].tls);
+        Assert(raw_message != NULL);
+        raw_message->type = SamplingConfig;
+        
+        CUDA_SamplingConfig* message = 
+            &raw_message->CBTF_cuda_message_u.sampling_config;
+        
+        memcpy(message, &TheSamplingConfig, sizeof(CUDA_SamplingConfig));
+    }
+
     /* Restore (if necessary) the previous value of the current context */
     if (current != context)
     {
@@ -169,7 +240,66 @@ void CUPTI_events_sample()
 {
     PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
 
-    // ...
+    /* Iterate over each context in the table. */
+    int i;
+    for (i = 0;
+         (i < MAX_CONTEXTS) && (EventGroups.values[i].context != NULL);
+         ++i)
+    {
+        /* Are any events being collected? */
+        if (EventGroups.values[i].event_count > 0)
+        {
+            /* Read the counters for this context's event group */
+
+            uint64_t counts[MAX_EVENTS];
+            size_t counts_size = sizeof(counts);
+            CUpti_EventID ids[MAX_EVENTS];
+            size_t ids_size = sizeof(ids);
+            size_t event_count = 0;
+
+            CUPTI_CHECK(cuptiEventGroupReadAllEvents(
+                            EventGroups.values[i].event_group,
+                            CUPTI_EVENT_READ_FLAG_NONE,
+                            &counts_size, counts,
+                            &ids_size, ids,
+                            &event_count
+                            ));
+            
+            Assert(event_count == EventGroups.values[i].event_count);
+
+            /* Initialize a new periodic sample */
+            PeriodicSample sample;
+            memset(&sample, 0, sizeof(PeriodicSample));
+            sample.time = CBTF_GetTime();
+            
+            /*
+             * Insert the counter values into the sample. CUPTI doesn't
+             * guarantee that the events will be read in the same order
+             * they were added to the event group. That would clearly be
+             * too easy. So an additional search is necessary here...
+             */
+
+            size_t e;
+            for (e = 0; e < event_count; ++e)
+            {
+                int j;
+                for (j = 0; j < MAX_EVENTS; ++j)
+                {
+                    if (ids[e] == EventGroups.values[i].event_ids[j])
+                    {
+                        sample.count[
+                            EventGroups.values[i].event_to_periodic[j]
+                            ] = counts[e];
+
+                        break;
+                    }
+                }
+            }
+
+            /* Add this sample to the performance data blob for this context */
+            TLS_add_periodic_sample(&EventGroups.values[i].tls, &sample);
+        }
+    }
 
     PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
 }
@@ -206,13 +336,17 @@ void CUPTI_events_stop(CUcontext context)
         abort();
     }
 
-    /*
-     * ...
-     */
+    /* Are any events being collected? */
+    if (EventGroups.values[i].event_count > 0)
+    {
+        /* Disable collection of this event group */
+        CUPTI_CHECK(cuptiEventGroupDisable(&EventGroups.values[i].event_group));
+    }
 
-    CUPTI_CHECK(cuptiEventGroupDisable(&EventGroups.values[i].eventgroup));
-    CUPTI_CHECK(cuptiEventGroupDestroy(&EventGroups.values[i].eventgroup));
-
+    /* Destroy this event group */
+    CUPTI_CHECK(cuptiEventGroupDestroy(&EventGroups.values[i].event_group));
+    EventGroups.values[i].event_count = 0;
+    
     PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
 }
 
@@ -223,5 +357,12 @@ void CUPTI_events_stop(CUcontext context)
  */
 void CUPTI_events_finalize()
 {
-    // ...
+    /* Send any remaining performance data for this process */
+    int i;
+    for (i = 0;
+         (i < MAX_CONTEXTS) && (EventGroups.values[i].context != NULL);
+         ++i)
+    {
+        TLS_send_data(&EventGroups.values[i].tls);
+    }
 }

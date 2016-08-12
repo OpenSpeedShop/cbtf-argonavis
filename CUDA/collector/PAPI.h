@@ -28,12 +28,8 @@ void PAPI_initialize();
 /* Start PAPI data collection for the current thread. */
 void PAPI_start_data_collection();
 
-/*
- * Sample the PAPI counters for the current thread.
- *
- * @param sample    Sample into which to place the PAPI counts.
- */
-void PAPI_sample(PeriodicSample* sample);
+/* Sample the PAPI counters for the current thread. */
+void PAPI_sample();
 
 /* Stop PAPI data collection for the current thread. */
 void PAPI_stop_data_collection();

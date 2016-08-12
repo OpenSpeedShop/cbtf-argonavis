@@ -175,28 +175,28 @@ typedef struct {
     } periodic_samples;
 
 #if defined(PAPI_FOUND)
-    /** Number of PAPI eventsets for this thread. */
-    int papi_eventset_count;
+    /** Number of PAPI event sets for this thread. */
+    int papi_event_set_count;
     
-    /** PAPI eventsets for this thread. */
+    /** PAPI event sets for this thread. */
     struct {
 
-        /** Handle for the component collecting this eventset. */
+        /** Handle for the component collecting this event set. */
         int component;
         
-        /** Handle for this eventset. */
-        int eventset;
+        /** Handle for this event set. */
+        int event_set;
 
-        /** Number of events in this eventset. */
+        /** Number of events in this event set. */
         int event_count;
 
-        /** Map event indicies in this eventset to periodic count indicies. */
+        /** Map event indicies in this event set to periodic count indicies. */
         int event_to_periodic[MAX_EVENTS];
 
-        /** Map event indicies in this eventset to overflow count indicies. */
+        /** Map event indicies in this event set to overflow count indicies. */
         int event_to_overflow[MAX_EVENTS];
         
-    } papi_eventsets[MAX_EVENTS];
+    } papi_event_sets[MAX_EVENTS];
 #endif
    
 } TLS;
