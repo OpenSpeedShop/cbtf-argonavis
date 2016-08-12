@@ -245,6 +245,14 @@ void PAPI_start_data_collection()
         
         /* Increment the number of events in this event set */
         ++tls->papi_event_sets[s].event_count;
+
+#if !defined(NDEBUG)
+        if (IsDebugEnabled)
+        {
+            printf("[CBTF/CUDA] recording CPU event \"%s\" for thread %p\n",
+                   event->name, (void*)pthread_self());
+        }
+#endif
     }
     
     /* Start the sampling of our event sets */

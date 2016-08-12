@@ -204,6 +204,14 @@ void CUPTI_events_start(CUcontext context)
         
         /* Increment the number of events in this event group */
         ++EventGroups.values[i].event_count;
+
+#if !defined(NDEBUG)
+        if (IsDebugEnabled)
+        {
+            printf("[CBTF/CUDA] recording GPU event \"%s\" for context %p\n",
+                   event->name, context);
+        }
+#endif
     }
 
     /* Are there any events to collect? */
