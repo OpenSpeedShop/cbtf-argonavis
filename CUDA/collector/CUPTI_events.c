@@ -250,15 +250,9 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
                 {
                     if (ids[e] == EventGroups.values[i].event_ids[j])
                     {
-                        int n = EventGroups.values[i].event_to_periodic[j];
-
-                        if (sample->count[n] == 0)
-                        {
-                            sample->count[n] +=
-                                tls->periodic_samples.previous.count[n];
-                        }
-                        
-                        sample->count[n] += counts[e];
+                        sample->count[
+                            EventGroups.values[i].event_to_periodic[j]
+                            ] += counts[e];
                         
                         break;
                     }
