@@ -31,12 +31,10 @@
 #include <KrellInstitute/Messages/CUDA_data.h>
 
 #include <KrellInstitute/Services/Assert.h>
-#include <KrellInstitute/Services/Time.h>
 
 #include "collector.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
-#include "TLS.h"
 
 
 
@@ -267,25 +265,14 @@ void PAPI_start_data_collection()
 
 
 /**
- * Sample the PAPI counters for the current thread.
+ * Sample the PAPI events for the current thread.
+ *
+ * @param tls       Thread-local storage of the current thread.
+ * @param sample    Periodic sample to hold the PAPI event counts.
  */
-void PAPI_sample()
+void PAPI_sample(TLS* tls, PeriodicSample* sample)
 {
 #if defined(PAPI_FOUND)
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-
-    /* Do nothing if data collection is paused for this thread */
-    if (tls->paused)
-    {
-        return;
-    }
-
-    /* Initialize a new periodic sample */
-    PeriodicSample sample;
-    memset(&sample, 0, sizeof(PeriodicSample));
-    sample.time = CBTF_GetTime();
-        
     /* Read the counters for each of our event sets */
     int s;
     for (s = 0; s < tls->papi_event_set_count; ++s)
@@ -297,14 +284,11 @@ void PAPI_sample()
         int e;
         for (e = 0; e < tls->papi_event_sets[s].event_count; ++e)
         {
-            sample.count[
+            sample->count[
                 tls->papi_event_sets[s].event_to_periodic[e]
                 ] = counts[e];
         }
     }
-
-    /* Add this sample to the performance data blob for this thread */
-    TLS_add_periodic_sample(tls, &sample);
 #endif
 }
 

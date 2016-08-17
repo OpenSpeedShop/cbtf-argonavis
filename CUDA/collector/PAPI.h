@@ -28,8 +28,13 @@ void PAPI_initialize();
 /* Start PAPI data collection for the current thread. */
 void PAPI_start_data_collection();
 
-/* Sample the PAPI counters for the current thread. */
-void PAPI_sample();
+/*
+ * Sample the PAPI events for the current thread.
+ *
+ * @param tls       Thread-local storage of the current thread.
+ * @param sample    Periodic sample to hold the PAPI event counts.
+ */
+void PAPI_sample(TLS* tls, PeriodicSample* sample);
 
 /* Stop PAPI data collection for the current thread. */
 void PAPI_stop_data_collection();

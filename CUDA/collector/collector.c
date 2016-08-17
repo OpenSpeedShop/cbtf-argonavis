@@ -27,6 +27,7 @@
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
+#include <KrellInstitute/Services/Time.h>
 #include <KrellInstitute/Services/Timer.h>
 
 #include "CUPTI_activities.h"
@@ -219,14 +220,31 @@ static void parse_configuration(const char* const configuration)
  */
 static void timer_callback(const ucontext_t* context)
 {
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Do nothing if data collection is paused for this thread */
+    if (tls->paused)
+    {
+        return;
+    }
+
+    /* Initialize a new periodic sample */
+    PeriodicSample sample;
+    memset(&sample, 0, sizeof(PeriodicSample));
+    sample.time = CBTF_GetTime();
+    
     /* Sample the CUPTI events from the main thread (only) */
     if (pthread_equal(pthread_self(), TheMainThread))
     {
-        CUPTI_events_sample();
+        CUPTI_events_sample(tls, &sample);
     }
     
-    /* Sample the PAPI counters for this thread */
-    PAPI_sample();
+    /* Sample PAPI counters for this thread */
+    PAPI_sample(tls, &sample);
+
+    /* Add this sample to the performance data blob for this thread */
+    TLS_add_periodic_sample(tls, &sample);
 }
 
 
@@ -289,9 +307,6 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 
         if (TheSamplingConfig.events.events_len > 0)
         {
-            /* Initialize CUPTI events data collection for this process */
-            CUPTI_events_initialize();
-            
             /* Initialize PAPI for this process */
             PAPI_initialize();
         }
@@ -439,9 +454,6 @@ void cbtf_collector_stop()
 
         if (TheSamplingConfig.events.events_len > 0)
         {
-            /* Finalize CUPTI events data collection for this process */
-            CUPTI_events_finalize();
-            
             /* Finalize PAPI for this process */
             PAPI_finalize();
         }

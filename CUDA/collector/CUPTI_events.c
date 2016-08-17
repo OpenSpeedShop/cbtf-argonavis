@@ -24,10 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <KrellInstitute/Messages/DataHeader.h>
-
 #include <KrellInstitute/Services/Assert.h>
-#include <KrellInstitute/Services/Time.h>
 
 #include "collector.h"
 #include "CUDA_check.h"
@@ -35,21 +32,13 @@
 #include "CUPTI_context.h"
 #include "CUPTI_events.h"
 #include "Pthread_check.h"
-#include "TLS.h"
 
 
 
 /**
- * Performance data header for this process. Used when constructing the fake
- * thread-local storage for each CUDA context.
- */
-CBTF_DataHeader DataHeader;
-
-/**
- * Table used to map CUDA context pointers to CUPTI event groups and fake
- * thread-local storage. This table must be protected with a mutex because
- * there is no guarantee that a CUDA context won't be created or destroyed
- * at the same time that a sample is taken.
+ * Table used to map CUDA context pointers to CUPTI event groups. This table
+ * must be protected with a mutex because there is no guarantee that a CUDA
+ * context won't be created or destroyed at the same time a sample is taken.
  */
 static struct {
     struct {
@@ -71,33 +60,9 @@ static struct {
          */
         int event_to_periodic[MAX_EVENTS];
 
-        /** Fake (actually per-device-context) thread-local storage. */
-        TLS tls;
-
     } values[MAX_CONTEXTS];
     pthread_mutex_t mutex;
 } EventGroups = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
-
-
-
-/**
- * Initialize CUPTI events data collection for this process.
- */
-void CUPTI_events_initialize()
-{
-#if !defined(NDEBUG)
-    if (IsDebugEnabled)
-    {
-        printf("[CBTF/CUDA] CUPTI_events_initialize()\n");
-    }
-#endif
-
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-    
-    /* Initialize the performance data header for this process */
-    memcpy(&DataHeader, &tls->data_header, sizeof(CBTF_DataHeader));
-}
 
 
 
@@ -221,28 +186,6 @@ void CUPTI_events_start(CUcontext context)
         CUPTI_CHECK(cuptiEventGroupEnable(EventGroups.values[i].event_group));
     }
 
-    /* Initialize this context's fake thread-local storage */
-    memset(&EventGroups.values[i].tls, 0, sizeof(TLS));
-    memcpy(&EventGroups.values[i].tls.data_header, &DataHeader,
-           sizeof(CBTF_DataHeader));
-    EventGroups.values[i].tls.data_header.posix_tid = (int64_t)context;
-    TLS_initialize_data(&EventGroups.values[i].tls);
-
-    if (TheSamplingConfig.events.events_len > 0)
-    {
-        /* Append event sampling configuration to our performance data blob */
-
-        CBTF_cuda_message* raw_message = 
-            TLS_add_message(&EventGroups.values[i].tls);
-        Assert(raw_message != NULL);
-        raw_message->type = SamplingConfig;
-        
-        CUDA_SamplingConfig* message = 
-            &raw_message->CBTF_cuda_message_u.sampling_config;
-        
-        memcpy(message, &TheSamplingConfig, sizeof(CUDA_SamplingConfig));
-    }
-
     /* Restore (if necessary) the previous value of the current context */
     if (current != context)
     {
@@ -257,8 +200,11 @@ void CUPTI_events_start(CUcontext context)
 
 /**
  * Sample the CUPTI events for all active CUDA contexts.
+ *
+ * @param tls       Thread-local storage of the current thread.
+ * @param sample    Periodic sample to hold the CUPTI event counts.
  */
-void CUPTI_events_sample()
+void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
 {
     PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
 
@@ -289,11 +235,6 @@ void CUPTI_events_sample()
             
             Assert(event_count == EventGroups.values[i].event_count);
 
-            /* Initialize a new periodic sample */
-            PeriodicSample sample;
-            memset(&sample, 0, sizeof(PeriodicSample));
-            sample.time = CBTF_GetTime();
-            
             /*
              * Insert the counter values into the sample. CUPTI doesn't
              * guarantee that the events will be read in the same order
@@ -310,19 +251,19 @@ void CUPTI_events_sample()
                     if (ids[e] == EventGroups.values[i].event_ids[j])
                     {
                         int n = EventGroups.values[i].event_to_periodic[j];
+
+                        if (sample->count[n] == 0)
+                        {
+                            sample->count[n] +=
+                                tls->periodic_samples.previous.count[n];
+                        }
                         
-                        uint64_t previous = EventGroups.values[i].tls.
-                            periodic_samples.previous.count[n];
-                        
-                        sample.count[n] = previous + counts[e];
+                        sample->count[n] += counts[e];
                         
                         break;
                     }
                 }
             }
-
-            /* Add this sample to the performance data blob for this context */
-            TLS_add_periodic_sample(&EventGroups.values[i].tls, &sample);
         }
     }
 
@@ -380,28 +321,4 @@ void CUPTI_events_stop(CUcontext context)
     EventGroups.values[i].event_count = 0;
     
     PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
-}
-
-
-
-/**
- * Finalize CUPTI events data collection for this process.
- */
-void CUPTI_events_finalize()
-{
-#if !defined(NDEBUG)
-    if (IsDebugEnabled)
-    {
-        printf("[CBTF/CUDA] CUPTI_events_finalize()\n");
-    }
-#endif
-
-    /* Send any remaining performance data for this process */
-    int i;
-    for (i = 0;
-         (i < MAX_CONTEXTS) && (EventGroups.values[i].context != NULL);
-         ++i)
-    {
-        TLS_send_data(&EventGroups.values[i].tls);
-    }
 }
