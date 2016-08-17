@@ -335,6 +335,9 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 
     if (TheSamplingConfig.events.events_len > 0)
     {
+        /* Start PAPI data collection for this thread */
+        PAPI_start_data_collection();
+
         /* Start the periodic sampling timer for this thread */
         CBTF_Timer(TheSamplingConfig.interval, timer_callback);
     }
@@ -400,6 +403,9 @@ void cbtf_collector_stop()
     {
         /* Stop the periodic sampling timer for this thread */
         CBTF_Timer(0, NULL);
+
+        /* Stop PAPI data collection for this thread */
+        PAPI_stop_data_collection();
     }
 
     /* Pause data collection for this thread */

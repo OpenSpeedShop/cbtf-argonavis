@@ -174,7 +174,7 @@ void CUPTI_events_start(CUcontext context)
 
     /* Iterate over each event in our event sampling configuration */
     uint e;
-    for (e = 0; i < TheSamplingConfig.events.events_len; ++e)
+    for (e = 0; e < TheSamplingConfig.events.events_len; ++e)
     {
         CUDA_EventDescription* event = &TheSamplingConfig.events.events_val[e];
         
@@ -195,7 +195,7 @@ void CUPTI_events_start(CUcontext context)
         /* Add this event to the event group */
 
         CUPTI_CHECK(cuptiEventGroupAddEvent(
-                        &EventGroups.values[i].event_group, *id
+                        EventGroups.values[i].event_group, *id
                         ));
         
         EventGroups.values[i].event_to_periodic[
@@ -218,7 +218,7 @@ void CUPTI_events_start(CUcontext context)
     if (EventGroups.values[i].event_count > 0)
     {
         /* Enable collection of this event group */
-        CUPTI_CHECK(cuptiEventGroupEnable(&EventGroups.values[i].event_group));
+        CUPTI_CHECK(cuptiEventGroupEnable(EventGroups.values[i].event_group));
     }
 
     /* Initialize this context's fake thread-local storage */
@@ -369,11 +369,11 @@ void CUPTI_events_stop(CUcontext context)
     if (EventGroups.values[i].event_count > 0)
     {
         /* Disable collection of this event group */
-        CUPTI_CHECK(cuptiEventGroupDisable(&EventGroups.values[i].event_group));
+        CUPTI_CHECK(cuptiEventGroupDisable(EventGroups.values[i].event_group));
     }
 
     /* Destroy this event group */
-    CUPTI_CHECK(cuptiEventGroupDestroy(&EventGroups.values[i].event_group));
+    CUPTI_CHECK(cuptiEventGroupDestroy(EventGroups.values[i].event_group));
     EventGroups.values[i].event_count = 0;
     
     PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
