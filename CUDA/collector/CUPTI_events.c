@@ -309,12 +309,13 @@ void CUPTI_events_sample()
                 {
                     if (ids[e] == EventGroups.values[i].event_ids[j])
                     {
-                        sample.count[
-                            EventGroups.values[i].event_to_periodic[j]
-                            ] = EventGroups.values[i].tls.
-                                    periodic_samples.previous.count[e] + 
-                                counts[e];
-
+                        int n = EventGroups.values[i].event_to_periodic[j];
+                        
+                        uint64_t previous = EventGroups.values[i].tls.
+                            periodic_samples.previous.count[n];
+                        
+                        sample.count[n] = previous + counts[e];
+                        
                         break;
                     }
                 }
