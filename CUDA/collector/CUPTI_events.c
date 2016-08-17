@@ -311,7 +311,9 @@ void CUPTI_events_sample()
                     {
                         sample.count[
                             EventGroups.values[i].event_to_periodic[j]
-                            ] = counts[e];
+                            ] = EventGroups.values[i].tls.
+                                    periodic_samples.previous.count[e] + 
+                                counts[e];
 
                         break;
                     }
