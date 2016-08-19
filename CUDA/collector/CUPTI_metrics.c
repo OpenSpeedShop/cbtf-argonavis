@@ -36,6 +36,24 @@
 
 
 /**
+ * Table used to map CUDA context pointers to the information necessary to
+ * collect CUPTI metrics. This table must be protected with a mutex because
+ * there is no guarantee that a CUDA context won't be created or destroyed
+ * at the same time a sample is taken.
+ */
+static struct {
+    struct {
+
+        /** CUDA context pointer. */
+        CUcontext context;
+        
+    } values[MAX_CONTEXTS];
+    pthread_mutex_t mutex;
+} Metrics = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
+
+
+
+/**
  * Start metrics data collection for the specified CUDA context.
  *
  * @param context    CUDA context for which data collection is to be started.
@@ -49,7 +67,65 @@ void CUPTI_metrics_start(CUcontext context)
     }
 #endif
 
+    PTHREAD_CHECK(pthread_mutex_lock(&Metrics.mutex));
+
+    /* Find an empty entry in the table for this context */
+
+    int i;
+    for (i = 0; (i < MAX_CONTEXTS) && (Metrics.values[i].context != NULL); ++i)
+    {
+        if (Metrics.values[i].context == context)
+        {
+            fprintf(stderr, "[CBTF/CUDA] CUPTI_metrics_start(): "
+                    "Redundant call for CUPTI context pointer (%p)!", context);
+            fflush(stderr);
+            abort();
+        }
+    }
+    
+    if (i == MAX_CONTEXTS)
+    {
+        fprintf(stderr, "[CBTF/CUDA] CUPTI_metrics_start(): "
+                "Maximum supported CUDA context pointers (%d) was reached!\n",
+                MAX_CONTEXTS);
+        fflush(stderr);
+        abort();
+    }
+
+    Metrics.values[i].context = context;
+
+    /*
+     * Get the current context, saving it for possible later restoration,
+     * and insure that the specified context is now the current context.
+     */
+    
+    CUcontext current = NULL;
+    CUDA_CHECK(cuCtxGetCurrent(&current));
+    
+    if (current != context)
+    {
+        CUDA_CHECK(cuCtxPopCurrent(&current));
+        CUDA_CHECK(cuCtxPushCurrent(context));
+    }
+
+    /* Get the device for this context */
+    CUdevice device;
+    CUDA_CHECK(cuCtxGetDevice(&device));
+
+
+
     // ...
+
+
+    
+    /* Restore (if necessary) the previous value of the current context */
+    if (current != context)
+    {
+        CUDA_CHECK(cuCtxPopCurrent(&context));
+        CUDA_CHECK(cuCtxPushCurrent(current));
+    }
+    
+    PTHREAD_CHECK(pthread_mutex_unlock(&Metrics.mutex));
 }
 
 
@@ -62,7 +138,22 @@ void CUPTI_metrics_start(CUcontext context)
  */
 void CUPTI_metrics_sample(TLS* tls, PeriodicSample* sample)
 {
-    // ...
+    PTHREAD_CHECK(pthread_mutex_lock(&Metrics.mutex));
+
+    /* Iterate over each context in the table. */
+    int i;
+    for (i = 0; (i < MAX_CONTEXTS) && (Metrics.values[i].context != NULL); ++i)
+    {
+
+
+
+        // ...
+
+
+
+    }
+
+    PTHREAD_CHECK(pthread_mutex_unlock(&Metrics.mutex));
 }
 
 
@@ -81,5 +172,32 @@ void CUPTI_metrics_stop(CUcontext context)
     }
 #endif
 
+    PTHREAD_CHECK(pthread_mutex_lock(&Metrics.mutex));
+
+    /* Find the specified context in the table */
+
+    int i;
+    for (i = 0; (i < MAX_CONTEXTS) && (Metrics.values[i].context != NULL); ++i)
+    {
+        if (Metrics.values[i].context == context)
+        {
+            break;
+        }
+    }
+    
+    if (i == MAX_CONTEXTS)
+    {
+        fprintf(stderr, "[CBTF/CUDA] CUPTI_metrics_stop(): "
+                "Unknown CUDA context pointer (%p) encountered!\n", context);
+        fflush(stderr);
+        abort();
+    }
+
+
+
     // ...
+
+
+    
+    PTHREAD_CHECK(pthread_mutex_unlock(&Metrics.mutex));
 }

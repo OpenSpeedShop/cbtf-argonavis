@@ -36,9 +36,10 @@
 
 
 /**
- * Table used to map CUDA context pointers to CUPTI event groups. This table
- * must be protected with a mutex because there is no guarantee that a CUDA
- * context won't be created or destroyed at the same time a sample is taken.
+ * Table used to map CUDA context pointers to the information necessary to
+ * collect CUPTI events. This table must be protected with a mutex because
+ * there is no guarantee that a CUDA context won't be created or destroyed
+ * at the same time a sample is taken.
  */
 static struct {
     struct {
@@ -62,7 +63,7 @@ static struct {
 
     } values[MAX_CONTEXTS];
     pthread_mutex_t mutex;
-} EventGroups = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
+} Events = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
 
 /**
  * Current CUPTI event count origins.
@@ -100,16 +101,14 @@ void CUPTI_events_start(CUcontext context)
     }
 #endif
 
-    PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
+    PTHREAD_CHECK(pthread_mutex_lock(&Events.mutex));
 
     /* Find an empty entry in the table for this context */
 
     int i;
-    for (i = 0;
-         (i < MAX_CONTEXTS) && (EventGroups.values[i].context != NULL);
-         ++i)
+    for (i = 0; (i < MAX_CONTEXTS) && (Events.values[i].context != NULL); ++i)
     {
-        if (EventGroups.values[i].context == context)
+        if (Events.values[i].context == context)
         {
             fprintf(stderr, "[CBTF/CUDA] CUPTI_events_start(): "
                     "Redundant call for CUPTI context pointer (%p)!", context);
@@ -127,7 +126,7 @@ void CUPTI_events_start(CUcontext context)
         abort();
     }
 
-    EventGroups.values[i].context = context;
+    Events.values[i].context = context;
 
     /*
      * Get the current context, saving it for possible later restoration,
@@ -154,7 +153,7 @@ void CUPTI_events_start(CUcontext context)
 
     /* Create a new CUPTI event group for this context */
     CUPTI_CHECK(cuptiEventGroupCreate(
-                    context, &EventGroups.values[i].event_group, 0
+                    context, &Events.values[i].event_group, 0
                     ));
 
     /* Iterate over each event in our event sampling configuration */
@@ -170,7 +169,7 @@ void CUPTI_events_start(CUcontext context)
          */
 
         CUpti_EventID* id = 
-            &EventGroups.values[i].event_ids[EventGroups.values[i].event_count];
+            &Events.values[i].event_ids[Events.values[i].event_count];
         
         if (cuptiEventGetIdFromName(device, event->name, id) != CUPTI_SUCCESS)
         {
@@ -179,16 +178,12 @@ void CUPTI_events_start(CUcontext context)
 
         /* Add this event to the event group */
 
-        CUPTI_CHECK(cuptiEventGroupAddEvent(
-                        EventGroups.values[i].event_group, *id
-                        ));
+        CUPTI_CHECK(cuptiEventGroupAddEvent(Events.values[i].event_group, *id));
         
-        EventGroups.values[i].event_to_periodic[
-            EventGroups.values[i].event_count
-            ] = e;
+        Events.values[i].event_to_periodic[Events.values[i].event_count] = e;
         
         /* Increment the number of events in this event group */
-        ++EventGroups.values[i].event_count;
+        ++Events.values[i].event_count;
 
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
@@ -200,10 +195,10 @@ void CUPTI_events_start(CUcontext context)
     }
 
     /* Are there any events to collect? */
-    if (EventGroups.values[i].event_count > 0)
+    if (Events.values[i].event_count > 0)
     {
         /* Enable collection of this event group */
-        CUPTI_CHECK(cuptiEventGroupEnable(EventGroups.values[i].event_group));
+        CUPTI_CHECK(cuptiEventGroupEnable(Events.values[i].event_group));
     }
 
     /* Restore (if necessary) the previous value of the current context */
@@ -213,7 +208,7 @@ void CUPTI_events_start(CUcontext context)
         CUDA_CHECK(cuCtxPushCurrent(current));
     }
     
-    PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
+    PTHREAD_CHECK(pthread_mutex_unlock(&Events.mutex));
 }
 
 
@@ -226,7 +221,7 @@ void CUPTI_events_start(CUcontext context)
  */
 void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
 {
-    PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
+    PTHREAD_CHECK(pthread_mutex_lock(&Events.mutex));
 
     /* Initialize a new periodic sample to hold the event count deltas. */
     PeriodicSample delta;
@@ -234,12 +229,10 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
 
     /* Iterate over each context in the table. */
     int i;
-    for (i = 0;
-         (i < MAX_CONTEXTS) && (EventGroups.values[i].context != NULL);
-         ++i)
+    for (i = 0; (i < MAX_CONTEXTS) && (Events.values[i].context != NULL); ++i)
     {
         /* Are any events being collected? */
-        if (EventGroups.values[i].event_count > 0)
+        if (Events.values[i].event_count > 0)
         {
             /* Read the counters for this context's event group */
 
@@ -250,14 +243,14 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
             size_t event_count = 0;
 
             CUPTI_CHECK(cuptiEventGroupReadAllEvents(
-                            EventGroups.values[i].event_group,
+                            Events.values[i].event_group,
                             CUPTI_EVENT_READ_FLAG_NONE,
                             &counts_size, counts,
                             &ids_size, ids,
                             &event_count
                             ));
             
-            Assert(event_count == EventGroups.values[i].event_count);
+            Assert(event_count == Events.values[i].event_count);
 
             /*
              * Insert the counter values into the sample. CUPTI doesn't
@@ -272,10 +265,10 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
                 int j;
                 for (j = 0; j < MAX_EVENTS; ++j)
                 {
-                    if (ids[e] == EventGroups.values[i].event_ids[j])
+                    if (ids[e] == Events.values[i].event_ids[j])
                     {
                         delta.count[
-                            EventGroups.values[i].event_to_periodic[j]
+                            Events.values[i].event_to_periodic[j]
                             ] += counts[e];
                         
                         break;
@@ -300,7 +293,7 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
         sample->count[e] = EventOrigin.count[e];
     }
 
-    PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
+    PTHREAD_CHECK(pthread_mutex_unlock(&Events.mutex));
 }
 
 
@@ -319,16 +312,14 @@ void CUPTI_events_stop(CUcontext context)
     }
 #endif
 
-    PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
+    PTHREAD_CHECK(pthread_mutex_lock(&Events.mutex));
 
     /* Find the specified context in the table */
 
     int i;
-    for (i = 0;
-         (i < MAX_CONTEXTS) && (EventGroups.values[i].context != NULL);
-         ++i)
+    for (i = 0; (i < MAX_CONTEXTS) && (Events.values[i].context != NULL); ++i)
     {
-        if (EventGroups.values[i].context == context)
+        if (Events.values[i].context == context)
         {
             break;
         }
@@ -343,15 +334,15 @@ void CUPTI_events_stop(CUcontext context)
     }
 
     /* Are any events being collected? */
-    if (EventGroups.values[i].event_count > 0)
+    if (Events.values[i].event_count > 0)
     {
         /* Disable collection of this event group */
-        CUPTI_CHECK(cuptiEventGroupDisable(EventGroups.values[i].event_group));
+        CUPTI_CHECK(cuptiEventGroupDisable(Events.values[i].event_group));
     }
 
     /* Destroy this event group */
-    CUPTI_CHECK(cuptiEventGroupDestroy(EventGroups.values[i].event_group));
-    EventGroups.values[i].event_count = 0;
+    CUPTI_CHECK(cuptiEventGroupDestroy(Events.values[i].event_group));
+    Events.values[i].event_count = 0;
     
-    PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
+    PTHREAD_CHECK(pthread_mutex_unlock(&Events.mutex));
 }
