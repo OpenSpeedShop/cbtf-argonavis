@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -41,7 +41,7 @@ find_package(Boost 1.39.0 REQUIRED
     )
 find_package(CBTF REQUIRED)
 find_package(CBTF-Krell REQUIRED)
-#find_package(CUDA 5.0 REQUIRED)
+find_package(CUDA)
 find_package(CUPTI 2)
 find_package(MRNet)
 find_package(PAPI 5.4.0)
@@ -66,6 +66,6 @@ endif()
 
 add_subdirectory(libargonavis-base)
 
-if(CUPTI_FOUND AND MRNET_FOUND)
+if(CUDA_FOUND AND CUPTI_FOUND AND MRNET_FOUND)
     add_subdirectory(CUDA)
 endif()

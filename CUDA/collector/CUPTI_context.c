@@ -19,21 +19,12 @@
 /** @file Definition of the CUPTI context support functions. */
 
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "collector.h"
 #include "CUPTI_context.h"
 #include "Pthread_check.h"
-
-
-
-/** 
- * Maximum supported number of CUDA contexts. Controls the size of the table
- * used to translate between CUPTI context IDs and CUDA context pointers.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than testing indicates it is usually sufficient.
- */
-#define MAX_CONTEXTS 32
 
 
 
