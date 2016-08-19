@@ -46,7 +46,13 @@ static struct {
 
         /** CUDA context pointer. */
         CUcontext context;
+
+        /** Number of metrics. */
+        int count;
         
+        /** Identifiers for the metrics. */
+        CUpti_MetricID ids[MAX_EVENTS];
+
     } values[MAX_CONTEXTS];
     pthread_mutex_t mutex;
 } Metrics = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
@@ -112,11 +118,94 @@ void CUPTI_metrics_start(CUcontext context)
     CUdevice device;
     CUDA_CHECK(cuCtxGetDevice(&device));
 
+    /* Iterate over each event in our event sampling configuration */
+    uint e;
+    for (e = 0; e < TheSamplingConfig.events.events_len; ++e)
+    {
+        CUDA_EventDescription* event = &TheSamplingConfig.events.events_val[e];
+        
+        /*
+         * Look up the metric id for this event. Note that an unidentified
+         * event is NOT treated as fatal since it may simply be an event
+         * that will be handled elsewhere. Just continue to the next event.
+         */
+
+        CUpti_MetricID* id = &Metrics.values[i].ids[Metrics.values[i].count];
+        
+        if (cuptiMetricGetIdFromName(device, event->name, id) != CUPTI_SUCCESS)
+        {
+            continue;
+        }
 
 
-    // ...
 
+        // WDH: BEGIN TEST CODE (TO BE REMOVED LATER)
 
+        printf("\n");
+        printf("WDH: event->name=%s\n", event->name);
+        printf("WDH: id=%u\n", *id);
+        
+        CUpti_MetricValueKind kind;
+        size_t size = sizeof(CUpti_MetricValueKind);
+
+        CUPTI_CHECK(cuptiMetricGetAttribute(
+                        *id, CUPTI_METRIC_ATTR_VALUE_KIND, &size, &kind
+                        ));
+        
+        printf("WDH: kind=%u\n", kind);
+
+        uint32_t nevents = 0;
+        CUpti_EventID events[1024];
+
+        CUPTI_CHECK(cuptiMetricGetNumEvents(*id, &nevents));
+        size = sizeof(events);
+        CUPTI_CHECK(cuptiMetricEnumEvents(*id, &size, events));
+
+        uint32_t nproperties = 0;
+        CUpti_MetricPropertyID properties[1024];
+
+        CUPTI_CHECK(cuptiMetricGetNumProperties(*id, &nproperties));
+        size = sizeof(properties);
+        CUPTI_CHECK(cuptiMetricEnumProperties(*id, &size, properties));
+        
+        uint32_t i;
+
+        for (i = 0; i < nevents; ++i)
+        {
+            char name[1024];
+            
+            size = sizeof(name);
+            CUPTI_CHECK(cuptiEventGetAttribute(
+                            events[i], CUPTI_EVENT_ATTR_NAME, &size, name
+                            ));
+
+            printf("WDH: event[%u]=%s (%u)\n", i, name, events[i]);
+        }
+
+        for (i = 0; i < nproperties; ++i)
+        {
+            printf("WDH: properties[%u]=%u\n", i, properties[i]);
+        }
+        
+        // WDH: END TEST CODE (TO BE REMOVED LATER)
+
+        
+
+        // ...
+
+        
+
+        /* Increment the number of metrics */
+        ++Metrics.values[i].count;
+
+#if !defined(NDEBUG)
+        if (IsDebugEnabled)
+        {
+            printf("[CBTF/CUDA] recording GPU metric \"%s\" for context %p\n",
+                   event->name, context);
+        }
+#endif
+    }
     
     /* Restore (if necessary) the previous value of the current context */
     if (current != context)

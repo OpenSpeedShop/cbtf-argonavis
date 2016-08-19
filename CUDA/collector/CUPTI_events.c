@@ -165,7 +165,7 @@ void CUPTI_events_start(CUcontext context)
         /*
          * Look up the event id for this event. Note that an unidentified
          * event is NOT treated as fatal since it may simply be an event
-         * that will be handled by PAPI. Just continue to the next event.
+         * that will be handled elsewhere. Just continue to the next event.
          */
 
         CUpti_EventID* id = 
