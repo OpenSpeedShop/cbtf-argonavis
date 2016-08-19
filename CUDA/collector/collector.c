@@ -33,6 +33,7 @@
 #include "CUPTI_activities.h"
 #include "CUPTI_callbacks.h"
 #include "CUPTI_events.h"
+#include "CUPTI_metrics.h"
 #include "CUPTI_time.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
@@ -234,9 +235,10 @@ static void timer_callback(const ucontext_t* context)
     memset(&sample, 0, sizeof(PeriodicSample));
     sample.time = CBTF_GetTime();
     
-    /* Sample the CUPTI events from the main thread (only) */
+    /* Sample the CUPTI metrics and events from the main thread (only) */
     if (pthread_equal(pthread_self(), TheMainThread))
     {
+        CUPTI_metrics_sample(tls, &sample);
         CUPTI_events_sample(tls, &sample);
     }
     

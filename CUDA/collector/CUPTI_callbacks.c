@@ -33,6 +33,7 @@
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
 #include "CUPTI_events.h"
+#include "CUPTI_metrics.h"
 #include "CUPTI_stream.h"
 #include "TLS.h"
 
@@ -163,6 +164,9 @@ static void callback(void* userdata,
     {
         if (TheSamplingConfig.events.events_len > 0)
         {
+            /* Start CUPTI metrics collection for this context */
+            CUPTI_metrics_start(((CUpti_ResourceData*)data)->context);
+
             /* Start CUPTI events collection for this context */
             CUPTI_events_start(((CUpti_ResourceData*)data)->context);
         }
@@ -176,6 +180,9 @@ static void callback(void* userdata,
         {
             /* Stop CUPTI events collection for this context */
             CUPTI_events_stop(((CUpti_ResourceData*)data)->context);
+
+            /* Stop CUPTI metrics collection for this context */
+            CUPTI_metrics_stop(((CUpti_ResourceData*)data)->context);
         }
     }
 
