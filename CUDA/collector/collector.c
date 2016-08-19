@@ -231,7 +231,7 @@ static void timer_callback(const ucontext_t* context)
 
     /* Initialize a new periodic sample */
     PeriodicSample sample;
-    memcpy(&sample, &tls->periodic_samples.previous, sizeof(PeriodicSample));
+    memset(&sample, 0, sizeof(PeriodicSample));
     sample.time = CBTF_GetTime();
     
     /* Sample the CUPTI events from the main thread (only) */

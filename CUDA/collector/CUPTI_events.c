@@ -64,6 +64,26 @@ static struct {
     pthread_mutex_t mutex;
 } EventGroups = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
 
+/**
+ * Current CUPTI event count origins.
+ *
+ * Each time a CUPTI event count is read via cuptiEventGroupReadAllEvents()
+ * it is automatically reset. No choice. The event counts in PeroidicSample,
+ * however, are expected to be monotonically increasing absolute counts. So
+ * these counts are used to convert the event count deltas returnd by CUPTI
+ * into absolute event counts.
+ *
+ * @note    It may seem obvious to use the TLS "periodic_samples.previous"
+ *          field for this purpose. But that object is reset to all zeroes
+ *          every time a performance data blob is emitted. Thus it doesn't
+ *          serve sufficiently for our purpose here...
+ *
+ * @note    No locking is required here because this object is only accessed
+ *          by CUPTI_events_sample(). And that function is only ever called
+ *          from the main thread.
+ */
+PeriodicSample EventOrigin = { 0 };
+
 
 
 /**
@@ -208,6 +228,10 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
 {
     PTHREAD_CHECK(pthread_mutex_lock(&EventGroups.mutex));
 
+    /* Initialize a new periodic sample to hold the event count deltas. */
+    PeriodicSample delta;
+    memset(&delta, 0, sizeof(PeriodicSample));
+
     /* Iterate over each context in the table. */
     int i;
     for (i = 0;
@@ -250,7 +274,7 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
                 {
                     if (ids[e] == EventGroups.values[i].event_ids[j])
                     {
-                        sample->count[
+                        delta.count[
                             EventGroups.values[i].event_to_periodic[j]
                             ] += counts[e];
                         
@@ -259,6 +283,21 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
                 }
             }
         }
+    }
+
+    /*
+     * Compute absolute event counts by adding the deltas to the event
+     * origins and copy these absolute counts into the provided sample.
+     * Note that it is assumed here that this function is called BEFORE
+     * PAPI_sample(). If PAPI_sample() is called first, the code below
+     * will overwrite the values that PAPI_sample() provides.
+     */
+
+    size_t e;
+    for (e = 0; e < MAX_EVENTS; ++e)
+    {
+        EventOrigin.count[e] += sample->count[e];
+        sample->count[e] = EventOrigin.count[e];
     }
 
     PTHREAD_CHECK(pthread_mutex_unlock(&EventGroups.mutex));
