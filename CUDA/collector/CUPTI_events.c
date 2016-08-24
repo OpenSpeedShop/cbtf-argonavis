@@ -98,7 +98,7 @@ PeriodicSample EventOrigins = { 0 };
  */
 void CUPTI_events_start(CUcontext context)
 {
-#if !defined(ENBALE_CUPTI_EVENTS)
+#if !defined(ENABLE_CUPTI_EVENTS)
     return;
 #endif
 
@@ -252,7 +252,7 @@ void CUPTI_events_start(CUcontext context)
  */
 void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
 {
-#if !defined(ENBALE_CUPTI_EVENTS)
+#if !defined(ENABLE_CUPTI_EVENTS)
     return;
 #endif
 
@@ -321,18 +321,19 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
     }
 
     /*
-     * Compute absolute events by adding the deltas to the event origins
-     * and copy these absolute counts into the provided sample. But only
-     * do this for non-zero deltas to avoid overwriting samples from the
-     * other data collection methods.
+     * Compute absolute events by adding the deltas to the event origins and
+     * copy these absolute counts into the provided sample. But only do the
+     * latter for non-zero absolute events to avoid overwriting samples from
+     * the other data collection methods.
      */
-    
+
     size_t e;
     for (e = 0; e < MAX_EVENTS; ++e)
     {
-        if (delta.count[e] > 0)
+        EventOrigins.count[e] += delta.count[e];
+
+        if (EventOrigins.count[e] > 0)
         {
-            EventOrigins.count[e] += delta.count[e];
             sample->count[e] = EventOrigins.count[e];
         }
     }
@@ -349,7 +350,7 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
  */
 void CUPTI_events_stop(CUcontext context)
 {
-#if !defined(ENBALE_CUPTI_EVENTS)
+#if !defined(ENABLE_CUPTI_EVENTS)
     return;
 #endif
 
@@ -391,6 +392,9 @@ void CUPTI_events_stop(CUcontext context)
         
         /* Destroy all of the event group sets */
         CUPTI_CHECK(cuptiEventGroupSetsDestroy(Events.values[i].sets));
+        
+        /* Insure CUPTI_events_sample doesn't do anything */
+        Events.values[i].count = 0;
     }
 
     PTHREAD_CHECK(pthread_mutex_unlock(&Events.mutex));

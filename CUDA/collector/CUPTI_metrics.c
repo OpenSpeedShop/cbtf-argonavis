@@ -98,7 +98,7 @@ PeriodicSample MetricOrigins = { 0 };
  */
 void CUPTI_metrics_start(CUcontext context)
 {
-#if !defined(ENBALE_CUPTI_METRICS)
+#if !defined(ENABLE_CUPTI_METRICS)
     return;
 #endif
 
@@ -274,7 +274,7 @@ void CUPTI_metrics_start(CUcontext context)
  */
 void CUPTI_metrics_sample(TLS* tls, PeriodicSample* sample)
 {
-#if !defined(ENBALE_CUPTI_METRICS)
+#if !defined(ENABLE_CUPTI_METRICS)
     return;
 #endif
 
@@ -346,20 +346,21 @@ void CUPTI_metrics_sample(TLS* tls, PeriodicSample* sample)
     /*
      * Compute absolute metrics by adding the deltas to the metric origins
      * and copy these absolute counts into the provided sample. But only do
-     * this for non-zero deltas to avoid overwriting samples from the other
-     * data collection methods.
+     * the latter for non-zero absolute metrics to avoid overwriting samples
+     * from the other data collection methods.
      */
 
     size_t e;
     for (e = 0; e < MAX_EVENTS; ++e)
     {
-        if (delta.count[e] > 0)
+        MetricOrigins.count[e] += delta.count[e];
+
+        if (MetricOrigins.count[e] > 0)
         {
-            MetricOrigins.count[e] += delta.count[e];
             sample->count[e] = MetricOrigins.count[e];
         }
     }
-
+    
     /** Update the time origin for the next metric computation */
     MetricOrigins.time = sample->time;
     
@@ -375,7 +376,7 @@ void CUPTI_metrics_sample(TLS* tls, PeriodicSample* sample)
  */
 void CUPTI_metrics_stop(CUcontext context)
 {
-#if !defined(ENBALE_CUPTI_METRICS)
+#if !defined(ENABLE_CUPTI_METRICS)
     return;
 #endif
 
@@ -417,7 +418,10 @@ void CUPTI_metrics_stop(CUcontext context)
         
         /* Destroy all of the event group sets. */
         CUPTI_CHECK(cuptiEventGroupSetsDestroy(Metrics.values[i].sets));
-    }
 
+        /* Insure CUPTI_metrics_sample doesn't do anything */
+        Metrics.values[i].count = 0;
+    }
+    
     PTHREAD_CHECK(pthread_mutex_unlock(&Metrics.mutex));
 }
