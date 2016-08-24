@@ -34,7 +34,7 @@
 #include "Pthread_check.h"
 
 /** Macro definition enabling the use of the CUPTI event API. */
-#define ENABLE_CUPTI_EVENTS
+//#define ENABLE_CUPTI_EVENTS
 
 
 

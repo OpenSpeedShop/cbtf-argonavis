@@ -34,7 +34,7 @@
 #include "Pthread_check.h"
 
 /** Macro definition enabling the use of the CUPTI metric API. */
-//#define ENABLE_CUPTI_METRICS
+#define ENABLE_CUPTI_METRICS
 
 
 
