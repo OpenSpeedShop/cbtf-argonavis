@@ -33,6 +33,9 @@
 #include "CUPTI_events.h"
 #include "Pthread_check.h"
 
+/** Macro definition enabling the use of the CUPTI event API. */
+#define ENABLE_CUPTI_EVENTS
+
 
 
 /**
@@ -46,20 +49,21 @@ static struct {
 
         /** CUDA context pointer. */
         CUcontext context;
+
+        /** CUDA device for this context. */
+        CUdevice device;
+
+        /** Number of events. */
+        int count;
+
+        /** Identifiers for the events. */
+        CUpti_EventID ids[MAX_EVENTS];
+
+        /** Map event indicies to periodic count indicies. */
+        int to_periodic[MAX_EVENTS];
         
-        /** Handle for this context's event group. */
-        CUpti_EventGroup event_group;
-
-        /** Number of events in this event group. */
-        int event_count;
-
-        /** Identifiers of the events in this event group. */
-        CUpti_EventID event_ids[MAX_EVENTS];
-
-        /**
-         * Map event indicies in this event group to periodic count indicies.
-         */
-        int event_to_periodic[MAX_EVENTS];
+        /** Handle to the CUPTI event group sets for this context. */
+        CUpti_EventGroupSets* sets;
 
     } values[MAX_CONTEXTS];
     pthread_mutex_t mutex;
@@ -83,7 +87,7 @@ static struct {
  *          by CUPTI_events_sample(). And that function is only ever called
  *          from the main thread.
  */
-PeriodicSample EventOrigin = { 0 };
+PeriodicSample EventOrigins = { 0 };
 
 
 
@@ -94,6 +98,10 @@ PeriodicSample EventOrigin = { 0 };
  */
 void CUPTI_events_start(CUcontext context)
 {
+#if !defined(ENBALE_CUPTI_EVENTS)
+    return;
+#endif
+
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
@@ -143,18 +151,7 @@ void CUPTI_events_start(CUcontext context)
     }
 
     /* Get the device for this context */
-    CUdevice device;
-    CUDA_CHECK(cuCtxGetDevice(&device));
-    
-    /* Enable continuous event sampling for this context */
-    CUPTI_CHECK(cuptiSetEventCollectionMode(
-                    context, CUPTI_EVENT_COLLECTION_MODE_CONTINUOUS
-                    ));
-
-    /* Create a new CUPTI event group for this context */
-    CUPTI_CHECK(cuptiEventGroupCreate(
-                    context, &Events.values[i].event_group, 0
-                    ));
+    CUDA_CHECK(cuCtxGetDevice(&Events.values[i].device));
 
     /* Iterate over each event in our event sampling configuration */
     uint e;
@@ -168,22 +165,21 @@ void CUPTI_events_start(CUcontext context)
          * that will be handled elsewhere. Just continue to the next event.
          */
 
-        CUpti_EventID* id = 
-            &Events.values[i].event_ids[Events.values[i].event_count];
+        CUpti_EventID id;
         
-        if (cuptiEventGetIdFromName(device, event->name, id) != CUPTI_SUCCESS)
+        if (cuptiEventGetIdFromName(
+                Events.values[i].device, event->name, &id
+                ) != CUPTI_SUCCESS)
         {
             continue;
         }
 
-        /* Add this event to the event group */
-
-        CUPTI_CHECK(cuptiEventGroupAddEvent(Events.values[i].event_group, *id));
+        /* Add this event */
+        Events.values[i].ids[Events.values[i].count] = id;
+        Events.values[i].to_periodic[Events.values[i].count] = e;
         
-        Events.values[i].event_to_periodic[Events.values[i].event_count] = e;
-        
-        /* Increment the number of events in this event group */
-        ++Events.values[i].event_count;
+        /* Increment the number of events */
+        ++Events.values[i].count;
 
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
@@ -195,12 +191,47 @@ void CUPTI_events_start(CUcontext context)
     }
 
     /* Are there any events to collect? */
-    if (Events.values[i].event_count > 0)
+    if (Events.values[i].count > 0)
     {
-        /* Enable collection of this event group */
-        CUPTI_CHECK(cuptiEventGroupEnable(Events.values[i].event_group));
+        /* Create the event groups to collect these events for this context */
+        CUPTI_CHECK(cuptiEventGroupSetsCreate(
+                        context,
+                        Events.values[i].count * sizeof(CUpti_EventID),
+                        Events.values[i].ids,
+                        &Events.values[i].sets
+                        ));
+        
+        /*
+         * There is no way to support multi-pass events using the current
+         * exection model. Warn the user and ignore all GPU events.
+         */
+        if (Events.values[i].sets->numSets > 1)
+        {
+            fprintf(stderr, "[CBTF/CUDA] CUPTI_events_start(): "
+                    "The specified GPU events cannot be collected in a "
+                    "single pass. Ignoring all GPU events.\n");
+            fflush(stderr);
+            
+            /* Destroy all of the event group sets. */
+            CUPTI_CHECK(cuptiEventGroupSetsDestroy(Events.values[i].sets));
+            
+            /* Insure CUPTI_events_[sample|stop] don't do anything */
+            Events.values[i].count = 0;
+        }
+        else
+        {
+            /* Enable continuous event sampling for this context */
+            CUPTI_CHECK(cuptiSetEventCollectionMode(
+                            context, CUPTI_EVENT_COLLECTION_MODE_CONTINUOUS
+                            ));
+            
+            /* Enable collection of the event group set */
+            CUPTI_CHECK(cuptiEventGroupSetEnable(
+                            &Events.values[i].sets->sets[0]
+                            ));
+        }
     }
-
+        
     /* Restore (if necessary) the previous value of the current context */
     if (current != context)
     {
@@ -221,78 +252,91 @@ void CUPTI_events_start(CUcontext context)
  */
 void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
 {
+#if !defined(ENBALE_CUPTI_EVENTS)
+    return;
+#endif
+
     PTHREAD_CHECK(pthread_mutex_lock(&Events.mutex));
 
-    /* Initialize a new periodic sample to hold the event count deltas. */
+    /* Initialize a new periodic sample to hold the event deltas */
     PeriodicSample delta;
     memset(&delta, 0, sizeof(PeriodicSample));
-
-    /* Iterate over each context in the table. */
+    
+    /* Iterate over each context in the table */
     int i;
     for (i = 0; (i < MAX_CONTEXTS) && (Events.values[i].context != NULL); ++i)
     {
-        /* Are any events being collected? */
-        if (Events.values[i].event_count > 0)
+        /* Skip this context if no events are being collected */
+        if (Events.values[i].count == 0)
         {
-            /* Read the counters for this context's event group */
+            continue;
+        }
 
-            uint64_t counts[MAX_EVENTS];
-            size_t counts_size = sizeof(counts);
-            CUpti_EventID ids[MAX_EVENTS];
-            size_t ids_size = sizeof(ids);
-            size_t event_count = 0;
+        /* Read the counters for each event group for this context */
 
+        uint64_t counts[MAX_EVENTS];
+        CUpti_EventID ids[MAX_EVENTS];
+        size_t counts_size, ids_size, event_count;
+
+        size_t n = 0;
+        
+        int g;
+        for (g = 0; g < Events.values[i].sets->sets[0].numEventGroups; ++g)
+        {
+            counts_size = (MAX_EVENTS - n) * sizeof(uint64_t);
+            ids_size = (MAX_EVENTS - n) * sizeof(CUpti_EventID);
+            event_count = 0;
+            
             CUPTI_CHECK(cuptiEventGroupReadAllEvents(
-                            Events.values[i].event_group,
+                            Events.values[i].sets->sets[0].eventGroups[g],
                             CUPTI_EVENT_READ_FLAG_NONE,
-                            &counts_size, counts,
-                            &ids_size, ids,
+                            &counts_size, &counts[n],
+                            &ids_size, &ids[n],
                             &event_count
                             ));
-            
-            Assert(event_count == Events.values[i].event_count);
 
-            /*
-             * Insert the counter values into the sample. CUPTI doesn't
-             * guarantee that the events will be read in the same order
-             * they were added to the event group. That would clearly be
-             * too easy. So an additional search is necessary here...
-             */
+            n += event_count;
+        }
 
-            size_t e;
-            for (e = 0; e < event_count; ++e)
+        /*
+         * Insert the counter values into the sample. CUPTI doesn't
+         * guarantee that the events will be read in the same order
+         * they were added to the event group. That would clearly be
+         * too easy. So an additional search is necessary here...
+         */
+        
+        size_t e;
+        for (e = 0; e < n; ++e)
+        {
+            int j;
+            for (j = 0; j < MAX_EVENTS; ++j)
             {
-                int j;
-                for (j = 0; j < MAX_EVENTS; ++j)
+                if (ids[e] == Events.values[i].ids[j])
                 {
-                    if (ids[e] == Events.values[i].event_ids[j])
-                    {
-                        delta.count[
-                            Events.values[i].event_to_periodic[j]
-                            ] += counts[e];
-                        
-                        break;
-                    }
+                    delta.count[Events.values[i].to_periodic[j]] += counts[e];
+                    break;
                 }
             }
         }
     }
 
     /*
-     * Compute absolute event counts by adding the deltas to the event
-     * origins and copy these absolute counts into the provided sample.
-     * Note that it is assumed here that this function is called BEFORE
-     * PAPI_sample(). If PAPI_sample() is called first, the code below
-     * will overwrite the values that PAPI_sample() provides.
+     * Compute absolute events by adding the deltas to the event origins
+     * and copy these absolute counts into the provided sample. But only
+     * do this for non-zero deltas to avoid overwriting samples from the
+     * other data collection methods.
      */
-
+    
     size_t e;
     for (e = 0; e < MAX_EVENTS; ++e)
     {
-        EventOrigin.count[e] += sample->count[e];
-        sample->count[e] = EventOrigin.count[e];
+        if (delta.count[e] > 0)
+        {
+            EventOrigins.count[e] += delta.count[e];
+            sample->count[e] = EventOrigins.count[e];
+        }
     }
-
+    
     PTHREAD_CHECK(pthread_mutex_unlock(&Events.mutex));
 }
 
@@ -305,6 +349,10 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
  */
 void CUPTI_events_stop(CUcontext context)
 {
+#if !defined(ENBALE_CUPTI_EVENTS)
+    return;
+#endif
+
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
@@ -334,15 +382,16 @@ void CUPTI_events_stop(CUcontext context)
     }
 
     /* Are any events being collected? */
-    if (Events.values[i].event_count > 0)
+    if (Events.values[i].count > 0)
     {
-        /* Disable collection of this event group */
-        CUPTI_CHECK(cuptiEventGroupDisable(Events.values[i].event_group));
+        /* Disable collection of the event group set */
+        CUPTI_CHECK(cuptiEventGroupSetDisable(
+                        &Events.values[i].sets->sets[0]
+                        ));
+        
+        /* Destroy all of the event group sets */
+        CUPTI_CHECK(cuptiEventGroupSetsDestroy(Events.values[i].sets));
     }
 
-    /* Destroy this event group */
-    CUPTI_CHECK(cuptiEventGroupDestroy(Events.values[i].event_group));
-    Events.values[i].event_count = 0;
-    
     PTHREAD_CHECK(pthread_mutex_unlock(&Events.mutex));
 }
