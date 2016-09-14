@@ -188,11 +188,20 @@ void PAPI_start_data_collection()
          * event is NOT treated as fatal since it may simply be an event
          * that will be handled by CUPTI. Just continue to the next event.
          */
+
         int code = PAPI_NULL;
         if (PAPI_event_name_to_code(event->name, &code) != PAPI_OK)
         {
             continue;
         }
+
+	if (PAPI_query_event(code) != PAPI_OK)
+	{
+	    fprintf(stderr, "[CBTF/CUDA] "
+		    "CPU event \"%s\" is not available on this system\n",
+		    event->name);
+	    continue;
+	}
         
         /* Look up the component for this event code */
         int component = PAPI_get_event_component(code);
