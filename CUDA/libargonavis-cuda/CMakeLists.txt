@@ -27,7 +27,7 @@ add_library(argonavis-cuda SHARED
     ArgoNavis/CUDA/MemoryKind.hpp
     ArgoNavis/CUDA/PerformanceData.hpp PerformanceData.cpp
     ArgoNavis/CUDA/PeriodicSampleVisitor.hpp
-    ArgoNavis/CUDA/stringify.hpp
+    ArgoNavis/CUDA/stringify.hpp stringify.cpp
     ArgoNavis/CUDA/Vector.hpp
     BlobGenerator.hpp BlobGenerator.cpp
     DataTable.hpp DataTable.cpp
