@@ -27,6 +27,7 @@ set(SOURCES
     CUPTI_metrics.h CUPTI_metrics.c
     CUPTI_stream.h CUPTI_stream.c
     CUPTI_time.h CUPTI_time.c
+    Mutex.h Mutex.c
     PAPI.h PAPI.c
     Pthread_check.h
     TLS.h TLS.c

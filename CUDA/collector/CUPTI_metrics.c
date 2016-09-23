@@ -19,7 +19,6 @@
 /** @file Definition of CUPTI metrics functions. */
 
 #include <cuda.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +30,7 @@
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
 #include "CUPTI_metrics.h"
-#include "Pthread_check.h"
+#include "Mutex.h"
 
 /** Macro definition enabling the use of the CUPTI metric API. */
 #define ENABLE_CUPTI_METRICS
@@ -42,7 +41,9 @@
  * Table used to map CUDA context pointers to the information necessary to
  * collect CUPTI metrics. This table must be protected with a mutex because
  * there is no guarantee that a CUDA context won't be created or destroyed
- * at the same time a sample is taken.
+ * at the same time a sample is taken. But a Pthread mutex cannot be used
+ * because the Pthread functions are not signal safe and samples are taken
+ * via signals. So Mutex, which is based on GCC atomics, is used instead.
  */
 static struct {
     struct {
@@ -66,8 +67,8 @@ static struct {
         CUpti_EventGroupSets* sets;
 
     } values[MAX_CONTEXTS];
-    pthread_mutex_t mutex;
-} Metrics = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
+    Mutex mutex;
+} Metrics = { { 0 }, MUTEX_INITIALIZER };
 
 /**
  * Current CUPTI metric origins.
@@ -109,7 +110,7 @@ void CUPTI_metrics_start(CUcontext context)
     }
 #endif
 
-    PTHREAD_CHECK(pthread_mutex_lock(&Metrics.mutex));
+    Mutex_acquire(&Metrics.mutex);
 
     /* Find an empty entry in the table for this context */
 
@@ -260,8 +261,8 @@ void CUPTI_metrics_start(CUcontext context)
         CUDA_CHECK(cuCtxPopCurrent(&context));
         CUDA_CHECK(cuCtxPushCurrent(current));
     }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&Metrics.mutex));
+
+    Mutex_release(&Metrics.mutex);
 }
 
 
@@ -278,7 +279,10 @@ void CUPTI_metrics_sample(TLS* tls, PeriodicSample* sample)
     return;
 #endif
 
-    PTHREAD_CHECK(pthread_mutex_lock(&Metrics.mutex));
+    if (!Mutex_try(&Metrics.mutex))
+    {
+        return; // Skip this sample if someone is changing Metrics
+    }
 
     /* Initialize a new periodic sample to hold the metric deltas */
     PeriodicSample delta;
@@ -363,8 +367,8 @@ void CUPTI_metrics_sample(TLS* tls, PeriodicSample* sample)
     
     /** Update the time origin for the next metric computation */
     MetricOrigins.time = sample->time;
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&Metrics.mutex));
+
+    Mutex_release(&Metrics.mutex);
 }
 
 
@@ -387,7 +391,7 @@ void CUPTI_metrics_stop(CUcontext context)
     }
 #endif
 
-    PTHREAD_CHECK(pthread_mutex_lock(&Metrics.mutex));
+    Mutex_acquire(&Metrics.mutex);
 
     /* Find the specified context in the table */
 
@@ -422,6 +426,6 @@ void CUPTI_metrics_stop(CUcontext context)
         /* Insure CUPTI_metrics_sample doesn't do anything */
         Metrics.values[i].count = 0;
     }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&Metrics.mutex));
+
+    Mutex_release(&Metrics.mutex);
 }

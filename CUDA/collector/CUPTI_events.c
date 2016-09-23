@@ -19,7 +19,6 @@
 /** @file Definition of CUPTI events functions. */
 
 #include <cuda.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +30,7 @@
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
 #include "CUPTI_events.h"
-#include "Pthread_check.h"
+#include "Mutex.h"
 
 /** Macro definition enabling the use of the CUPTI event API. */
 //#define ENABLE_CUPTI_EVENTS
@@ -42,7 +41,9 @@
  * Table used to map CUDA context pointers to the information necessary to
  * collect CUPTI events. This table must be protected with a mutex because
  * there is no guarantee that a CUDA context won't be created or destroyed
- * at the same time a sample is taken.
+ * at the same time a sample is taken. But a Pthread mutex cannot be used
+ * because the Pthread functions are not signal safe and samples are taken
+ * via signals. So Mutex, which is based on GCC atomics, is used instead.
  */
 static struct {
     struct {
@@ -66,8 +67,8 @@ static struct {
         CUpti_EventGroupSets* sets;
 
     } values[MAX_CONTEXTS];
-    pthread_mutex_t mutex;
-} Events = { { 0 }, PTHREAD_MUTEX_INITIALIZER };
+    Mutex mutex;
+} Events = { { 0 }, MUTEX_INITIALIZER };
 
 /**
  * Current CUPTI event count origins.
@@ -109,7 +110,7 @@ void CUPTI_events_start(CUcontext context)
     }
 #endif
 
-    PTHREAD_CHECK(pthread_mutex_lock(&Events.mutex));
+    Mutex_acquire(&Events.mutex);
 
     /* Find an empty entry in the table for this context */
 
@@ -238,8 +239,8 @@ void CUPTI_events_start(CUcontext context)
         CUDA_CHECK(cuCtxPopCurrent(&context));
         CUDA_CHECK(cuCtxPushCurrent(current));
     }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&Events.mutex));
+
+    Mutex_release(&Events.mutex);
 }
 
 
@@ -256,6 +257,11 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
     return;
 #endif
 
+    if (!Mutex_try(&Events.mutex))
+    {
+        return; // Skip this sample if someone is changing Events
+    }
+   
     PTHREAD_CHECK(pthread_mutex_lock(&Events.mutex));
 
     /* Initialize a new periodic sample to hold the event deltas */
@@ -337,8 +343,8 @@ void CUPTI_events_sample(TLS* tls, PeriodicSample* sample)
             sample->count[e] = EventOrigins.count[e];
         }
     }
-    
-    PTHREAD_CHECK(pthread_mutex_unlock(&Events.mutex));
+
+    Mutex_release(&Events.mutex);
 }
 
 
@@ -361,7 +367,7 @@ void CUPTI_events_stop(CUcontext context)
     }
 #endif
 
-    PTHREAD_CHECK(pthread_mutex_lock(&Events.mutex));
+    Mutex_acquire(&Events.mutex);
 
     /* Find the specified context in the table */
 
@@ -397,5 +403,5 @@ void CUPTI_events_stop(CUcontext context)
         Events.values[i].count = 0;
     }
 
-    PTHREAD_CHECK(pthread_mutex_unlock(&Events.mutex));
+    Mutex_release(&Events.mutex);
 }
