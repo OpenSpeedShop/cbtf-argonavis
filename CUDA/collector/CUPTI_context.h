@@ -42,7 +42,7 @@
  * @note    Currently there is no specific basis for the selection of this
  *          value other than testing indicates it is usually sufficient.
  */
-#define MAX_CONTEXTS 32
+#define MAX_CONTEXTS 1024
 
 /*
  * Add the specified mapping of CUPTI context ID to CUDA context pointer.
