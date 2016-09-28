@@ -62,7 +62,7 @@ if(CUDA_FOUND AND DEFINED CUDA_INCLUDE_DIR)
                     )
             else()
                 message(STATUS
-                    "Could NOT find DA  (version < " 
+                    "Could NOT find CUDA  (version < " 
                     ${CUDA_FIND_VERSION} ")"
                     )
             endif()
