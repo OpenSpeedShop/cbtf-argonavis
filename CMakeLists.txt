@@ -24,11 +24,13 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
 # NOTE related to the following C++11 feature checks:
-#    This include: CheckCXX11Features.cmake is projected to be in a future version of CMake.
-#    When this does get included into the new CMake version, we will update our
-#    required CMake version and remove cmake/CheckCXX11Features* files from the cbtf repository.
-#
+#    This include: CheckCXX11Features.cmake is projected to be in a
+#    future version of CMake. When this does get included into the new
+#    CMake version, we will update our required CMake version and remove 
+#    cmake/CheckCXX11Features* files from the cbtf repository.
+
 include(cmake/CheckCXX11Features.cmake)
+
 if(NOT HAS_CXX11_AUTO)
   message(STATUS "No support for C++11 found.")
 else()
@@ -65,7 +67,4 @@ elseif(EXISTS /usr/lib64)
 endif()
 
 add_subdirectory(libargonavis-base)
-
-if(CUDA_FOUND AND CUPTI_FOUND AND MRNET_FOUND)
-    add_subdirectory(CUDA)
-endif()
+add_subdirectory(CUDA)
