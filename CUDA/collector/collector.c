@@ -20,10 +20,12 @@
 
 #include <inttypes.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ucontext.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
@@ -60,11 +62,20 @@ CUDA_SamplingConfig TheSamplingConfig;
 static CUDA_EventDescription EventDescriptions[MAX_EVENTS];
 
 /**
- * Pthread ID of the main (first seen) thread. Initialized by the process-wide
- * initialization in cbtf_collector_start(). Used by timer_callback() to decide
- * if it should sample CUPTI events.
+ * Boolean flag for exiting the CUPTI metrics and events sampling thread.
+ * Used by the process-wide finalization in cbtf_collector_stop() to signal
+ * that thread it should exit. Marked volatile to insure the compiler does
+ * not optimize out references to this variable.
  */
-static pthread_t TheMainThread;
+static volatile bool ExitSamplingThread = false;
+
+/**
+ * Pthread ID of the CUPTI metrics and events sampling thread. Initialized
+ * by the process-wide initialization in cbtf_collector_start(), and used by
+ * the process-wide finalization in cbtf_collector_stop() to wait for that
+ * thread to exit.
+ */
+static pthread_t TheSamplingThread;
 
 /**
  * The number of threads for which are are collecting data (actively or not).
@@ -215,6 +226,56 @@ static void parse_configuration(const char* const configuration)
 
 
 /**
+ * Function implementing the CUTPI metrics and events sampling thread.
+ *
+ * @param header    CBTF data header passed into cbtf_collector_start().
+ * @return          Always returns NULL.
+ */
+static void* sampling_thread(void* header)
+{
+    /* Create and zero-initialize our thread-local storage */
+    TLS_initialize();
+    
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Copy the header into our thread-local storage for future use */
+    memcpy(&tls->data_header, header, sizeof(CBTF_DataHeader));
+
+    /* Initialize our performance data header and blob */
+    TLS_initialize_data(tls);
+
+    /* Loop until cbtf_collector_stop() tells us to exit */
+    while (!ExitSamplingThread)
+    {
+        /* Initialize a new periodic sample */
+        PeriodicSample sample;
+        memset(&sample, 0, sizeof(PeriodicSample));
+        sample.time = CBTF_GetTime();
+        
+        /* Sample the CUPTI metrics and events */
+        CUPTI_metrics_sample(tls, &sample);
+        CUPTI_events_sample(tls, &sample);
+    
+        /* Add this sample to the performance data blob for this thread */
+        TLS_add_periodic_sample(tls, &sample);
+
+        /* Sleep for the configuration-specified period  */
+        usleep(TheSamplingConfig.interval / 1000 /* uS/nS */);
+    }
+    
+    /* Send any remaining performance data for this thread */
+    TLS_send_data(tls);
+    
+    /* Destroy our thread-local storage */
+    TLS_destroy();
+
+    return NULL;
+}
+
+
+
+/**
  * Callback invoked by the timer service each time a timer interrupt occurs.
  *
  * @param context    Thread context at this timer interrupt.
@@ -234,13 +295,6 @@ static void timer_callback(const ucontext_t* context)
     PeriodicSample sample;
     memset(&sample, 0, sizeof(PeriodicSample));
     sample.time = CBTF_GetTime();
-    
-    /* Sample the CUPTI metrics and events from the main thread (only) */
-    if (pthread_equal(pthread_self(), TheMainThread))
-    {
-        CUPTI_metrics_sample(tls, &sample);
-        CUPTI_events_sample(tls, &sample);
-    }
     
     /* Sample PAPI counters for this thread */
     PAPI_sample(tls, &sample);
@@ -311,10 +365,11 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
         {
             /* Initialize PAPI for this process */
             PAPI_initialize();
-        }
 
-        /* Get the Pthread ID of the main (first seen) thread */
-        TheMainThread = pthread_self();
+            /* Start the CUPTI metrics and events sampling thread */
+            PTHREAD_CHECK(pthread_create(&TheSamplingThread, NULL,
+                                         sampling_thread, &tls->data_header));
+        }
 
         /* Start CUPTI activity data collection for this process */
         CUPTI_activities_start();
@@ -456,6 +511,10 @@ void cbtf_collector_stop()
 
         if (TheSamplingConfig.events.events_len > 0)
         {
+            /* Stop the CUPTI metrics and events sampling thread */
+            ExitSamplingThread = true;
+            PTHREAD_CHECK(pthread_join(TheSamplingThread, NULL));
+            
             /* Finalize PAPI for this process */
             PAPI_finalize();
         }

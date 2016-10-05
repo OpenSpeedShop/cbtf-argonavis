@@ -44,7 +44,7 @@ void Mutex_acquire(Mutex* mutex);
 void Mutex_release(Mutex* mutex);
 
 /**
- * Try to acquire the specifeid mutex without waiting for it.
+ * Try to acquire the specified mutex without waiting for it.
  *
  * @param mutex    Mutex to be acquired.
  * @return         Boolean "true" if the mutex was
