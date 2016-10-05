@@ -461,6 +461,13 @@ static void callback(CUcontext context, uint32_t stream_id,
  */
 void CUPTI_activities_start()
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_activities_start()\n");
+    }
+#endif
+
 #if (CUPTI_API_VERSION < 4)
     /* Enqueue a buffer for CUPTI global activities */
     CUPTI_CHECK(cuptiActivityEnqueueBuffer(
@@ -500,6 +507,14 @@ void CUPTI_activities_start()
  */
 void CUPTI_activities_add(TLS* tls, CUcontext context, CUstream stream)
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_activities_add(%p, %p, %p)\n",
+               tls, context, stream);
+    }
+#endif
+
 #if (CUPTI_API_VERSION < 4)
     Assert(tls != NULL);
     
@@ -544,6 +559,13 @@ void CUPTI_activities_add(TLS* tls, CUcontext context, CUstream stream)
  */
 void CUPTI_activities_flush()
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_activities_flush()\n");
+    }
+#endif
+
 #if (CUPTI_API_VERSION == 4)
     /* Wait until CUPTI flushes all activity buffers */
     CUPTI_CHECK(cuptiActivityFlushAll(0));
@@ -560,6 +582,13 @@ void CUPTI_activities_flush()
  */
 void CUPTI_activities_stop()
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_activities_stop()\n");
+    }
+#endif
+
     /* Disable the CUPTI activities of interest */
     CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONTEXT));
     CUPTI_CHECK(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_DEVICE));

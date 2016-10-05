@@ -19,21 +19,12 @@
 /** @file Definition of the CUPTI stream support functions. */
 
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "collector.h"
 #include "CUPTI_stream.h"
 #include "Pthread_check.h"
-
-
-
-/** 
- * Maximum supported number of CUDA streams. Controls the size of the table
- * used to translate between CUPTI stream IDs and CUDA stream pointers.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than testing indicates it is usually sufficient.
- */
-#define MAX_STREAMS 32
 
 
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -16,16 +16,32 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Declaration of CUDA collector globals. */
+/** @file Declaration of CUPTI events functions. */
 
 #pragma once
 
-#include <stdbool.h>
+#include <cupti.h>
 
-#include <KrellInstitute/Messages/CUDA_data.h>
+#include "TLS.h"
 
-/* Flag indicating if debugging is enabled. */
-extern bool IsDebugEnabled;
+/*
+ * Start CUPTI events data collection for the specified CUDA context.
+ *
+ * @param context    CUDA context for which data collection is to be started.
+ */
+void CUPTI_events_start(CUcontext context);
 
-/* Event sampling configuration. */
-extern CUDA_SamplingConfig TheSamplingConfig;
+/*
+ * Sample the CUPTI events for all active CUDA contexts.
+ *
+ * @param tls       Thread-local storage of the current thread.
+ * @param sample    Periodic sample to hold the CUPTI event counts.
+ */
+void CUPTI_events_sample(TLS* tls, PeriodicSample* sample);
+
+/*
+ * Stop CUPTI events data collection for the specified CUDA context.
+ *
+ * @param context    CUDA context for which data collection is to be stopped.
+ */
+void CUPTI_events_stop(CUcontext context);

@@ -1,6 +1,6 @@
 ################################################################################
-# Copyright (c) 2012,2015 Argo Navis Technologies. All Rights Reserved.
-# Copyright (c) 2013 Krell Institute. All Rights Reserved.
+# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2013-2016 Krell Institute. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,19 +18,16 @@
 ################################################################################
 
 include(FindPackageHandleStandardArgs)
-    
-find_library(CUPTI_LIBRARY NAMES libcupti.so
-    HINTS ${CUPTI_DIR} ${CUDA_TOOLKIT_ROOT_DIR}/extras/CUPTI
+
+find_library(CUPTI_LIBRARY NAMES libcupti.so 
+    HINTS $ENV{CUDA_INSTALL_PATH}/extras/CUPTI $ENV{CUPTI_DIR}
+    HINTS ${CUDA_INSTALL_PATH}/extras/CUPTI ${CUPTI_DIR}
     PATH_SUFFIXES lib lib64
     )
 
-find_path(CUDA_INCLUDE_DIR cuda.h
-    HINTS ${CUDA_TOOLKIT_ROOT_DIR} $ENV{CUDA_DIR}
-    PATH_SUFFIXES include
-    )
-
 find_path(CUPTI_INCLUDE_DIR cupti.h
-    HINTS ${CUDA_TOOLKIT_ROOT_DIR}/extras/CUPTI $ENV{CUPTI_DIR}
+    HINTS $ENV{CUDA_INSTALL_PATH}/extras/CUPTI $ENV{CUPTI_DIR}
+    HINTS ${CUDA_INSTALL_PATH}/extras/CUPTI ${CUPTI_DIR}
     PATH_SUFFIXES include
     )
 

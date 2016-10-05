@@ -1,6 +1,6 @@
 ################################################################################
 # Copyright (c) 2012-2013 Argo Navis Technologies. All Rights Reserved.
-# Copyright (c) 2013 Krell Institute. All Rights Reserved.
+# Copyright (c) 2013-2016 Krell Institute. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -20,16 +20,19 @@
 include(FindPackageHandleStandardArgs)
 
 find_library(PAPI_SHARED_LIBRARY libpapi.so
+    HINTS $ENV{PAPI_DIR}
     HINTS ${PAPI_DIR}
     PATH_SUFFIXES lib lib64
     )
 
 find_library(PAPI_STATIC_LIBRARY libpapi.a
+    HINTS $ENV{PAPI_DIR}
     HINTS ${PAPI_DIR}
     PATH_SUFFIXES lib lib64
     )
 
 find_path(PAPI_INCLUDE_DIR papi.h
+    HINTS $ENV{PAPI_DIR}
     HINTS ${PAPI_DIR}
     PATH_SUFFIXES include    
     )

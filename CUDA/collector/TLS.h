@@ -38,28 +38,6 @@
 #define MAX_ADDRESSES_PER_BLOB 1024
 
 /**
- * Maximum number of individual (CBTF_cuda_message) messages contained within
- * each (CBTF_cuda_data) performance data blob. 
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than a vague notion that it seems about right. In
- *          the future, performance testing should be done to determine an
- *          optimal value.
- */
-#define MAX_MESSAGES_PER_BLOB 128
-
-/**
- * Maximum supported number of concurrently sampled events. Controls the fixed
- * size of several of the tables related to event sampling.
- *
- * @note    This value should not be construed to be the actual number of
- *          concurrent events supported by any particular hardware. It is
- *          the maximum supported by this performance data collector.
- */
-#define MAX_EVENTS 16
-
-#if defined(PAPI_FOUND)
-/**
  * Maximum number of bytes used to store the periodic sampling deltas within
  * each (CBTF_cuda_data) performance data blob.
  *
@@ -72,6 +50,27 @@
  *          which seems reasonable.
  */
 #define MAX_DELTAS_BYTES_PER_BLOB (32 * 1024 /* 32 KB */)
+
+/**
+ * Maximum supported number of concurrently sampled events. Controls the fixed
+ * size of several of the tables related to event sampling.
+ *
+ * @note    This value should not be construed to be the actual number of
+ *          concurrent events supported by any particular hardware. It is
+ *          the maximum supported by this performance data collector.
+ */
+#define MAX_EVENTS 16
+
+/**
+ * Maximum number of individual (CBTF_cuda_message) messages contained within
+ * each (CBTF_cuda_data) performance data blob. 
+ *
+ * @note    Currently there is no specific basis for the selection of this
+ *          value other than a vague notion that it seems about right. In
+ *          the future, performance testing should be done to determine an
+ *          optimal value.
+ */
+#define MAX_MESSAGES_PER_BLOB 128
 
 /**
  * Maximum number of (CBTF_Protocol_Address) unique overflow PC addresses
@@ -90,19 +89,25 @@
 #define OVERFLOW_HASH_TABLE_SIZE \
     (MAX_OVERFLOW_PCS_PER_BLOB + (MAX_OVERFLOW_PCS_PER_BLOB / 4))
 
-/** Type defining the data stored for each event sample. */
+/** Type defining the data stored for each overflow event sample. */
+typedef struct {
+    CBTF_Protocol_Time time;     /**< Time at which the sample was taken. */
+    uint64_t pc;                 /**< Program counter (PC) address of sample. */
+    bool overflowed[MAX_EVENTS]; /**< Flag for each sampled event. */
+} OverflowSample;
+
+/** Type defining the data stored for each periodic event sample. */
 typedef struct {
     CBTF_Protocol_Time time;    /**< Time at which the sample was taken. */
     uint64_t count[MAX_EVENTS]; /**< Count for each sampled event. */
-} EventSample;
-#endif
+} PeriodicSample;
 
 /** Type defining the data stored in thread-local storage. */
 typedef struct {
 
     /** Flag indicating if data collection is paused. */
     bool paused;
-
+    
     /**
      * Performance data header to be applied to this thread's performance data.
      * All of the fields except [addr|time]_[begin|end] are constant throughout
@@ -129,33 +134,6 @@ typedef struct {
      * to by the performance data blob above.
      */
     CBTF_Protocol_Address stack_traces[MAX_ADDRESSES_PER_BLOB];
-
-#if defined(PAPI_FOUND)
-    /** Flag indicating if CUDA_SamplingConfig was appended for this thread. */
-    bool appended_sampling_config;
-
-    /** Number of eventsets for this thread. */
-    int eventset_count;
-    
-    /** Eventsets for this thread. */
-    struct {
-
-        /** Handle for the component collecting this eventset. */
-        int component;
-        
-        /** Handle for this eventset. */
-        int eventset;
-
-        /** Number of events in this eventset. */
-        int event_count;
-
-        /** Map event indicies in this eventset to periodic count indicies. */
-        int event_to_periodic[MAX_EVENTS];
-
-        /** Map event indicies in this eventset to overflow count indicies. */
-        int event_to_overflow[MAX_EVENTS];
-        
-    } eventsets[MAX_EVENTS];
 
     /** Current overflow samples for this thread. */
     struct {
@@ -184,7 +162,7 @@ typedef struct {
     
     /** Current periodic event samples for this thread. */
     struct {
-        
+
         /** Message containing the periodic event samples. */
         CUDA_PeriodicSamples message;
         
@@ -192,11 +170,35 @@ typedef struct {
         uint8_t deltas[MAX_DELTAS_BYTES_PER_BLOB];
         
         /** Previously taken event sample. */
-        EventSample previous;
+        PeriodicSample previous;
         
     } periodic_samples;
-#endif
+
+#if defined(PAPI_FOUND)
+    /** Number of PAPI event sets for this thread. */
+    int papi_event_set_count;
     
+    /** PAPI event sets for this thread. */
+    struct {
+
+        /** Handle for the component collecting this event set. */
+        int component;
+        
+        /** Handle for this event set. */
+        int event_set;
+
+        /** Number of events in this event set. */
+        int event_count;
+
+        /** Map event indicies in this event set to periodic count indicies. */
+        int event_to_periodic[MAX_EVENTS];
+
+        /** Map event indicies in this event set to overflow count indicies. */
+        int event_to_overflow[MAX_EVENTS];
+        
+    } papi_event_sets[MAX_EVENTS];
+#endif
+   
 } TLS;
 
 /*
@@ -278,3 +280,23 @@ void TLS_update_header_with_address(TLS* tls, CBTF_Protocol_Address addr);
  *          at least one more message before adding the call site.
  */
 uint32_t TLS_add_current_call_site(TLS* tls);
+
+/*
+ * Add the specified overflow sample to the performance data blob contained
+ * within the given thread-local storage. The current blob is sent and re-
+ * initialized (cleared) if it is already full.
+ *
+ * @param tls       Thread-local storage to which the sample is to be added.
+ * @param sample    Overflow sample to be added.
+ */
+void TLS_add_overflow_sample(TLS* tls, OverflowSample* sample);
+
+/*
+ * Add the specified periodic sample to the performance data blob contained
+ * within the given thread-local storage. The current blob is sent and re-
+ * initialized (cleared) if it is already full.
+ *
+ * @param tls       Thread-local storage to which the sample is to be added.
+ * @param sample    Periodic sample to be added.
+ */
+void TLS_add_periodic_sample(TLS* tls, PeriodicSample* sample);

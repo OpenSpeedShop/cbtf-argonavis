@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <cxxabi.h>
 #include <list>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -66,13 +67,6 @@ namespace ArgoNavis { namespace CUDA {
     {
         return Impl::Stringify<T>::impl(value);
     }
-    
-} } // namespace ArgoNavis::CUDA
-    
-namespace ArgoNavis { namespace CUDA { namespace Impl {
-
-    /** Type of container used to store ordered fields (key/value pairs). */
-    typedef std::list<boost::tuples::tuple<std::string, std::string> > Fields;
 
     /**
      * Type representing a byte count. Its only reason for existence is to
@@ -101,7 +95,33 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     private:
         boost::uint64_t dm_value;
     };
-    
+
+    /**
+     * Type representing a hardware performance counter name. Typically the
+     * name used by either CUPTI or PAPI. Its only reason for existence is
+     * to allow the Stringify<> template below to be specialized for counter
+     * names versus other strings.
+     *
+     * @note    The string returned by stringify<CounterName>() may or may
+     *          not be identical to the name returned by CUPTI or PAPI for
+     *          their similar counter name query functions.
+     *
+     * @sa http://docs.nvidia.com/cuda/cupti/r_main.html#r_metric_api
+     * @sa http://icl.cs.utk.edu/projects/papi/wiki/PAPI3:PAPI_presets.3
+     */
+    class CounterName
+    {
+    public:
+        CounterName(const char* value) : dm_value(value ? value : "") { }
+        CounterName(const std::string& value) : dm_value(value) { }
+        operator std::string() const { return dm_value; }
+    private:
+        std::string dm_value;
+    };
+
+    /** Type of container used to store ordered fields (key/value pairs). */
+    typedef std::list<boost::tuples::tuple<std::string, std::string> > Fields;
+        
     /**
      * Type representing a function name. Its only reason for existence is to
      * allow the Stringify<> template below to be specialized for function names
@@ -117,6 +137,10 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         std::string dm_value;
     };
     
+} } // namespace ArgoNavis::CUDA
+    
+namespace ArgoNavis { namespace CUDA { namespace Impl {
+
     template <>
     struct Stringify<bool>
     {
@@ -256,6 +280,21 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         }
     };
 
+    extern const std::map<std::string, std::string> kCounterNames;
+    
+    template <>
+    struct Stringify<CounterName>
+    {
+        static std::string impl(const CounterName& value)
+        {
+            std::map<std::string, std::string>::const_iterator i =
+                kCounterNames.find(value);
+
+            return (i == kCounterNames.end()) ? 
+                static_cast<std::string>(value) : i->second;
+        }
+    };
+    
     template <>
     struct Stringify<FunctionName>
     {

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,13 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
 # NOTE related to the following C++11 feature checks:
-#    This include: CheckCXX11Features.cmake is projected to be in a future version of CMake.
-#    When this does get included into the new CMake version, we will update our
-#    required CMake version and remove cmake/CheckCXX11Features* files from the cbtf repository.
-#
+#    This include: CheckCXX11Features.cmake is projected to be in a
+#    future version of CMake. When this does get included into the new
+#    CMake version, we will update our required CMake version and remove 
+#    cmake/CheckCXX11Features* files from the cbtf repository.
+
 include(cmake/CheckCXX11Features.cmake)
+
 if(NOT HAS_CXX11_AUTO)
   message(STATUS "No support for C++11 found.")
 else()
@@ -41,10 +43,17 @@ find_package(Boost 1.39.0 REQUIRED
     )
 find_package(CBTF REQUIRED)
 find_package(CBTF-Krell REQUIRED)
+<<<<<<< HEAD
 find_package(CUDA 5.0 REQUIRED)
 find_package(CUPTI 2 REQUIRED)
 find_package(MRNet REQUIRED)
 find_package(PAPI 5.4.0 REQUIRED)
+=======
+find_package(CUDA)
+find_package(CUPTI 2)
+find_package(MRNet)
+find_package(PAPI 5.4.0)
+>>>>>>> origin
 find_package(Threads REQUIRED)
 
 if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
@@ -65,7 +74,4 @@ elseif(EXISTS /usr/lib64)
 endif()
 
 add_subdirectory(libargonavis-base)
-
-if(CUPTI_FOUND AND MRNET_FOUND)
-    add_subdirectory(CUDA)
-endif()
+add_subdirectory(CUDA)

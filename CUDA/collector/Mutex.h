@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -16,16 +16,38 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Declaration of CUDA collector globals. */
+/** @file Declaration of Mutex type and functions. */
 
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
-#include <KrellInstitute/Messages/CUDA_data.h>
+/** Type defining a mutex. */
+typedef uint64_t Mutex;
 
-/* Flag indicating if debugging is enabled. */
-extern bool IsDebugEnabled;
+/** Initialization value for a mutex. */
+#define MUTEX_INITIALIZER 0
 
-/* Event sampling configuration. */
-extern CUDA_SamplingConfig TheSamplingConfig;
+/**
+ * Acquire the specified mutex, busy waiting until it is available.
+ *
+ * @param mutex    Mutex to be acquired.
+ */
+void Mutex_acquire(Mutex* mutex);
+
+/**
+ * Release the specified mutex, busy waiting until successful.
+ *
+ * @param mutex    Mutex to be released.
+ */
+void Mutex_release(Mutex* mutex);
+
+/**
+ * Try to acquire the specifeid mutex without waiting for it.
+ *
+ * @param mutex    Mutex to be acquired.
+ * @return         Boolean "true" if the mutex was
+ *                 acquired, or "false" otherwise.
+ */
+bool Mutex_try(Mutex* mutex);

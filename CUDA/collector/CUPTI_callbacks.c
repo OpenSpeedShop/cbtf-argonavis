@@ -32,8 +32,9 @@
 #include "CUPTI_callbacks.h"
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
+#include "CUPTI_events.h"
+#include "CUPTI_metrics.h"
 #include "CUPTI_stream.h"
-#include "PAPI.h"
 #include "TLS.h"
 
 
@@ -161,19 +162,28 @@ static void callback(void* userdata,
     if ((domain == CUPTI_CB_DOMAIN_RESOURCE) &&
         (id == CUPTI_CBID_RESOURCE_CONTEXT_CREATED))
     {
-        /* Start (initialize) PAPI */
-        PAPI_notify_cuda_context_created();
+        if (TheSamplingConfig.events.events_len > 0)
+        {
+            /* Start CUPTI metrics collection for this context */
+            CUPTI_metrics_start(((CUpti_ResourceData*)data)->context);
 
-        /* Start PAPI data collection for this thread */
-        PAPI_start_data_collection();
+            /* Start CUPTI events collection for this context */
+            CUPTI_events_start(((CUpti_ResourceData*)data)->context);
+        }
     }
     
     /* Is a CUDA context being destroyed? */
     if ((domain == CUPTI_CB_DOMAIN_RESOURCE) &&
         (id == CUPTI_CBID_RESOURCE_CONTEXT_DESTROY_STARTING))
     {
-        /* Stop (shutdown) PAPI */
-        PAPI_notify_cuda_context_destroyed();
+        if (TheSamplingConfig.events.events_len > 0)
+        {
+            /* Stop CUPTI events collection for this context */
+            CUPTI_events_stop(((CUpti_ResourceData*)data)->context);
+
+            /* Stop CUPTI metrics collection for this context */
+            CUPTI_metrics_stop(((CUpti_ResourceData*)data)->context);
+        }
     }
 
     /* Access our thread-local storage */
@@ -563,6 +573,13 @@ static void callback(void* userdata,
  */
 void CUPTI_callbacks_subscribe()
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_callbacks_subscribe()\n");
+    }
+#endif
+
     CUPTI_CHECK(cuptiSubscribe(&Handle, callback, NULL));    
     CUPTI_CHECK(cuptiEnableDomain(1, Handle, CUPTI_CB_DOMAIN_DRIVER_API));    
     CUPTI_CHECK(cuptiEnableDomain(1, Handle, CUPTI_CB_DOMAIN_RESOURCE));    
@@ -576,5 +593,12 @@ void CUPTI_callbacks_subscribe()
  */
 void CUPTI_callbacks_unsubscribe()
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CBTF/CUDA] CUPTI_callbacks_unsubscribe()\n");
+    }
+#endif
+
     CUPTI_CHECK(cuptiUnsubscribe(Handle));
 }

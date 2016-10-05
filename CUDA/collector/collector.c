@@ -23,11 +23,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ucontext.h>
 
+#include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
+#include <KrellInstitute/Services/Time.h>
+#include <KrellInstitute/Services/Timer.h>
 
 #include "CUPTI_activities.h"
 #include "CUPTI_callbacks.h"
+#include "CUPTI_events.h"
+#include "CUPTI_metrics.h"
 #include "CUPTI_time.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
@@ -47,14 +53,18 @@ bool IsDebugEnabled = FALSE;
  */
 CUDA_SamplingConfig TheSamplingConfig;
 
-/** Number of events for which overflow sampling is enabled. */
-int OverflowSamplingCount = 0;
-
 /**
  * Descriptions of sampled events. Also initialized by the process-wide
  * initialization in cbtf_collector_start() through parse_configuration().
  */
 static CUDA_EventDescription EventDescriptions[MAX_EVENTS];
+
+/**
+ * Pthread ID of the main (first seen) thread. Initialized by the process-wide
+ * initialization in cbtf_collector_start(). Used by timer_callback() to decide
+ * if it should sample CUPTI events.
+ */
+static pthread_t TheMainThread;
 
 /**
  * The number of threads for which are are collecting data (actively or not).
@@ -92,8 +102,6 @@ static void parse_configuration(const char* const configuration)
     TheSamplingConfig.events.events_val = EventDescriptions;
 
     memset(EventDescriptions, 0, MAX_EVENTS * sizeof(CUDA_EventDescription));
-
-    OverflowSamplingCount = 0;
 
     /* Copy the configuration string for parsing */
     
@@ -198,16 +206,47 @@ static void parse_configuration(const char* const configuration)
 #endif
             }
 
-            /* Increment the number of overflow sampled events */
-            if (event->threshold > 0)
-            {
-                ++OverflowSamplingCount;
-            }
-            
             /* Increment the number of sampled events */
             ++TheSamplingConfig.events.events_len;
         }
     }
+}
+
+
+
+/**
+ * Callback invoked by the timer service each time a timer interrupt occurs.
+ *
+ * @param context    Thread context at this timer interrupt.
+ */
+static void timer_callback(const ucontext_t* context)
+{
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Do nothing if data collection is paused for this thread */
+    if (tls->paused)
+    {
+        return;
+    }
+
+    /* Initialize a new periodic sample */
+    PeriodicSample sample;
+    memset(&sample, 0, sizeof(PeriodicSample));
+    sample.time = CBTF_GetTime();
+    
+    /* Sample the CUPTI metrics and events from the main thread (only) */
+    if (pthread_equal(pthread_self(), TheMainThread))
+    {
+        CUPTI_metrics_sample(tls, &sample);
+        CUPTI_events_sample(tls, &sample);
+    }
+    
+    /* Sample PAPI counters for this thread */
+    PAPI_sample(tls, &sample);
+
+    /* Add this sample to the performance data blob for this thread */
+    TLS_add_periodic_sample(tls, &sample);
 }
 
 
@@ -268,6 +307,15 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
             parse_configuration(configuration);
         }
 
+        if (TheSamplingConfig.events.events_len > 0)
+        {
+            /* Initialize PAPI for this process */
+            PAPI_initialize();
+        }
+
+        /* Get the Pthread ID of the main (first seen) thread */
+        TheMainThread = pthread_self();
+
         /* Start CUPTI activity data collection for this process */
         CUPTI_activities_start();
         
@@ -285,11 +333,31 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     /* Initialize our performance data header and blob */
     TLS_initialize_data(tls);
 
-    /* Start PAPI data collection for this thread */
-    PAPI_start_data_collection();
+    if (TheSamplingConfig.events.events_len > 0)
+    {
+        /* Append event sampling configuration to our performance data blob */
 
-    /* Resume (start) data collection for this thread */
-    tls->paused = FALSE;
+        CBTF_cuda_message* raw_message = TLS_add_message(tls);
+        Assert(raw_message != NULL);
+        raw_message->type = SamplingConfig;
+        
+        CUDA_SamplingConfig* message = 
+            &raw_message->CBTF_cuda_message_u.sampling_config;
+        
+        memcpy(message, &TheSamplingConfig, sizeof(CUDA_SamplingConfig));
+    }
+
+    /* Resume data collection for this thread */
+    cbtf_collector_resume();
+
+    if (TheSamplingConfig.events.events_len > 0)
+    {
+        /* Start PAPI data collection for this thread */
+        PAPI_start_data_collection();
+
+        /* Start the periodic sampling timer for this thread */
+        CBTF_Timer(TheSamplingConfig.interval, timer_callback);
+    }
 }
 
 
@@ -305,9 +373,6 @@ void cbtf_collector_pause()
         printf("[CBTF/CUDA] cbtf_collector_pause()\n");
     }
 #endif
-    
-    /* Stop PAPI data collection for this thread */
-    PAPI_stop_data_collection();
 
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
@@ -335,9 +400,6 @@ void cbtf_collector_resume()
 
     /* Resume data collection for this thread */
     tls->paused = FALSE;
-
-    /* Start PAPI data collection for this thread */
-    PAPI_start_data_collection();
 }
 
 
@@ -353,7 +415,19 @@ void cbtf_collector_stop()
         printf("[CBTF/CUDA] cbtf_collector_stop()\n");
     }
 #endif
-    
+
+    if (TheSamplingConfig.events.events_len > 0)
+    {
+        /* Stop the periodic sampling timer for this thread */
+        CBTF_Timer(0, NULL);
+
+        /* Stop PAPI data collection for this thread */
+        PAPI_stop_data_collection();
+    }
+
+    /* Pause data collection for this thread */
+    cbtf_collector_pause();
+
     /* Atomically decrement the active thread count */
     
     PTHREAD_CHECK(pthread_mutex_lock(&ThreadCount.mutex));
@@ -379,19 +453,19 @@ void cbtf_collector_stop()
         
         /* Unsubscribe to CUPTI callbacks for this process */
         CUPTI_callbacks_unsubscribe();
+
+        if (TheSamplingConfig.events.events_len > 0)
+        {
+            /* Finalize PAPI for this process */
+            PAPI_finalize();
+        }
     }
     
     PTHREAD_CHECK(pthread_mutex_unlock(&ThreadCount.mutex));
 
-    /* Stop PAPI data collection for this thread */
-    PAPI_stop_data_collection();
-
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
 
-    /* Pause (stop) data collection for this thread */
-    tls->paused = TRUE;
-    
     /* Send any remaining performance data for this thread */
     TLS_send_data(tls);
     
