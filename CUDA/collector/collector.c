@@ -19,6 +19,7 @@
 /** @file Implementation of the CUDA collector. */
 
 #include <inttypes.h>
+#include <monitor.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -228,22 +229,13 @@ static void parse_configuration(const char* const configuration)
 /**
  * Function implementing the CUTPI metrics and events sampling thread.
  *
- * @param header    CBTF data header passed into cbtf_collector_start().
- * @return          Always returns NULL.
+ * @param arg    Unused.
+ * @return       Always returns NULL.
  */
-static void* sampling_thread(void* header)
+static void* sampling_thread(void* arg)
 {
-    /* Create and zero-initialize our thread-local storage */
-    TLS_initialize();
-    
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
-
-    /* Copy the header into our thread-local storage for future use */
-    memcpy(&tls->data_header, header, sizeof(CBTF_DataHeader));
-
-    /* Initialize our performance data header and blob */
-    TLS_initialize_data(tls);
 
     /* Loop until cbtf_collector_stop() tells us to exit */
     while (!ExitSamplingThread)
@@ -264,12 +256,6 @@ static void* sampling_thread(void* header)
         usleep(TheSamplingConfig.interval / 1000 /* uS/nS */);
     }
     
-    /* Send any remaining performance data for this thread */
-    TLS_send_data(tls);
-    
-    /* Destroy our thread-local storage */
-    TLS_destroy();
-
     return NULL;
 }
 
@@ -404,8 +390,9 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 
     /* Resume data collection for this thread */
     cbtf_collector_resume();
-
-    if (TheSamplingConfig.events.events_len > 0)
+    
+    if ((TheSamplingConfig.events.events_len > 0) &&
+        (monitor_get_addr_thread_start() != sampling_thread))
     {
         /* Start PAPI data collection for this thread */
         PAPI_start_data_collection();
@@ -471,7 +458,8 @@ void cbtf_collector_stop()
     }
 #endif
 
-    if (TheSamplingConfig.events.events_len > 0)
+    if ((TheSamplingConfig.events.events_len > 0) &&
+        (monitor_get_addr_thread_start() != sampling_thread))
     {
         /* Stop the periodic sampling timer for this thread */
         CBTF_Timer(0, NULL);
