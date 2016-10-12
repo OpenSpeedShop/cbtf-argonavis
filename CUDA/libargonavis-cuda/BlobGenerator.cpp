@@ -422,6 +422,17 @@ void BlobGenerator::generate()
             &raw_message->CBTF_cuda_message_u.periodic_samples;
         
         memcpy(message, &dm_periodic_samples, sizeof(CUDA_PeriodicSamples));
+
+        // When generating a blob containing periodic samples, if the header's
+        // address range is undefined, replace it with a range that covers ALL
+        // addresses. Without this special case Open|SpeedShop tosses out data
+        // blobs produced by the CUTPI metrics and events sampling thread.
+
+        if ((dm_header->addr_begin == ~0) && (dm_header->addr_end == 0))
+        {
+            dm_header->addr_begin = 0;
+            dm_header->addr_end	= ~0;
+        }
     }
     
     boost::shared_ptr<CBTF_Protocol_Blob> blob =
