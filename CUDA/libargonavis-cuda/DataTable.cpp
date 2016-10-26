@@ -20,6 +20,7 @@
 
 #include <boost/bind.hpp>
 #include <boost/ref.hpp>
+#include <boost/thread/lock_guard.hpp>
 #include <cstring>
 #include <utility>
 
@@ -492,15 +493,30 @@ void DataTable::process(const Base::ThreadName& thread,
 void DataTable::visitBlobs(const Base::ThreadName& thread,
                            const Base::BlobVisitor& visitor) const
 {
-    std::map<ThreadName, PerProcessData>::const_iterator i_process = 
-        dm_processes.find(ThreadName(thread.host(), thread.pid()));
-    
-    std::map<ThreadName, PerThreadData>::const_iterator i_thread = 
-        dm_threads.find(thread);
-    
-    if ((i_process == dm_processes.end()) || (i_thread == dm_threads.end()))
+    std::map<ThreadName, PerProcessData>::const_iterator i_process;
+
     {
-        return;
+        boost::lock_guard<boost::mutex> guard(dm_processes_mutex);
+
+        i_process = dm_processes.find(ThreadName(thread.host(), thread.pid()));
+    
+        if (i_process == dm_processes.end())
+        {
+            return;
+        }
+    }
+
+    std::map<ThreadName, PerThreadData>::const_iterator i_thread;
+
+    {
+        boost::lock_guard<boost::mutex> guard(dm_threads_mutex);
+
+        i_thread = dm_threads.find(thread);
+    
+        if (i_thread == dm_threads.end())
+        {
+            return;
+        }
     }
     
     const PerProcessData& per_process = i_process->second;
@@ -575,6 +591,8 @@ DataTable::PerHostData& DataTable::accessPerHostData(const ThreadName& thread)
 {
     ThreadName key(thread.host(), 0 /* Dummy PID */);
     
+    boost::lock_guard<boost::mutex> guard(dm_hosts_mutex);
+
     std::map<ThreadName, PerHostData>::iterator i = dm_hosts.find(key);
     
     if (i == dm_hosts.end())
@@ -594,6 +612,8 @@ DataTable::PerProcessData& DataTable::accessPerProcessData(
     )
 {
     ThreadName key(thread.host(), thread.pid());
+    
+    boost::lock_guard<boost::mutex> guard(dm_processes_mutex);
 
     std::map<ThreadName, PerProcessData>::iterator i = dm_processes.find(key);
     
@@ -614,6 +634,8 @@ DataTable::PerThreadData& DataTable::accessPerThreadData(
     )
 {
     ThreadName key(thread);
+
+    boost::lock_guard<boost::mutex> guard(dm_threads_mutex);
 
     std::map<ThreadName, PerThreadData>::iterator i = dm_threads.find(key);
     

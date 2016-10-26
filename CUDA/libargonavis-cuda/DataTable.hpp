@@ -22,10 +22,12 @@
 
 #include <boost/cstdint.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/thread/mutex.hpp>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
+#include <mutex>
 
 #include <KrellInstitute/Messages/CUDA_data.h>
 
@@ -245,12 +247,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Per-host data for all known hosts. */
         std::map<Base::ThreadName, PerHostData> dm_hosts;
+        mutable boost::mutex dm_hosts_mutex;
 
         /** Per-process data for all known processes. */
         std::map<Base::ThreadName, PerProcessData> dm_processes;
+        mutable boost::mutex dm_processes_mutex;
 
         /** Per-thread data for all known threads. */
         std::map<Base::ThreadName, PerThreadData> dm_threads;
+        mutable boost::mutex dm_threads_mutex;
         
     }; // class DataTable
 
