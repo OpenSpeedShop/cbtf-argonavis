@@ -30,6 +30,7 @@
 using namespace boost;
 using namespace std;
 
+const std::size_t kStringSize = 1024;
 const std::string kTab = "  ";
 
 
@@ -94,15 +95,15 @@ void displayEvents(CUdevice device, bool details)
     size_t bytes;
 
     uint32_t num_domains;
-    CUPTI_CHECK(cuptiGetNumEventDomains(&num_domains));
+    CUPTI_CHECK(cuptiDeviceGetNumEventDomains(device, &num_domains));
 
     vector<CUpti_EventDomainID> domains(num_domains);
     bytes = num_domains * sizeof(CUpti_EventDomainID);
-    CUPTI_CHECK(cuptiEnumEventDomains(&bytes, &domains[0]));
+    CUPTI_CHECK(cuptiDeviceEnumEventDomains(device, &bytes, &domains[0]));
     
     for (uint32_t d = 0; d < num_domains; d++)
     {
-        char name[1024];
+        char name[kStringSize];
         bytes = sizeof(name);
         CUPTI_CHECK(cuptiEventDomainGetAttribute(
                         domains[d], CUPTI_EVENT_DOMAIN_ATTR_NAME,
@@ -166,7 +167,7 @@ void displayEvents(CUdevice device, bool details)
 
         for (uint32_t e = 0; e < num_events; ++e)
         {
-            char name[1024];
+            char name[kStringSize];
             bytes = sizeof(name);
             CUPTI_CHECK(cuptiEventGetAttribute(
                             events[e], CUPTI_EVENT_ATTR_NAME, &bytes, &name[0]
@@ -178,7 +179,7 @@ void displayEvents(CUdevice device, bool details)
             {
                 cout << endl;
                 
-                char description[1024];
+                char description[kStringSize];
 
                 bytes = sizeof(description);
                 CUPTI_CHECK(cuptiEventGetAttribute(
@@ -205,7 +206,7 @@ void displayEvents(CUdevice device, bool details)
                                 &bytes, &category
                                 ));
                 
-                cout << kTab << kTab << kTab << "Event Collection Method: ";
+                cout << kTab << kTab << kTab << "Category: ";
                 switch (category)
                 {
                 case CUPTI_EVENT_CATEGORY_INSTRUCTION:
@@ -231,7 +232,280 @@ void displayEvents(CUdevice device, bool details)
 /** Display CUPTI metrics for the specified device. */
 void displayMetrics(CUdevice device, bool details)
 {
-    // ...
+    size_t bytes;
+
+    uint32_t num_metrics;
+    CUPTI_CHECK(cuptiDeviceGetNumMetrics(device, &num_metrics));
+
+    vector<CUpti_MetricID> metrics(num_metrics);
+    bytes = num_metrics * sizeof(CUpti_MetricID);
+    CUPTI_CHECK(cuptiDeviceEnumMetrics(device, &bytes, &metrics[0]));
+
+    for (uint32_t m = 0; m < num_metrics; m++)
+    {
+        char name[kStringSize];
+        bytes = sizeof(name);
+        CUPTI_CHECK(cuptiMetricGetAttribute(
+                        metrics[m], CUPTI_METRIC_ATTR_NAME, &bytes, &name[0]
+                        ));
+        
+        cout << kTab << "Metric " << m << ": " << name << endl;
+        
+        if (details)
+        {
+            cout << endl;
+            
+            char description[kStringSize];
+            
+            bytes = sizeof(description);
+            CUPTI_CHECK(cuptiMetricGetAttribute(
+                            metrics[m], CUPTI_METRIC_ATTR_SHORT_DESCRIPTION,
+                            &bytes, &description
+                            ));
+            
+            cout << kTab << kTab << "Short Description: "
+                 << description << endl;
+            
+            bytes = sizeof(description);
+            CUPTI_CHECK(cuptiMetricGetAttribute(
+                            metrics[m], CUPTI_METRIC_ATTR_LONG_DESCRIPTION,
+                            &bytes, &description
+                            ));
+            
+            cout << kTab << kTab << "Long Description: "
+                 << description << endl;
+            
+            CUpti_MetricCategory category;
+            bytes = sizeof(category);
+            CUPTI_CHECK(cuptiMetricGetAttribute(
+                            metrics[m], CUPTI_METRIC_ATTR_CATEGORY,
+                            &bytes, &category
+                            ));
+            
+            cout << kTab << kTab << "Category: ";
+            switch (category)
+            {
+            case CUPTI_METRIC_CATEGORY_MEMORY:
+                cout << "Memory"; break;
+            case CUPTI_METRIC_CATEGORY_INSTRUCTION:
+                cout << "Instruction"; break;
+            case CUPTI_METRIC_CATEGORY_MULTIPROCESSOR:
+                cout << "Multiprocessor"; break;
+            case CUPTI_METRIC_CATEGORY_CACHE:
+                cout << "Cache"; break;
+            case CUPTI_METRIC_CATEGORY_TEXTURE:
+                cout << "Texture"; break;
+            default: cout << "?";
+            }
+            cout << endl;
+
+            CUpti_MetricValueKind kind;
+            bytes = sizeof(kind);
+            CUPTI_CHECK(cuptiMetricGetAttribute(
+                            metrics[m], CUPTI_METRIC_ATTR_VALUE_KIND,
+                            &bytes, &kind
+                            ));
+            
+            cout << kTab << kTab << "Value Kind: ";
+            switch (category)
+            {
+            case CUPTI_METRIC_VALUE_KIND_DOUBLE:
+                cout << "Double"; break;
+            case CUPTI_METRIC_VALUE_KIND_UINT64:
+                cout << "UInt64"; break;
+            case CUPTI_METRIC_VALUE_KIND_PERCENT:
+                cout << "Percent"; break;
+            case CUPTI_METRIC_VALUE_KIND_THROUGHPUT:
+                cout << "Throughput"; break;
+            case CUPTI_METRIC_VALUE_KIND_INT64:
+                cout << "Int64"; break;
+            case CUPTI_METRIC_VALUE_KIND_UTILIZATION_LEVEL:
+                cout << "Utilization Level"; break;
+            default: cout << "?";
+            }
+            cout << endl;
+                
+            CUpti_MetricEvaluationMode mode;
+            bytes = sizeof(mode);
+            CUPTI_CHECK(cuptiMetricGetAttribute(
+                            metrics[m], CUPTI_METRIC_ATTR_EVALUATION_MODE,
+                            &bytes, &mode
+                            ));
+
+            cout << kTab << kTab << "Evaluation Mode: ";
+            switch (mode)
+            {
+            case CUPTI_METRIC_EVALUATION_MODE_PER_INSTANCE:
+                cout << "Per Instance"; break;
+            case CUPTI_METRIC_EVALUATION_MODE_AGGREGATE:
+                cout << "Aggregate"; break;
+            default: cout << "?";
+            }
+            cout << endl;
+            
+            cout << endl;
+            
+            uint32_t num_events;
+            CUPTI_CHECK(cuptiMetricGetNumEvents(metrics[m], &num_events));
+            
+            vector<CUpti_EventID> events(num_events);
+            bytes = num_events * sizeof(CUpti_EventID);
+            CUPTI_CHECK(cuptiMetricEnumEvents(metrics[m], &bytes, &events[0]));
+            
+            for (uint32_t e = 0; e < num_events; ++e)
+            {
+                char name[kStringSize];
+                bytes = sizeof(name);
+                CUPTI_CHECK(cuptiEventGetAttribute(
+                                events[e], CUPTI_EVENT_ATTR_NAME,
+                                &bytes, &name[0]
+                                ));
+                
+                cout << kTab << kTab << "Event " << e << ": " << name << endl;
+            }
+
+            cout << endl;
+            
+            uint32_t num_properties;
+            CUPTI_CHECK(cuptiMetricGetNumProperties(
+                            metrics[m], &num_properties
+                            ));
+            
+            vector<CUpti_MetricPropertyID> properties(num_properties);
+            bytes = num_properties * sizeof(CUpti_MetricPropertyID);
+            CUPTI_CHECK(cuptiMetricEnumProperties(
+                            metrics[m], &bytes, &properties[0]
+                            ));
+            
+            for (uint32_t p = 0; p < num_properties; ++p)
+            {
+                cout << kTab << kTab << "Property " << p << ": ";
+
+                switch (properties[p])
+                {
+                case CUPTI_METRIC_PROPERTY_MULTIPROCESSOR_COUNT:
+                    cout << "Multiprocessor Count" << endl; break;
+                case CUPTI_METRIC_PROPERTY_WARPS_PER_MULTIPROCESSOR:
+                    cout << "Warps/Multiprocessor" << endl; break;
+                case CUPTI_METRIC_PROPERTY_KERNEL_GPU_TIME:
+                    cout << "Kernel GPU Time" << endl; break;
+                case CUPTI_METRIC_PROPERTY_CLOCK_RATE:
+                    cout << "Clock Rate" << endl; break;
+                case CUPTI_METRIC_PROPERTY_FRAME_BUFFER_COUNT:
+                    cout << "Frame Buffer Count" << endl; break;
+                case CUPTI_METRIC_PROPERTY_GLOBAL_MEMORY_BANDWIDTH:
+                    cout << "Global Memory Bandwidth" << endl; break;
+                case CUPTI_METRIC_PROPERTY_PCIE_LINK_RATE:
+                    cout << "PCIe Link Rate" << endl; break;
+                case CUPTI_METRIC_PROPERTY_PCIE_LINK_WIDTH:
+                    cout << "PCIe Link Width" << endl; break;
+                case CUPTI_METRIC_PROPERTY_PCIE_GEN:
+                    cout << "PCIe Generation" << endl; break;
+                case CUPTI_METRIC_PROPERTY_DEVICE_CLASS:
+                    cout << "Device Class" << endl; break;
+                case CUPTI_METRIC_PROPERTY_FLOP_SP_PER_CYCLE:
+                    cout << "Single-Precision FLOPS/Cycle" << endl; break;
+                case CUPTI_METRIC_PROPERTY_FLOP_DP_PER_CYCLE:
+                    cout << "Double-Precision FLOPS/Cycle" << endl; break;
+                case CUPTI_METRIC_PROPERTY_L2_UNITS:
+                    cout << "L2 Unit Count" << endl; break;
+                case CUPTI_METRIC_PROPERTY_ECC_ENABLED:
+                    cout << "ECC Enabled" << endl; break;
+                default: cout << "?";
+                }
+                cout << endl;
+            }
+            
+            cout << endl;
+        }
+    }
+}
+
+
+
+/**
+ * Display the number of event data collection passes required to
+ * compute all of the given CUPTI metrics for the specified device.
+ */
+void displayPasses(int d, CUdevice device, const set<uint32_t>& metrics)
+{
+    size_t bytes;
+
+    cout << "On CUDA Device " << d << " computing the following CUPTI Metrics:"
+         << endl;
+    cout << endl;
+
+    vector<CUpti_MetricID> ids;
+
+    uint32_t m = 0;
+    for (set<uint32_t>::const_iterator
+             i = metrics.begin(); i != metrics.end(); ++i, ++m)
+    {
+        CUpti_MetricID id = *i;
+        ids.push_back(id);
+
+        char name[kStringSize];
+        bytes = sizeof(name);
+        CUPTI_CHECK(cuptiMetricGetAttribute(
+                        id, CUPTI_METRIC_ATTR_NAME, &bytes, &name[0]
+                        ));
+        
+        cout << kTab << "Metric " << m << ": " << name << endl;
+    }
+
+    cout << endl;
+    cout << "requires the following event collection passes:" << endl;
+    cout << endl;
+
+    CUcontext context;
+    CUDA_CHECK(cuCtxCreate(&context, 0, device));
+
+    CUpti_EventGroupSets* passes;
+    CUPTI_CHECK(cuptiMetricCreateEventGroupSets(
+                    context, ids.size() * sizeof(CUpti_MetricID),
+                    &ids[0], &passes)); 
+    
+    for (uint32_t p = 0; p < passes->numSets; ++p)
+    {
+        cout << kTab << "Pass " << p << endl;
+
+        for (uint32_t g = 0; g < passes->sets[p].numEventGroups; ++g)
+        {
+            cout << kTab << kTab << "Event Group " << g << endl;
+
+            CUpti_EventGroup group = passes->sets[p].eventGroups[g];
+
+            uint32_t num_events;
+            bytes = sizeof(num_events);
+            CUPTI_CHECK(cuptiEventGroupGetAttribute(
+                            group, CUPTI_EVENT_GROUP_ATTR_NUM_EVENTS,
+                            &bytes, &num_events
+                            ));
+            
+            vector<CUpti_EventID> events(num_events);
+            bytes = num_events * sizeof(CUpti_EventID);
+            CUPTI_CHECK(cuptiEventGroupGetAttribute(
+                            group, CUPTI_EVENT_GROUP_ATTR_EVENTS,
+                            &bytes, &events[0]
+                            ));
+
+            for (uint32_t e = 0; e < num_events; ++e)
+            {
+                char name[kStringSize];
+                bytes = sizeof(name);
+                CUPTI_CHECK(cuptiEventGetAttribute(
+                                events[e], CUPTI_EVENT_ATTR_NAME,
+                                &bytes, &name[0]
+                                ));
+                
+                cout << kTab << kTab << kTab 
+                     << "Event " << e << ": " << name << endl;
+            }
+        }
+    }
+
+    CUPTI_CHECK(cuptiEventGroupSetsDestroy(passes));
+    CUDA_CHECK(cuCtxDestroy(context));
 }
 
 
@@ -273,6 +547,11 @@ int main(int argc, char* argv[])
         ("metrics", bool_switch()->default_value(false),
          "Display the available CUPTI metrics.")
 
+        ("passes", value< vector<uint32_t> >(),
+         "Determine the number of event data collection passes required "
+         "to compute all of the specified (by ID) CUPTI metrics. Multiple "
+         "indicies may be specified.")
+        
         ("help", "Display this help message.")
         
         ;
@@ -308,6 +587,13 @@ int main(int argc, char* argv[])
         indicies = set<int>(temp.begin(), temp.end());
     }
 
+    set<uint32_t> metrics;
+    if (values.count("passes") > 0)
+    {
+        vector<uint32_t> temp = values["passes"].as< vector<uint32_t> >();
+        metrics = set<uint32_t>(temp.begin(), temp.end());
+    }
+
     // Display the requested information
     
     CUDA_CHECK(cuInit(0));
@@ -334,7 +620,7 @@ int main(int argc, char* argv[])
 
     for (int d = 0; d < num_devices; ++d)
     {
-        char name[1024];
+        char name[kStringSize];
         CUDA_CHECK(cuDeviceGetName(name, sizeof(name), devices[d]));
         cout << kTab << d << ": " << name << endl;
     }
@@ -346,7 +632,7 @@ int main(int argc, char* argv[])
             if (values["events"].as<bool>())
             {
                 cout << endl;
-                cout << "CUPTI Events for CUDA Device #" << d << endl;
+                cout << "CUPTI Events for CUDA Device " << d << endl;
                 cout << endl;                
                 displayEvents(devices[d], values["details"].as<bool>());
             }
@@ -354,10 +640,15 @@ int main(int argc, char* argv[])
             if (values["metrics"].as<bool>())
             {
                 cout << endl;
-                cout << "CUPTI Metrics for CUDA Device #" << d << endl;
+                cout << "CUPTI Metrics for CUDA Device " << d << endl;
                 cout << endl;                
                 displayMetrics(devices[d], values["details"].as<bool>());
             }            
+        }
+        if (!metrics.empty())
+        {
+            cout << endl;
+            displayPasses(d, devices[d], metrics);
         }
     }
     
