@@ -16,8 +16,10 @@
 // Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
+#include <cstddef>
 #include <cuda.h>
 #include <cupti.h>
 #include <iostream>
@@ -89,6 +91,47 @@ const std::string kTab = "  ";
 
 
 
+/** Format the specified text as an indented, column-limited, block. */
+string wrap(const string& text, size_t tabs, size_t columns)
+{
+    string wrapped;
+
+    vector<string> words;
+    split(words, text, is_any_of(" "));
+
+    size_t w = 0, n = 0;
+    while (w < words.size())
+    {
+        if (n == 0)
+        {
+            for (size_t t = 0; t < tabs; ++t)
+            {
+                wrapped += kTab;
+                n += kTab.size();
+            }
+
+            wrapped += words[w];
+            n += words[w].size();
+            ++w;
+        }
+        else if ((n + 1 + words[w].size()) < columns)
+        {
+            wrapped += " " + words[w];
+            n += 1 + words[w].size();
+            ++w;
+        }
+        else
+        {
+            wrapped += "\n";
+            n = 0;
+        }
+    }
+
+    return wrapped;
+}
+
+
+
 /** Display CUPTI events for the specified device. */
 void displayEvents(CUdevice device, bool details)
 {
@@ -109,7 +152,7 @@ void displayEvents(CUdevice device, bool details)
                         domains[d], CUPTI_EVENT_DOMAIN_ATTR_NAME,
                         &bytes, &name[0]));
 
-        cout << kTab << "Domain " << d << ": " << name << endl;
+        cout << endl << kTab << "Domain " << d << ": " << name << endl;
         
         if (details)
         {
@@ -118,16 +161,16 @@ void displayEvents(CUdevice device, bool details)
             uint32_t count;
 
             bytes = sizeof(count);
-            CUPTI_CHECK(cuptiEventDomainGetAttribute(
-                            domains[d],
+            CUPTI_CHECK(cuptiDeviceGetEventDomainAttribute(
+                            device, domains[d],
                             CUPTI_EVENT_DOMAIN_ATTR_INSTANCE_COUNT,
                             &bytes, &count));
 
             cout << kTab << kTab << "Instance Count: " << count << endl;
 
             bytes = sizeof(count);
-            CUPTI_CHECK(cuptiEventDomainGetAttribute(
-                            domains[d],
+            CUPTI_CHECK(cuptiDeviceGetEventDomainAttribute(
+                            device, domains[d],
                             CUPTI_EVENT_DOMAIN_ATTR_TOTAL_INSTANCE_COUNT,
                             &bytes, &count));
             
@@ -135,8 +178,8 @@ void displayEvents(CUdevice device, bool details)
             
             CUpti_EventCollectionMethod method;
             bytes = sizeof(method);
-            CUPTI_CHECK(cuptiEventDomainGetAttribute(
-                            domains[d],
+            CUPTI_CHECK(cuptiDeviceGetEventDomainAttribute(
+                            device, domains[d],
                             CUPTI_EVENT_DOMAIN_ATTR_COLLECTION_METHOD,
                             &bytes, &method));
 
@@ -196,8 +239,10 @@ void displayEvents(CUdevice device, bool details)
                                 &bytes, &description
                                 ));
                 
-                cout << kTab << kTab << kTab << "Long Description: "
-                     << description << endl;
+                cout << kTab << kTab << kTab << "Long Description: " << endl
+                     << endl
+                     << wrap(description, 4, 70) << endl
+                     << endl;
 
                 CUpti_EventCategory category;
                 bytes = sizeof(category);
@@ -249,7 +294,7 @@ void displayMetrics(CUdevice device, bool details)
                         metrics[m], CUPTI_METRIC_ATTR_NAME, &bytes, &name[0]
                         ));
         
-        cout << kTab << "Metric " << m << ": " << name << endl;
+        cout << endl << kTab << "Metric " << m << ": " << name << endl;
         
         if (details)
         {
@@ -631,17 +676,13 @@ int main(int argc, char* argv[])
         {
             if (values["events"].as<bool>())
             {
-                cout << endl;
-                cout << "CUPTI Events for CUDA Device " << d << endl;
-                cout << endl;                
+                cout << endl << "CUPTI Events for CUDA Device " << d << endl;
                 displayEvents(devices[d], values["details"].as<bool>());
             }
 
             if (values["metrics"].as<bool>())
             {
-                cout << endl;
-                cout << "CUPTI Metrics for CUDA Device " << d << endl;
-                cout << endl;                
+                cout << endl << "CUPTI Metrics for CUDA Device " << d << endl;
                 displayMetrics(devices[d], values["details"].as<bool>());
             }            
         }
