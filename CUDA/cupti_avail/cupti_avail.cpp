@@ -417,9 +417,7 @@ void displayMetrics(CUdevice device, bool details)
                 CUPTI_CHECK(cuptiMetricEnumEvents(
                                 metrics[m], &bytes, &events[0]
                                 ));
-            }
-            else
-            {            
+
                 cout << endl;
             }
 
@@ -448,9 +446,7 @@ void displayMetrics(CUdevice device, bool details)
                 CUPTI_CHECK(cuptiMetricEnumProperties(
                                 metrics[m], &bytes, &properties[0]
                                 ));
-            }
-            else
-            {
+
                 cout << endl;
             }
 
