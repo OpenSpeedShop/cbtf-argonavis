@@ -33,7 +33,7 @@ using namespace boost;
 using namespace std;
 
 const std::size_t kStringSize = 1024;
-const std::string kTab = "  ";
+const std::string kTab = "    ";
 
 
 
@@ -156,13 +156,12 @@ void displayEvents(CUdevice device, bool details)
                         domains[d], CUPTI_EVENT_DOMAIN_ATTR_NAME,
                         &bytes, &name[0]));
         
-        cout << endl << kTab << "Domain " << d << ": " << name << endl;
+        cout << kTab << "Domain " << d << ": " << name 
+	     << " (ID " << domains[d] << ")" << endl
+	     << endl;
         
         if (details)
         {
-            cout << endl
-                 << kTab << kTab << "ID: " << domains[d] << endl;
-
             uint32_t count;
 
             bytes = sizeof(count);
@@ -170,7 +169,7 @@ void displayEvents(CUdevice device, bool details)
                             device, domains[d],
                             CUPTI_EVENT_DOMAIN_ATTR_INSTANCE_COUNT,
                             &bytes, &count));
-
+	    
             cout << kTab << kTab << "Instance Count: " << count << endl;
 
             bytes = sizeof(count);
@@ -227,13 +226,11 @@ void displayEvents(CUdevice device, bool details)
                             events[e], CUPTI_EVENT_ATTR_NAME, &bytes, &name[0]
                             ));
 
-            cout << kTab << kTab << "Event " << e << ": " << name << endl;
+            cout << kTab << kTab << "Event " << e << ": " << name 
+		 << " (ID " << events[e] << ")" << endl;
 
             if (details)
             {
-                cout << endl
-                     << kTab << kTab << kTab << "ID: " << events[e] << endl;
-
                 char description[kStringSize];
 
                 bytes = sizeof(description);
@@ -283,6 +280,11 @@ void displayEvents(CUdevice device, bool details)
                 cout << endl;
             }
         }
+
+	if (!details)
+	{
+	    cout << endl;
+	}
     }
 }
 
@@ -312,13 +314,11 @@ void displayMetrics(CUdevice device, bool details)
                         metrics[m], CUPTI_METRIC_ATTR_NAME, &bytes, &name[0]
                         ));
         
-        cout << kTab << "Metric " << m << ": " << name << endl;
+        cout << kTab << "Metric " << m << ": " << name 
+	     << " (ID " << metrics[m] << ")" << endl;
         
         if (details)
         {
-            cout << endl
-                 << kTab << kTab << "ID: " << metrics[m] << endl;
-
             char description[kStringSize];
             
             bytes = sizeof(description);
@@ -437,7 +437,8 @@ void displayMetrics(CUdevice device, bool details)
                                 &bytes, &name[0]
                                 ));
                 
-                cout << kTab << kTab << "Event " << e << ": " << name << endl;
+                cout << kTab << kTab << "Event " << e << ": " << name 
+		     << " (ID " << events[e] << ")" << endl;
             }
 
             uint32_t num_properties;
@@ -530,7 +531,8 @@ void displayPasses(int d, CUdevice device, const set<uint32_t>& metrics)
                         id, CUPTI_METRIC_ATTR_NAME, &bytes, &name[0]
                         ));
         
-        cout << kTab << "Metric " << m << ": " << name << endl;
+        cout << kTab << "Metric " << m << ": " << name 
+	     << " (ID " << *i << ")" << endl;
     }
 
     cout << endl;
@@ -585,7 +587,7 @@ void displayPasses(int d, CUdevice device, const set<uint32_t>& metrics)
                 
                 cout << kTab << kTab << kTab 
                      << "Event " << e << ": " << name 
-                     << " (ID = " << events[e] << ") " << endl;
+                     << " (ID " << events[e] << ")" << endl;
             }
         }
     }
@@ -718,7 +720,8 @@ int main(int argc, char* argv[])
             if (values["events"].as<bool>())
             {
                 cout << endl 
-                     << "CUPTI Events for CUDA Device " << d << endl;
+                     << "CUPTI Events for CUDA Device " << d << endl
+		     << endl;
                 displayEvents(devices[d], values["details"].as<bool>());
             }
 
