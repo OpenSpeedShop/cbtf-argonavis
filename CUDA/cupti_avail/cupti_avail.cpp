@@ -392,14 +392,14 @@ void displayMetrics(CUdevice device, bool details)
             }
             cout << endl;
             
-            cout << endl;
-            
             uint32_t num_events;
             CUPTI_CHECK(cuptiMetricGetNumEvents(metrics[m], &num_events));
             
             vector<CUpti_EventID> events(num_events);
             bytes = num_events * sizeof(CUpti_EventID);
             CUPTI_CHECK(cuptiMetricEnumEvents(metrics[m], &bytes, &events[0]));
+            
+            cout << endl;
             
             for (uint32_t e = 0; e < num_events; ++e)
             {
@@ -413,18 +413,20 @@ void displayMetrics(CUdevice device, bool details)
                 cout << kTab << kTab << "Event " << e << ": " << name << endl;
             }
 
-            cout << endl;
-            
             uint32_t num_properties;
             CUPTI_CHECK(cuptiMetricGetNumProperties(
                             metrics[m], &num_properties
                             ));
+
+            cout << "[WDH] num_properties = " << num_properties << endl;
             
             vector<CUpti_MetricPropertyID> properties(num_properties);
             bytes = num_properties * sizeof(CUpti_MetricPropertyID);
             CUPTI_CHECK(cuptiMetricEnumProperties(
                             metrics[m], &bytes, &properties[0]
                             ));
+            
+            cout << endl;
             
             for (uint32_t p = 0; p < num_properties; ++p)
             {
@@ -680,15 +682,18 @@ int main(int argc, char* argv[])
         {
             if (values["events"].as<bool>())
             {
-                cout << endl << "CUPTI Events for CUDA Device " << d << endl;
+                cout << endl 
+                     << "CUPTI Events for CUDA Device " << d << endl;
                 displayEvents(devices[d], values["details"].as<bool>());
             }
 
             if (values["metrics"].as<bool>())
             {
-                cout << endl << "CUPTI Metrics for CUDA Device " << d << endl;
+                cout << endl 
+                     << "CUPTI Metrics for CUDA Device " << d << endl
+                     << endl;
                 displayMetrics(devices[d], values["details"].as<bool>());
-            }            
+            }
         }
         if (!metrics.empty())
         {
