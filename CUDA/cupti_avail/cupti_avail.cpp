@@ -141,9 +141,13 @@ void displayEvents(CUdevice device, bool details)
     CUPTI_CHECK(cuptiDeviceGetNumEventDomains(device, &num_domains));
 
     vector<CUpti_EventDomainID> domains(num_domains);
-    bytes = num_domains * sizeof(CUpti_EventDomainID);
-    CUPTI_CHECK(cuptiDeviceEnumEventDomains(device, &bytes, &domains[0]));
-    
+
+    if (num_domains > 0)
+    {
+        bytes = num_domains * sizeof(CUpti_EventDomainID);
+        CUPTI_CHECK(cuptiDeviceEnumEventDomains(device, &bytes, &domains[0]));
+    }
+
     for (uint32_t d = 0; d < num_domains; d++)
     {
         char name[kStringSize];
@@ -151,7 +155,7 @@ void displayEvents(CUdevice device, bool details)
         CUPTI_CHECK(cuptiEventDomainGetAttribute(
                         domains[d], CUPTI_EVENT_DOMAIN_ATTR_NAME,
                         &bytes, &name[0]));
-
+        
         cout << endl << kTab << "Domain " << d << ": " << name << endl;
         
         if (details)
@@ -205,8 +209,14 @@ void displayEvents(CUdevice device, bool details)
                         ));
 
         vector<CUpti_EventID> events(num_events);
-        bytes = num_events * sizeof(CUpti_EventID);
-        CUPTI_CHECK(cuptiEventDomainEnumEvents(domains[d], &bytes, &events[0]));
+
+        if (num_events > 0)
+        {
+            bytes = num_events * sizeof(CUpti_EventID);
+            CUPTI_CHECK(cuptiEventDomainEnumEvents(
+                            domains[d], &bytes, &events[0]
+                            ));
+        }
 
         for (uint32_t e = 0; e < num_events; ++e)
         {
@@ -283,9 +293,13 @@ void displayMetrics(CUdevice device, bool details)
     CUPTI_CHECK(cuptiDeviceGetNumMetrics(device, &num_metrics));
 
     vector<CUpti_MetricID> metrics(num_metrics);
-    bytes = num_metrics * sizeof(CUpti_MetricID);
-    CUPTI_CHECK(cuptiDeviceEnumMetrics(device, &bytes, &metrics[0]));
 
+    if (num_metrics > 0)
+    {
+        bytes = num_metrics * sizeof(CUpti_MetricID);
+        CUPTI_CHECK(cuptiDeviceEnumMetrics(device, &bytes, &metrics[0]));
+    }
+    
     for (uint32_t m = 0; m < num_metrics; m++)
     {
         char name[kStringSize];
@@ -396,11 +410,19 @@ void displayMetrics(CUdevice device, bool details)
             CUPTI_CHECK(cuptiMetricGetNumEvents(metrics[m], &num_events));
             
             vector<CUpti_EventID> events(num_events);
-            bytes = num_events * sizeof(CUpti_EventID);
-            CUPTI_CHECK(cuptiMetricEnumEvents(metrics[m], &bytes, &events[0]));
-            
-            cout << endl;
-            
+
+            if (num_events > 0)
+            {
+                bytes = num_events * sizeof(CUpti_EventID);
+                CUPTI_CHECK(cuptiMetricEnumEvents(
+                                metrics[m], &bytes, &events[0]
+                                ));
+            }
+            else
+            {            
+                cout << endl;
+            }
+
             for (uint32_t e = 0; e < num_events; ++e)
             {
                 char name[kStringSize];
@@ -418,16 +440,20 @@ void displayMetrics(CUdevice device, bool details)
                             metrics[m], &num_properties
                             ));
 
-            cout << "[WDH] num_properties = " << num_properties << endl;
-            
             vector<CUpti_MetricPropertyID> properties(num_properties);
-            bytes = num_properties * sizeof(CUpti_MetricPropertyID);
-            CUPTI_CHECK(cuptiMetricEnumProperties(
-                            metrics[m], &bytes, &properties[0]
-                            ));
-            
-            cout << endl;
-            
+
+            if (num_properties > 0)
+            {
+                bytes = num_properties * sizeof(CUpti_MetricPropertyID);
+                CUPTI_CHECK(cuptiMetricEnumProperties(
+                                metrics[m], &bytes, &properties[0]
+                                ));
+            }
+            else
+            {
+                cout << endl;
+            }
+
             for (uint32_t p = 0; p < num_properties; ++p)
             {
                 cout << kTab << kTab << "Property " << p << ": ";
