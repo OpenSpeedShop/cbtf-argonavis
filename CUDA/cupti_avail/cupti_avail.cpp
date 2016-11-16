@@ -160,7 +160,8 @@ void displayEvents(CUdevice device, bool details)
         
         if (details)
         {
-            cout << endl;
+            cout << endl
+                 << kTab << kTab << "ID: " << domains[d] << endl;
 
             uint32_t count;
 
@@ -230,6 +231,9 @@ void displayEvents(CUdevice device, bool details)
 
             if (details)
             {
+                cout << endl
+                     << kTab << kTab << kTab << "ID: " << events[e] << endl;
+
                 char description[kStringSize];
 
                 bytes = sizeof(description);
@@ -312,6 +316,9 @@ void displayMetrics(CUdevice device, bool details)
         
         if (details)
         {
+            cout << endl
+                 << kTab << kTab << "ID: " << metrics[m] << endl;
+
             char description[kStringSize];
             
             bytes = sizeof(description);
@@ -457,33 +464,33 @@ void displayMetrics(CUdevice device, bool details)
                 switch (properties[p])
                 {
                 case CUPTI_METRIC_PROPERTY_MULTIPROCESSOR_COUNT:
-                    cout << "Multiprocessor Count" << endl; break;
+                    cout << "Multiprocessor Count"; break;
                 case CUPTI_METRIC_PROPERTY_WARPS_PER_MULTIPROCESSOR:
-                    cout << "Warps/Multiprocessor" << endl; break;
+                    cout << "Warps/Multiprocessor"; break;
                 case CUPTI_METRIC_PROPERTY_KERNEL_GPU_TIME:
-                    cout << "Kernel GPU Time" << endl; break;
+                    cout << "Kernel GPU Time"; break;
                 case CUPTI_METRIC_PROPERTY_CLOCK_RATE:
-                    cout << "Clock Rate" << endl; break;
+                    cout << "Clock Rate"; break;
                 case CUPTI_METRIC_PROPERTY_FRAME_BUFFER_COUNT:
-                    cout << "Frame Buffer Count" << endl; break;
+                    cout << "Frame Buffer Count"; break;
                 case CUPTI_METRIC_PROPERTY_GLOBAL_MEMORY_BANDWIDTH:
-                    cout << "Global Memory Bandwidth" << endl; break;
+                    cout << "Global Memory Bandwidth"; break;
                 case CUPTI_METRIC_PROPERTY_PCIE_LINK_RATE:
-                    cout << "PCIe Link Rate" << endl; break;
+                    cout << "PCIe Link Rate"; break;
                 case CUPTI_METRIC_PROPERTY_PCIE_LINK_WIDTH:
-                    cout << "PCIe Link Width" << endl; break;
+                    cout << "PCIe Link Width"; break;
                 case CUPTI_METRIC_PROPERTY_PCIE_GEN:
-                    cout << "PCIe Generation" << endl; break;
+                    cout << "PCIe Generation"; break;
                 case CUPTI_METRIC_PROPERTY_DEVICE_CLASS:
-                    cout << "Device Class" << endl; break;
+                    cout << "Device Class"; break;
                 case CUPTI_METRIC_PROPERTY_FLOP_SP_PER_CYCLE:
-                    cout << "Single-Precision FLOPS/Cycle" << endl; break;
+                    cout << "Single-Precision FLOPS/Cycle"; break;
                 case CUPTI_METRIC_PROPERTY_FLOP_DP_PER_CYCLE:
-                    cout << "Double-Precision FLOPS/Cycle" << endl; break;
+                    cout << "Double-Precision FLOPS/Cycle"; break;
                 case CUPTI_METRIC_PROPERTY_L2_UNITS:
-                    cout << "L2 Unit Count" << endl; break;
+                    cout << "L2 Unit Count"; break;
                 case CUPTI_METRIC_PROPERTY_ECC_ENABLED:
-                    cout << "ECC Enabled" << endl; break;
+                    cout << "ECC Enabled"; break;
                 default: cout << "?";
                 }
                 cout << endl;
@@ -556,11 +563,15 @@ void displayPasses(int d, CUdevice device, const set<uint32_t>& metrics)
                             ));
             
             vector<CUpti_EventID> events(num_events);
-            bytes = num_events * sizeof(CUpti_EventID);
-            CUPTI_CHECK(cuptiEventGroupGetAttribute(
-                            group, CUPTI_EVENT_GROUP_ATTR_EVENTS,
-                            &bytes, &events[0]
-                            ));
+
+            if (num_events > 0)
+            {
+                bytes = num_events * sizeof(CUpti_EventID);
+                CUPTI_CHECK(cuptiEventGroupGetAttribute(
+                                group, CUPTI_EVENT_GROUP_ATTR_EVENTS,
+                                &bytes, &events[0]
+                                ));
+            }
 
             for (uint32_t e = 0; e < num_events; ++e)
             {
