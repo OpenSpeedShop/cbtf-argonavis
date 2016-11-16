@@ -220,8 +220,6 @@ void displayEvents(CUdevice device, bool details)
 
             if (details)
             {
-                cout << endl;
-                
                 char description[kStringSize];
 
                 bytes = sizeof(description);
@@ -230,7 +228,8 @@ void displayEvents(CUdevice device, bool details)
                                 &bytes, &description
                                 ));
                 
-                cout << kTab << kTab << kTab << "Short Description: "
+                cout << endl 
+                     << kTab << kTab << kTab << "Short Description: "
                      << description << endl;
             
                 bytes = sizeof(description);
@@ -239,10 +238,10 @@ void displayEvents(CUdevice device, bool details)
                                 &bytes, &description
                                 ));
                 
-                cout << kTab << kTab << kTab << "Long Description: " << endl
+                cout << endl 
+                     << kTab << kTab << kTab << "Long Description: " << endl
                      << endl
-                     << wrap(description, 4, 70) << endl
-                     << endl;
+                     << wrap(description, 4, 75) << endl;
 
                 CUpti_EventCategory category;
                 bytes = sizeof(category);
@@ -251,7 +250,8 @@ void displayEvents(CUdevice device, bool details)
                                 &bytes, &category
                                 ));
                 
-                cout << kTab << kTab << kTab << "Category: ";
+                cout << endl
+                     << kTab << kTab << kTab << "Category: ";
                 switch (category)
                 {
                 case CUPTI_EVENT_CATEGORY_INSTRUCTION:
@@ -294,12 +294,10 @@ void displayMetrics(CUdevice device, bool details)
                         metrics[m], CUPTI_METRIC_ATTR_NAME, &bytes, &name[0]
                         ));
         
-        cout << endl << kTab << "Metric " << m << ": " << name << endl;
+        cout << kTab << "Metric " << m << ": " << name << endl;
         
         if (details)
         {
-            cout << endl;
-            
             char description[kStringSize];
             
             bytes = sizeof(description);
@@ -308,7 +306,8 @@ void displayMetrics(CUdevice device, bool details)
                             &bytes, &description
                             ));
             
-            cout << kTab << kTab << "Short Description: "
+            cout << endl
+                 << kTab << kTab << "Short Description: "
                  << description << endl;
             
             bytes = sizeof(description);
@@ -316,10 +315,12 @@ void displayMetrics(CUdevice device, bool details)
                             metrics[m], CUPTI_METRIC_ATTR_LONG_DESCRIPTION,
                             &bytes, &description
                             ));
-            
-            cout << kTab << kTab << "Long Description: "
-                 << description << endl;
-            
+
+            cout << endl 
+                 << kTab << kTab << "Long Description: " << endl
+                 << endl
+                 << wrap(description, 3, 75) << endl;
+
             CUpti_MetricCategory category;
             bytes = sizeof(category);
             CUPTI_CHECK(cuptiMetricGetAttribute(
@@ -327,7 +328,8 @@ void displayMetrics(CUdevice device, bool details)
                             &bytes, &category
                             ));
             
-            cout << kTab << kTab << "Category: ";
+            cout << endl
+                 << kTab << kTab << "Category: ";
             switch (category)
             {
             case CUPTI_METRIC_CATEGORY_MEMORY:
@@ -351,7 +353,8 @@ void displayMetrics(CUdevice device, bool details)
                             &bytes, &kind
                             ));
             
-            cout << kTab << kTab << "Value Kind: ";
+            cout << endl
+                 << kTab << kTab << "Value Kind: ";
             switch (category)
             {
             case CUPTI_METRIC_VALUE_KIND_DOUBLE:
@@ -377,7 +380,8 @@ void displayMetrics(CUdevice device, bool details)
                             &bytes, &mode
                             ));
 
-            cout << kTab << kTab << "Evaluation Mode: ";
+            cout << endl
+                 << kTab << kTab << "Evaluation Mode: ";
             switch (mode)
             {
             case CUPTI_METRIC_EVALUATION_MODE_PER_INSTANCE:
