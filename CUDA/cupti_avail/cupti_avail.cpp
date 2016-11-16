@@ -535,7 +535,6 @@ void displayPasses(int d, CUdevice device, const set<uint32_t>& metrics)
 
     cout << endl;
     cout << "requires the following event collection passes:" << endl;
-    cout << endl;
 
     CUcontext context;
     CUDA_CHECK(cuCtxCreate(&context, 0, device));
@@ -547,11 +546,11 @@ void displayPasses(int d, CUdevice device, const set<uint32_t>& metrics)
     
     for (uint32_t p = 0; p < passes->numSets; ++p)
     {
-        cout << kTab << "Pass " << p << endl;
+        cout << endl << kTab << "Pass " << p << endl;
 
         for (uint32_t g = 0; g < passes->sets[p].numEventGroups; ++g)
         {
-            cout << kTab << kTab << "Event Group " << g << endl;
+            cout << endl << kTab << kTab << "Event Group " << g << endl;
 
             CUpti_EventGroup group = passes->sets[p].eventGroups[g];
 
@@ -571,6 +570,8 @@ void displayPasses(int d, CUdevice device, const set<uint32_t>& metrics)
                                 group, CUPTI_EVENT_GROUP_ATTR_EVENTS,
                                 &bytes, &events[0]
                                 ));
+
+                cout << endl;
             }
 
             for (uint32_t e = 0; e < num_events; ++e)
@@ -583,7 +584,8 @@ void displayPasses(int d, CUdevice device, const set<uint32_t>& metrics)
                                 ));
                 
                 cout << kTab << kTab << kTab 
-                     << "Event " << e << ": " << name << endl;
+                     << "Event " << e << ": " << name 
+                     << " (ID = " << events[e] << ") " << endl;
             }
         }
     }
