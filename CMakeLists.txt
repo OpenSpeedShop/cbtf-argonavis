@@ -43,17 +43,10 @@ find_package(Boost 1.39.0 REQUIRED
     )
 find_package(CBTF REQUIRED)
 find_package(CBTF-Krell REQUIRED)
-<<<<<<< HEAD
 find_package(CUDA 5.0 REQUIRED)
 find_package(CUPTI 2 REQUIRED)
 find_package(MRNet REQUIRED)
 find_package(PAPI 5.4.0 REQUIRED)
-=======
-find_package(CUDA)
-find_package(CUPTI 2)
-find_package(MRNet)
-find_package(PAPI 5.4.0)
->>>>>>> origin
 find_package(Threads REQUIRED)
 
 if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
