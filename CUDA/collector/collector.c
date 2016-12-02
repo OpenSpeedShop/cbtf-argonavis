@@ -237,6 +237,15 @@ static void* sampling_thread(void* arg)
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
 
+    /*
+     * Change the POSIX TID in this thread's data header from its original
+     * value to the fixed "magic number" FFBADC0DABEEF000. This indicates
+     * to libargonavis-cuda that this thread is, specifically, the special
+     * thread created by the collector in order to properly collect CUPTI
+     * (GPU) metrics and events.
+     */
+    tls->data_header.posix_tid = (int64_t)0xFBADC0DABEEF0000ull;
+
     /* Loop until cbtf_collector_stop() tells us to exit */
     while (!ExitSamplingThread)
     {
