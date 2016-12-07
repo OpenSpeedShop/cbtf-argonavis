@@ -19,6 +19,7 @@
 /** @file Definition of PAPI functions. */
 
 #include <inttypes.h>
+#include <monitor.h>
 #if defined(PAPI_FOUND)
 #include <papi.h>
 #endif
@@ -27,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Messages/CUDA_data.h>
 
@@ -46,25 +48,27 @@
  *
  * @param x    PAPI function call to be checked.
  */
-#define PAPI_CHECK(x)                                               \
-    do {                                                            \
-        int RETVAL = x;                                             \
-        if ((RETVAL != PAPI_OK) && (RETVAL != PAPI_VER_CURRENT))    \
-        {                                                           \
-            const char* description = PAPI_strerror(RETVAL);        \
-            if (description != NULL)                                \
-            {                                                       \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d (%s)\n", \
-                        __func__, #x, RETVAL, description);         \
-            }                                                       \
-            else                                                    \
-            {                                                       \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d\n",      \
-                        __func__, #x, RETVAL);                      \
-            }                                                       \
-            fflush(stderr);                                         \
-            abort();                                                \
-        }                                                           \
+#define PAPI_CHECK(x)                                                \
+    do {                                                             \
+        int RETVAL = x;                                              \
+        if ((RETVAL != PAPI_OK) && (RETVAL != PAPI_VER_CURRENT))     \
+        {                                                            \
+            const char* description = PAPI_strerror(RETVAL);         \
+            if (description != NULL)                                 \
+            {                                                        \
+                fprintf(stderr, "[CUDA %d:%d] %s(): %s = %d (%s)\n", \
+                        getpid(), monitor_get_thread_num(),          \
+                        __func__, #x, RETVAL, description);          \
+            }                                                        \
+            else                                                     \
+            {                                                        \
+                fprintf(stderr, "[CUDA %d:%d] %s(): %s = %d\n",      \
+                        getpid(), monitor_get_thread_num(),          \
+                        __func__, #x, RETVAL);                       \
+            }                                                        \
+            fflush(stderr);                                          \
+            abort();                                                 \
+        }                                                            \
     } while (0)
 #endif
 
@@ -148,7 +152,8 @@ void PAPI_initialize()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] PAPI_initialize()\n");
+        printf("[CUDA %d:%d] PAPI_initialize()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -170,7 +175,8 @@ void PAPI_start_data_collection()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] PAPI_start_data_collection()\n");
+        printf("[CUDA %d:%d] PAPI_start_data_collection()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -195,13 +201,13 @@ void PAPI_start_data_collection()
             continue;
         }
 
-	if (PAPI_query_event(code) != PAPI_OK)
-	{
-	    fprintf(stderr, "[CBTF/CUDA] "
-		    "CPU event \"%s\" is not available on this system\n",
-		    event->name);
-	    continue;
-	}
+        if (PAPI_query_event(code) != PAPI_OK)
+        {
+            fprintf(stderr, "[CUDA %d:%d] "
+                    "CPU event \"%s\" is not available on this system\n",
+                    getpid(), monitor_get_thread_num(), event->name);
+            continue;
+        }
         
         /* Look up the component for this event code */
         int component = PAPI_get_event_component(code);
@@ -256,7 +262,8 @@ void PAPI_start_data_collection()
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] recording CPU event \"%s\" for thread %p\n",
+            printf("[CUDA %d:%d] recording CPU event \"%s\" for thread %p\n",
+                   getpid(), monitor_get_thread_num(),
                    event->name, (void*)pthread_self());
         }
 #endif
@@ -313,7 +320,8 @@ void PAPI_stop_data_collection()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] PAPI_stop_data_collection()\n");
+        printf("[CUDA %d:%d] PAPI_stop_data_collection()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -349,7 +357,8 @@ void PAPI_finalize()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] PAPI_finalize()\n");
+        printf("[CUDA %d:%d] PAPI_finalize()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 

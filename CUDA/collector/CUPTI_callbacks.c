@@ -20,7 +20,9 @@
 
 #include <cupti.h>
 #include <malloc.h>
+#include <monitor.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Messages/CUDA_data.h>
 
@@ -219,7 +221,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] enter cuLaunchKernel()\n");
+                        printf("[CUDA %d:%d] enter cuLaunchKernel()\n",
+                               getpid(), monitor_get_thread_num());
                     }
 #endif
 
@@ -334,7 +337,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] enter cuMemcpy*()\n");
+                        printf("[CUDA %d:%d] enter cuMemcpy*()\n",
+                               getpid(), monitor_get_thread_num());
                     }
 #endif
 
@@ -393,8 +397,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] created context %p\n",
-                               rdata->context);
+                        printf("[CUDA %d:%d] created context %p\n", getpid(),
+                               monitor_get_thread_num(), rdata->context);
                     }
 #endif
 
@@ -417,8 +421,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] destroying context %p\n",
-                               rdata->context);
+                        printf("[CUDA %d:%d] destroying context %p\n", getpid(),
+                               monitor_get_thread_num(), rdata->context);
                     }
 #endif
 
@@ -442,7 +446,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] created stream %p in context %p\n",
+                        printf("[CUDA %d:%d] created stream %p in context %p\n",
+                               getpid(), monitor_get_thread_num(),
                                rdata->resourceHandle.stream, rdata->context);
                     }
 #endif
@@ -475,8 +480,9 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] "
+                        printf("[CUDA %d:%d] "
                                "destroying stream %p in context %p\n",
+                               getpid(), monitor_get_thread_num(),
                                rdata->resourceHandle.stream, rdata->context);
                     }
 #endif
@@ -515,7 +521,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] synchronized context %p\n",
+                        printf("[CUDA %d:%d] synchronized context %p\n",
+                               getpid(), monitor_get_thread_num(),
                                sdata->context);
                     }
 #endif
@@ -537,8 +544,9 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] "
+                        printf("[CUDA %d:%d] "
                                "synchronized stream %p in context %p\n",
+                               getpid(), monitor_get_thread_num(),
                                sdata->stream, sdata->context);
                     }
 #endif
@@ -576,7 +584,8 @@ void CUPTI_callbacks_subscribe()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_callbacks_subscribe()\n");
+        printf("[CUDA %d:%d] CUPTI_callbacks_subscribe()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -596,7 +605,8 @@ void CUPTI_callbacks_unsubscribe()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_callbacks_unsubscribe()\n");
+        printf("[CUDA %d:%d] CUPTI_callbacks_unsubscribe()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
