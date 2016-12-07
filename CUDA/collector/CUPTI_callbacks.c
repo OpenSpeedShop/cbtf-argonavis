@@ -221,7 +221,7 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CUDA %d:%d] enter cuLaunchKernel()\n",
+                        printf("[CUDA %d:%d] enter cuLaunch*()\n",
                                getpid(), monitor_get_thread_num());
                     }
 #endif
