@@ -103,7 +103,8 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] parse_configuration(\"%s\")\n", configuration);
+        printf("[CUDA %d:%d] parse_configuration(\"%s\")\n",
+               getpid(), monitor_get_thread_num(), configuration);
     }
 #endif
 
@@ -121,9 +122,9 @@ static void parse_configuration(const char* const configuration)
     
     if (strlen(configuration) >= sizeof(copy))
     {
-        fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
+        fprintf(stderr, "[CUDA %d:%d] parse_configuration(): "
                 "Configuration string \"%s\" exceeds the maximum "
-                "support length (%llu)!\n",
+                "support length (%llu)!\n", getpid(), monitor_get_thread_num(),
                 configuration, (unsigned long long)(sizeof(copy) - 1));
         fflush(stderr);
         abort();
@@ -152,9 +153,10 @@ static void parse_configuration(const char* const configuration)
             /* Warn if the samping interval was invalid */
             if (interval <= 0)
             {
-                fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
+                fprintf(stderr, "[CUDA %d:%d] parse_configuration(): "
                         "An invalid sampling interval (\"%s\") was "
-                        "specified!\n", ptr + strlen(kIntervalPrefix));
+                        "specified!\n", getpid(), monitor_get_thread_num(),
+                        ptr + strlen(kIntervalPrefix));
                 fflush(stderr);
                 abort();
             }
@@ -164,8 +166,9 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
             if (IsDebugEnabled)
             {
-                printf("[CBTF/CUDA] parse_configuration(): "
+                printf("[CUDA %d:%d] parse_configuration(): "
                        "sampling interval = %llu nS\n",
+                       getpid(), monitor_get_thread_num(),
                        (long long unsigned)TheSamplingConfig.interval);
             }
 #endif
@@ -175,9 +178,10 @@ static void parse_configuration(const char* const configuration)
             /* Warn if the maximum supported sampled events was reached */
             if (TheSamplingConfig.events.events_len == MAX_EVENTS)
             {
-                fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
+                fprintf(stderr, "[CUDA %d:%d] parse_configuration(): "
                         "Maximum supported number of concurrently sampled"
-                        "events (%d) was reached!\n", MAX_EVENTS);
+                        "events (%d) was reached!\n",
+                        getpid(), monitor_get_thread_num(), MAX_EVENTS);
                 fflush(stderr);
                 abort();
             }
@@ -197,8 +201,9 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
                 if (IsDebugEnabled)
                 {
-                    printf("[CBTF/CUDA] parse_configuration(): "
+                    printf("[CUDA %d:%d] parse_configuration(): "
                            "event name = \"%s\", threshold = %d\n",
+                           getpid(), monitor_get_thread_num(),
                            event->name, event->threshold);
                 }
 #endif
@@ -212,8 +217,9 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
                 if (IsDebugEnabled)
                 {
-                    printf("[CBTF/CUDA] parse_configuration(): "
-                           "event name = \"%s\"\n", event->name);
+                    printf("[CUDA %d:%d] parse_configuration(): "
+                           "event name = \"%s\"\n", 
+                           getpid(), monitor_get_thread_num(), event->name);
                 }
 #endif
             }
@@ -234,6 +240,14 @@ static void parse_configuration(const char* const configuration)
  */
 static void* sampling_thread(void* arg)
 {
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CUDA %d:%d] sampling_thread()\n",
+               getpid(), monitor_get_thread_num());
+    }
+#endif
+
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
 
@@ -244,7 +258,7 @@ static void* sampling_thread(void* arg)
      * thread created by the collector in order to properly collect CUPTI
      * (GPU) metrics and events.
      */
-    tls->data_header.posix_tid = (int64_t)0xFBADC0DABEEF0000ull;
+    //tls->data_header.posix_tid = (int64_t)0xFBADC0DABEEF0000ull;
 
     /* Loop until cbtf_collector_stop() tells us to exit */
     while (!ExitSamplingThread)
@@ -308,7 +322,8 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_start()\n");
+        printf("[CUDA %d:%d] cbtf_collector_start()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -328,8 +343,9 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_start(): "
+        printf("[CUDA %d:%d] cbtf_collector_start(): "
                "ThreadCount.value = %d --> %d\n",
+               getpid(), monitor_get_thread_num(),
                ThreadCount.value, ThreadCount.value + 1);
     }
 #endif
@@ -342,9 +358,11 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] cbtf_collector_start()\n");
-            printf("[CBTF/CUDA] cbtf_collector_start(): "
+            printf("[CUDA %d:%d] cbtf_collector_start()\n",
+                   getpid(), monitor_get_thread_num());
+            printf("[CUDA %d:%d] cbtf_collector_start(): "
                    "ThreadCount.value = %d --> %d\n",
+                   getpid(), monitor_get_thread_num(),
                    ThreadCount.value, ThreadCount.value + 1);
         }
 #endif
@@ -421,7 +439,8 @@ void cbtf_collector_pause()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_pause()\n");
+        printf("[CUDA %d:%d] cbtf_collector_pause()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -442,7 +461,8 @@ void cbtf_collector_resume()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_resume()\n");
+        printf("[CUDA %d:%d] cbtf_collector_resume()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -463,7 +483,8 @@ void cbtf_collector_stop()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_stop()\n");
+        printf("[CUDA %d:%d] cbtf_collector_stop()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -487,8 +508,9 @@ void cbtf_collector_stop()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_stop(): "
+        printf("[CUDA %d:%d] cbtf_collector_stop(): "
                "ThreadCount.value = %d --> %d\n",
+               getpid(), monitor_get_thread_num(),
                ThreadCount.value, ThreadCount.value - 1);
     }
 #endif

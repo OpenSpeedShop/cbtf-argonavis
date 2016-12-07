@@ -19,8 +19,10 @@
 /** @file Definition of the TLS support functions. */
 
 #include <malloc.h>
+#include <monitor.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
@@ -228,8 +230,9 @@ void TLS_send_data(TLS* tls)
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] TLS_send_data(): "
+            printf("[CUDA %d:%d] TLS_send_data(): "
                    "sending CBTF_cuda_data message (%u msg, %u pc)\n",
+                   getpid(), monitor_get_thread_num(),
                    tls->data.messages.messages_len,
                    tls->data.stack_traces.stack_traces_len);
         }
