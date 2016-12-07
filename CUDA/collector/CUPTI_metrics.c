@@ -245,7 +245,7 @@ void CUPTI_metrics_start(CUcontext context)
         {
             /* Enable continuous event sampling for this context */
             CUPTI_CHECK(cuptiSetEventCollectionMode(
-                            context, CUPTI_EVENT_COLLECTION_MODE_CONTINUOUS
+                            context, CUPTI_EVENT_COLLECTION_MODE_KERNEL
                             ));
             
             /* Enable collection of the event group set */

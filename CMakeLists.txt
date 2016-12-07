@@ -47,6 +47,7 @@ find_package(CUDA)
 find_package(CUPTI 2)
 find_package(MRNet)
 find_package(PAPI 5.4.0)
+find_package(LibMonitor)
 find_package(Threads REQUIRED)
 
 if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
