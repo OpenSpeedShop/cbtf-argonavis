@@ -19,8 +19,6 @@
 /** @file Definition of the PerformanceData class. */
 
 #include <boost/assert.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/optional.hpp>
 #include <map>
 #include <stddef.h>
 
@@ -81,17 +79,6 @@ namespace {
     }
     
 } // namespace <anonymous>
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-bool PerformanceData::isCollectorThread(const Base::ThreadName& thread)
-{
-    const boost::optional<boost::uint64_t>& tid = thread.tid();
-
-    return tid && ((*tid && 0xFFFFFFFFFFFF0000ull) == 0xFBADC0DABEEF0000ull);
-}
 
 
 

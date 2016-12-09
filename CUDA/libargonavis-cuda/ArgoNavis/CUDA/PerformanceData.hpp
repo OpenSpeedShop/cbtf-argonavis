@@ -54,19 +54,6 @@ namespace ArgoNavis { namespace CUDA {
     public:
 
         /**
-         * Test if the specified thread is one of the special threads created
-         * by the collector in order to properly collect CUPTI (GPU) metrics
-         * and events. Such threads <em>only</em> contain hardware performance
-         * counter data for the GPU. No other performance data will be present.
-         *
-         * @param thread    Name of the thread to be tested.
-         * @return          Boolean "true" if the thread is one of the
-         *                  special threads created by the collector, or
-         *                  "false" otherwise.
-         */
-        static bool isCollectorThread(const Base::ThreadName& thread);
-
-        /**
          * Visit the PC (program counter) addresses within the given message.
          *
          * @param message    Message containing the performance data.
