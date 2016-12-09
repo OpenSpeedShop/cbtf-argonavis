@@ -258,7 +258,7 @@ static void* sampling_thread(void* arg)
      * thread created by the collector in order to properly collect CUPTI
      * (GPU) metrics and events.
      */
-    //tls->data_header.posix_tid = (int64_t)0xFBADC0DABEEF0000ull;
+    tls->data_header.posix_tid = (int64_t)0xFBADC0DABEEF0000ull;
 
     /* Loop until cbtf_collector_stop() tells us to exit */
     while (!ExitSamplingThread)
