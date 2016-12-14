@@ -768,7 +768,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 ("id", stringify(value.id))
                 ("host", stringify(value.host))
                 ("pid", stringify(value.pid))
-                ("posix_tid", stringify(value.posix_tid))
+                ("posix_tid",
+                 stringify(static_cast<boost::uint64_t>(value.posix_tid)))
                 ("rank", stringify(value.rank))
                 ("omp_tid", stringify(value.omp_tid))
                 ("time_begin", stringify(value.time_begin))

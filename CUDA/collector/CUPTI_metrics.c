@@ -452,6 +452,7 @@ void CUPTI_metrics_start(CUcontext context)
         memcpy(&Metrics.values[i].tls.data_header, &tls->data_header,
                sizeof(CBTF_DataHeader));
         Metrics.values[i].tls.data_header.posix_tid = (int64_t)(context);
+        Metrics.values[i].tls.data_header.omp_tid = -1;
         TLS_initialize_data(&Metrics.values[i].tls);
         
         /** Ensure upstream processes know about this "thread" */
