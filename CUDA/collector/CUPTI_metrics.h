@@ -24,6 +24,12 @@
 
 #include "TLS.h"
 
+/* Flag indicating if CUDA kernel execution is to be serialized. */
+extern bool CUPTI_metrics_do_kernel_serialization;
+
+/* Initialize CUPTI metrics data collection for this process. */
+void CUPTI_metrics_initialize();
+
 /*
  * Start CUPTI metrics data collection for the specified CUDA context.
  *
@@ -32,12 +38,24 @@
 void CUPTI_metrics_start(CUcontext context);
 
 /*
- * Sample the CUPTI metrics for all active CUDA contexts.
+ * Sample the CUPTI metrics for the specified CUDA context.
  *
- * @param tls       Thread-local storage of the current thread.
- * @param sample    Periodic sample to hold the CUPTI metric counts.
+ * @param context    CUDA context for which a sample is to be taken.
  */
-void CUPTI_metrics_sample(TLS* tls, PeriodicSample* sample);
+void CUPTI_metrics_sample(CUcontext context);
+
+/*
+ * Thread function implementing the sampling of CUPTI metrics data collection.
+ *
+ * @param arg    Unused.
+ * @return       Always returns NULL.
+ *
+ * @note    The only reason this thread function isn't completely hidden
+ *          inside the source file is that cbtf_collector_[start&stop]()
+ *          needs the thread's address to suppress PAPI event collection
+ *          for this thread.
+ */
+void* CUPTI_metrics_sampling_thread(void* arg);
 
 /*
  * Stop CUPTI metrics data collection for the specified CUDA context.
@@ -45,3 +63,6 @@ void CUPTI_metrics_sample(TLS* tls, PeriodicSample* sample);
  * @param context    CUDA context for which data collection is to be stopped.
  */
 void CUPTI_metrics_stop(CUcontext context);
+
+/* Finalize CUPTI metrics data collection for this process. */
+void CUPTI_metrics_finalize();

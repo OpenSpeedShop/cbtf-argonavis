@@ -33,14 +33,17 @@
 #include <KrellInstitute/Messages/CUDA_data.h>
 
 #include <KrellInstitute/Services/Assert.h>
+#include <KrellInstitute/Services/Timer.h>
 
 #include "collector.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
+#include "TLS.h"
 
 
 
 #if defined(PAPI_FOUND)
+
 /**
  * Checks that the given PAPI function call returns the value "PAPI_OK" or
  * "PAPI_VER_CURRENT". If the call was unsuccessful, the returned error is
@@ -70,11 +73,9 @@
             abort();                                                 \
         }                                                            \
     } while (0)
-#endif
 
 
 
-#if defined(PAPI_FOUND)
 /**
  * Callback invoked by PAPI every time an event counter overflows. I.e. reaches
  * the threshold value previously specified in parse_configuration().
@@ -138,6 +139,51 @@ static void papi_callback(int event_set, void* address,
     /* Add this sample to the performance data blob for this thread */
     TLS_add_overflow_sample(tls, &sample);
 }
+
+
+
+/**
+ * Callback invoked by the timer service every time a timer interrupt occurs.
+ *
+ * @param context    Thread context at this timer interrupt.
+ */
+static void timer_callback(const ucontext_t* context)
+{
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Do nothing if data collection is paused for this thread */
+    if (tls->paused)
+    {
+        return;
+    }
+
+    /* Initialize a new periodic sample */
+    PeriodicSample sample;
+    memset(&sample, 0, sizeof(PeriodicSample));
+    sample.time = CBTF_GetTime();
+
+    /* Read the counters for each of our event sets */
+    int s;
+    for (s = 0; s < tls->papi_event_set_count; ++s)
+    {
+        long long counts[MAX_EVENTS];
+        PAPI_CHECK(PAPI_read(tls->papi_event_sets[s].event_set,
+                             (long long*)&counts));
+        
+        int e;
+        for (e = 0; e < tls->papi_event_sets[s].event_count; ++e)
+        {
+            sample.count[
+                tls->papi_event_sets[s].event_to_periodic[e]
+                ] = counts[e];
+        }
+    }
+    
+    /* Add this sample to the performance data blob for this thread */
+    TLS_add_periodic_sample(tls, &sample);
+}
+
 #endif
 
 
@@ -275,36 +321,9 @@ void PAPI_start_data_collection()
     {
         PAPI_CHECK(PAPI_start(tls->papi_event_sets[s].event_set));
     }
-#endif
-}
 
-
-
-/**
- * Sample the PAPI events for the current thread.
- *
- * @param tls       Thread-local storage of the current thread.
- * @param sample    Periodic sample to hold the PAPI event counts.
- */
-void PAPI_sample(TLS* tls, PeriodicSample* sample)
-{
-#if defined(PAPI_FOUND)
-    /* Read the counters for each of our event sets */
-    int s;
-    for (s = 0; s < tls->papi_event_set_count; ++s)
-    {
-        long long counts[MAX_EVENTS];
-        PAPI_CHECK(PAPI_read(tls->papi_event_sets[s].event_set,
-                             (long long*)&counts));
-        
-        int e;
-        for (e = 0; e < tls->papi_event_sets[s].event_count; ++e)
-        {
-            sample->count[
-                tls->papi_event_sets[s].event_to_periodic[e]
-                ] = counts[e];
-        }
-    }
+    /* Start the periodic sampling timer for this thread */
+    CBTF_Timer(TheSamplingConfig.interval, timer_callback);
 #endif
 }
 
@@ -327,6 +346,9 @@ void PAPI_stop_data_collection()
 
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
+
+    /* Stop the periodic sampling timer for this thread */
+    CBTF_Timer(0, NULL);
 
     /* Stop the sampling of our event sets */
     int s;

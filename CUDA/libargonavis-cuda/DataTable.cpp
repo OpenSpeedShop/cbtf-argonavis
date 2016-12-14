@@ -488,6 +488,43 @@ void DataTable::process(const Base::ThreadName& thread,
 
 
 //------------------------------------------------------------------------------
+// Note that it doesn't matter whether we search the partial data transfers or
+// kernel executions for the device information as both tables contain exactly
+// the same CUDA context to device mapping.
+//------------------------------------------------------------------------------
+boost::optional<std::size_t> DataTable::device(const ThreadName& thread) const
+{
+    PerProcessData& per_process = 
+        const_cast<DataTable*>(this)->accessPerProcessData(thread);
+    
+    try
+    {
+        boost::optional<boost::uint64_t> tid = thread.tid();
+         
+        if (!tid)
+        {
+            return boost::none;
+        }
+
+        Address context = *tid;
+        
+        boost::uint32_t id = 
+            per_process.dm_partial_data_transfers.device(context);
+
+        std::size_t index =
+            per_process.dm_partial_data_transfers.index(id);
+        
+        return index;            
+    }
+    catch (...)
+    {
+        return boost::none;
+    }
+}
+
+
+
+//------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 void DataTable::visitBlobs(const Base::ThreadName& thread,
                            const Base::BlobVisitor& visitor) const

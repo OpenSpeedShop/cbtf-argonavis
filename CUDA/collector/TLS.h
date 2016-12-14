@@ -59,7 +59,7 @@
  *          concurrent events supported by any particular hardware. It is
  *          the maximum supported by this performance data collector.
  */
-#define MAX_EVENTS 16
+#define MAX_EVENTS 32
 
 /**
  * Maximum number of individual (CBTF_cuda_message) messages contained within

@@ -21,6 +21,7 @@
 #include <cupti.h>
 #include <malloc.h>
 #include <monitor.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -34,9 +35,9 @@
 #include "CUPTI_callbacks.h"
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
-#include "CUPTI_events.h"
 #include "CUPTI_metrics.h"
 #include "CUPTI_stream.h"
+#include "Pthread_check.h"
 #include "TLS.h"
 
 
@@ -55,6 +56,9 @@
 
 /** CUPTI subscriber handle for this collector. */
 static CUpti_SubscriberHandle Handle;
+
+/** Mutex used to serialization kernel execution (when necessary). */
+pthread_mutex_t KernelSerializationMutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 
@@ -168,9 +172,6 @@ static void callback(void* userdata,
         {
             /* Start CUPTI metrics collection for this context */
             CUPTI_metrics_start(((CUpti_ResourceData*)data)->context);
-
-            /* Start CUPTI events collection for this context */
-            CUPTI_events_start(((CUpti_ResourceData*)data)->context);
         }
     }
     
@@ -180,9 +181,6 @@ static void callback(void* userdata,
     {
         if (TheSamplingConfig.events.events_len > 0)
         {
-            /* Stop CUPTI events collection for this context */
-            CUPTI_events_stop(((CUpti_ResourceData*)data)->context);
-
             /* Stop CUPTI metrics collection for this context */
             CUPTI_metrics_stop(((CUpti_ResourceData*)data)->context);
         }
@@ -228,6 +226,14 @@ static void callback(void* userdata,
 
                     /* Add the context ID to pointer mapping */
                     CUPTI_context_add(cbdata->contextUid, cbdata->context);
+
+                    /* Obtain the kernel serialization mutex if required */
+                    if (CUPTI_metrics_do_kernel_serialization)
+                    {
+                        PTHREAD_CHECK(pthread_mutex_lock(
+                                          &KernelSerializationMutex
+                                          ));
+                    }
                     
                     /*
                      * Add a message for this event.
@@ -258,6 +264,30 @@ static void callback(void* userdata,
                     message->call_site = call_site;
                     
                     TLS_update_header_with_time(tls, message->time);
+                }
+                else if (cbdata->callbackSite == CUPTI_API_EXIT)
+                {
+                    /* Sample the CUPTI metrics for this CUDA context */
+                    CUPTI_metrics_sample(cbdata->context);
+                    
+                    /* Release the kernel serialization mutex if required */
+                    if (CUPTI_metrics_do_kernel_serialization)
+                    {
+                        /*
+                         * Checking of pthread_mutex_unlock()'s return value
+                         * is intentionally skipped here. The only documented
+                         * return value other than 0 is EPERM, which indicates
+                         * this thread doesn't own the mutex. That IS possible
+                         * because CUPTI_metrics_do_kernel_serialization may
+                         * have been FALSE when the kernel was entered, but
+                         * is now TRUE on exit. Nothing can be done about that
+                         * after the fact. Simply ignore the error and solider
+                         * on. All future kernel executions will be serialized
+                         * properly.
+                         */
+
+                        pthread_mutex_unlock(&KernelSerializationMutex);
+                    }                    
                 }
                 break;
 
