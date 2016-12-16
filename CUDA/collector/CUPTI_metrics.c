@@ -454,6 +454,17 @@ void CUPTI_metrics_start(CUcontext context)
         Metrics.values[i].tls.data_header.posix_tid = (int64_t)(context);
         Metrics.values[i].tls.data_header.omp_tid = -1;
         TLS_initialize_data(&Metrics.values[i].tls);
+
+        /* Append event sampling configuration to our performance data blob */
+
+        CBTF_cuda_message* raw_message = TLS_add_message(tls);
+        Assert(raw_message != NULL);
+        raw_message->type = SamplingConfig;
+        
+        CUDA_SamplingConfig* message = 
+            &raw_message->CBTF_cuda_message_u.sampling_config;
+        
+        memcpy(message, &TheSamplingConfig, sizeof(CUDA_SamplingConfig));
         
         /** Ensure upstream processes know about this "thread" */
         
@@ -466,13 +477,13 @@ void CUPTI_metrics_start(CUcontext context)
         name.rank = Metrics.values[i].tls.data_header.rank;
         name.omp_tid = Metrics.values[i].tls.data_header.omp_tid;
         
-        CBTF_Protocol_AttachedToThreads message;
-        message.threads.names.names_len = 1;
-        message.threads.names.names_val = &name;
+        CBTF_Protocol_AttachedToThreads attached;
+        attached.threads.names.names_len = 1;
+        attached.threads.names.names_val = &name;
 
         CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS,
                         (xdrproc_t)xdr_CBTF_Protocol_AttachedToThreads,
-                        &message);
+                        &attached);
     }
     
     /* Restore (if necessary) the previous value of the current context */
