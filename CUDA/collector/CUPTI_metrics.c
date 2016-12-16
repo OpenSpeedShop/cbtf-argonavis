@@ -457,7 +457,8 @@ void CUPTI_metrics_start(CUcontext context)
 
         /* Append event sampling configuration to our performance data blob */
 
-        CBTF_cuda_message* raw_message = TLS_add_message(tls);
+        CBTF_cuda_message* raw_message = 
+            TLS_add_message(&Metrics.values[i].tls);
         Assert(raw_message != NULL);
         raw_message->type = SamplingConfig;
         
