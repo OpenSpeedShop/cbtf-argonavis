@@ -29,6 +29,7 @@
 #include <unistd.h>
 
 #include <KrellInstitute/Messages/CUDA_data.h>
+#include <KrellInstitute/Messages/LinkedObjectEvents.h>
 #include <KrellInstitute/Messages/Thread.h>
 #include <KrellInstitute/Messages/ThreadEvents.h>
 #include <KrellInstitute/Messages/ToolMessageTags.h>
@@ -485,6 +486,27 @@ void CUPTI_metrics_start(CUcontext context)
         CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS,
                         (xdrproc_t)xdr_CBTF_Protocol_AttachedToThreads,
                         &attached);
+
+        char path[256];
+        snprintf(path, sizeof(path), "CUDA Context %p", context);
+        
+        CBTF_Protocol_LinkedObject object;
+        object.linked_object.path = path;
+        object.linked_object.checksum = 0;
+        object.range.begin = 0;
+        object.range.end = -1;
+        object.time_begin = 0;
+        object.time_end = -1;
+        object.is_executable = true;
+        
+        CBTF_Protocol_LinkedObjectGroup group;
+        memcpy(&group.thread, &name, sizeof(CBTF_Protocol_ThreadName));
+        group.linkedobjects.linkedobjects_len = 1;
+        group.linkedobjects.linkedobjects_val = &object;
+        
+        CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP,
+                        (xdrproc_t)xdr_CBTF_Protocol_LinkedObjectGroup,
+                        &group);
     }
     
     /* Restore (if necessary) the previous value of the current context */
@@ -652,14 +674,14 @@ void CUPTI_metrics_stop(CUcontext context)
         name.rank = Metrics.values[i].tls.data_header.rank;
         name.omp_tid = Metrics.values[i].tls.data_header.omp_tid;
         
-        CBTF_Protocol_ThreadsStateChanged message;
-        message.threads.names.names_len = 1;
-        message.threads.names.names_val = &name;
-        message.state = Terminated;
+        CBTF_Protocol_ThreadsStateChanged terminated;
+        terminated.threads.names.names_len = 1;
+        terminated.threads.names.names_val = &name;
+        terminated.state = Terminated;
 
         CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED,
                         (xdrproc_t)xdr_CBTF_Protocol_ThreadsStateChanged,
-                        &message);
+                        &terminated);
     }
     
     PTHREAD_CHECK(pthread_rwlock_unlock(&Metrics.mutex));
