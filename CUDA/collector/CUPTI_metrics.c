@@ -487,17 +487,16 @@ void CUPTI_metrics_start(CUcontext context)
                         (xdrproc_t)xdr_CBTF_Protocol_AttachedToThreads,
                         &attached);
 
-        char path[256];
-        snprintf(path, sizeof(path), "CUDA Context %p", context);
+        static char* kPath = "/bin/ps";
         
         CBTF_Protocol_LinkedObject object;
-        object.linked_object.path = path;
+        object.linked_object.path = kPath;
         object.linked_object.checksum = 0;
-        object.range.begin = 0;
-        object.range.end = -1;
-        object.time_begin = 0;
+        object.range.begin = 0xFFFF0BADC0DABEEF;
+        object.range.end = object.range.begin + 1;
+        object.time_begin = CBTF_GetTime();
         object.time_end = -1;
-        object.is_executable = true;
+        object.is_executable = false;
         
         CBTF_Protocol_LinkedObjectGroup group;
         memcpy(&group.thread, &name, sizeof(CBTF_Protocol_ThreadName));
