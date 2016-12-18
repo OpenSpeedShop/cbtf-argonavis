@@ -39,7 +39,7 @@ else()
 endif()
 
 find_package(Boost 1.39.0 REQUIRED
-    COMPONENTS filesystem regex system unit_test_framework
+    COMPONENTS filesystem program_options regex system unit_test_framework
     )
 find_package(CBTF REQUIRED)
 find_package(CBTF-Krell REQUIRED)

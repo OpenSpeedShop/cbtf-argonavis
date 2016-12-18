@@ -19,9 +19,11 @@
 /** @file Definition of CUPTI events functions. */
 
 #include <cuda.h>
+#include <monitor.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Services/Assert.h>
 
@@ -106,7 +108,8 @@ void CUPTI_events_start(CUcontext context)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_events_start(%p)\n", context);
+        printf("[CUDA %d:%d] CUPTI_events_start(%p)\n",
+               getpid(), monitor_get_thread_num(), context);
     }
 #endif
 
@@ -119,8 +122,9 @@ void CUPTI_events_start(CUcontext context)
     {
         if (Events.values[i].context == context)
         {
-            fprintf(stderr, "[CBTF/CUDA] CUPTI_events_start(): "
-                    "Redundant call for CUPTI context pointer (%p)!", context);
+            fprintf(stderr, "[CUDA %d:%d] CUPTI_events_start(): "
+                    "Redundant call for CUPTI context pointer (%p)!",
+                    getpid(), monitor_get_thread_num(), context);
             fflush(stderr);
             abort();
         }
@@ -128,9 +132,9 @@ void CUPTI_events_start(CUcontext context)
     
     if (i == MAX_CONTEXTS)
     {
-        fprintf(stderr, "[CBTF/CUDA] CUPTI_events_start(): "
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_events_start(): "
                 "Maximum supported CUDA context pointers (%d) was reached!\n",
-                MAX_CONTEXTS);
+                getpid(), monitor_get_thread_num(), MAX_CONTEXTS);
         fflush(stderr);
         abort();
     }
@@ -185,8 +189,8 @@ void CUPTI_events_start(CUcontext context)
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] recording GPU event \"%s\" for context %p\n",
-                   event->name, context);
+            printf("[CUDA %d:%d] recording GPU event \"%s\" for context %p\n",
+                   getpid(), monitor_get_thread_num(), event->name, context);
         }
 #endif
     }
@@ -208,9 +212,10 @@ void CUPTI_events_start(CUcontext context)
          */
         if (Events.values[i].sets->numSets > 1)
         {
-            fprintf(stderr, "[CBTF/CUDA] CUPTI_events_start(): "
+            fprintf(stderr, "[CUDA %d:%d] CUPTI_events_start(): "
                     "The specified GPU events cannot be collected in a "
-                    "single pass. Ignoring all GPU events.\n");
+                    "single pass. Ignoring all GPU events.\n",
+                    getpid(), monitor_get_thread_num());
             fflush(stderr);
             
             /* Destroy all of the event group sets. */
@@ -363,7 +368,8 @@ void CUPTI_events_stop(CUcontext context)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_events_stop(%p)\n", context);
+        printf("[CUDA %d:%d] CUPTI_events_stop(%p)\n",
+               getpid(), monitor_get_thread_num(), context);
     }
 #endif
 
@@ -382,8 +388,9 @@ void CUPTI_events_stop(CUcontext context)
     
     if (i == MAX_CONTEXTS)
     {
-        fprintf(stderr, "[CBTF/CUDA] CUPTI_events_stop(): "
-                "Unknown CUDA context pointer (%p) encountered!\n", context);
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_events_stop(): "
+                "Unknown CUDA context pointer (%p) encountered!\n",
+                getpid(), monitor_get_thread_num(), context);
         fflush(stderr);
         abort();
     }

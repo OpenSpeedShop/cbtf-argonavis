@@ -19,11 +19,14 @@
 /** @file Implementation of the CUDA collector. */
 
 #include <inttypes.h>
+#include <monitor.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ucontext.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
@@ -60,11 +63,20 @@ CUDA_SamplingConfig TheSamplingConfig;
 static CUDA_EventDescription EventDescriptions[MAX_EVENTS];
 
 /**
- * Pthread ID of the main (first seen) thread. Initialized by the process-wide
- * initialization in cbtf_collector_start(). Used by timer_callback() to decide
- * if it should sample CUPTI events.
+ * Boolean flag for exiting the CUPTI metrics and events sampling thread.
+ * Used by the process-wide finalization in cbtf_collector_stop() to signal
+ * that thread it should exit. Marked volatile to insure the compiler does
+ * not optimize out references to this variable.
  */
-static pthread_t TheMainThread;
+static volatile bool ExitSamplingThread = false;
+
+/**
+ * Pthread ID of the CUPTI metrics and events sampling thread. Initialized
+ * by the process-wide initialization in cbtf_collector_start(), and used by
+ * the process-wide finalization in cbtf_collector_stop() to wait for that
+ * thread to exit.
+ */
+static pthread_t TheSamplingThread;
 
 /**
  * The number of threads for which are are collecting data (actively or not).
@@ -91,7 +103,8 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] parse_configuration(\"%s\")\n", configuration);
+        printf("[CUDA %d:%d] parse_configuration(\"%s\")\n",
+               getpid(), monitor_get_thread_num(), configuration);
     }
 #endif
 
@@ -109,9 +122,9 @@ static void parse_configuration(const char* const configuration)
     
     if (strlen(configuration) >= sizeof(copy))
     {
-        fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
+        fprintf(stderr, "[CUDA %d:%d] parse_configuration(): "
                 "Configuration string \"%s\" exceeds the maximum "
-                "support length (%llu)!\n",
+                "support length (%llu)!\n", getpid(), monitor_get_thread_num(),
                 configuration, (unsigned long long)(sizeof(copy) - 1));
         fflush(stderr);
         abort();
@@ -140,9 +153,10 @@ static void parse_configuration(const char* const configuration)
             /* Warn if the samping interval was invalid */
             if (interval <= 0)
             {
-                fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
+                fprintf(stderr, "[CUDA %d:%d] parse_configuration(): "
                         "An invalid sampling interval (\"%s\") was "
-                        "specified!\n", ptr + strlen(kIntervalPrefix));
+                        "specified!\n", getpid(), monitor_get_thread_num(),
+                        ptr + strlen(kIntervalPrefix));
                 fflush(stderr);
                 abort();
             }
@@ -152,8 +166,9 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
             if (IsDebugEnabled)
             {
-                printf("[CBTF/CUDA] parse_configuration(): "
+                printf("[CUDA %d:%d] parse_configuration(): "
                        "sampling interval = %llu nS\n",
+                       getpid(), monitor_get_thread_num(),
                        (long long unsigned)TheSamplingConfig.interval);
             }
 #endif
@@ -163,9 +178,10 @@ static void parse_configuration(const char* const configuration)
             /* Warn if the maximum supported sampled events was reached */
             if (TheSamplingConfig.events.events_len == MAX_EVENTS)
             {
-                fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
+                fprintf(stderr, "[CUDA %d:%d] parse_configuration(): "
                         "Maximum supported number of concurrently sampled"
-                        "events (%d) was reached!\n", MAX_EVENTS);
+                        "events (%d) was reached!\n",
+                        getpid(), monitor_get_thread_num(), MAX_EVENTS);
                 fflush(stderr);
                 abort();
             }
@@ -185,8 +201,9 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
                 if (IsDebugEnabled)
                 {
-                    printf("[CBTF/CUDA] parse_configuration(): "
+                    printf("[CUDA %d:%d] parse_configuration(): "
                            "event name = \"%s\", threshold = %d\n",
+                           getpid(), monitor_get_thread_num(),
                            event->name, event->threshold);
                 }
 #endif
@@ -200,8 +217,9 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
                 if (IsDebugEnabled)
                 {
-                    printf("[CBTF/CUDA] parse_configuration(): "
-                           "event name = \"%s\"\n", event->name);
+                    printf("[CUDA %d:%d] parse_configuration(): "
+                           "event name = \"%s\"\n", 
+                           getpid(), monitor_get_thread_num(), event->name);
                 }
 #endif
             }
@@ -210,6 +228,49 @@ static void parse_configuration(const char* const configuration)
             ++TheSamplingConfig.events.events_len;
         }
     }
+}
+
+
+
+/**
+ * Function implementing the CUTPI metrics and events sampling thread.
+ *
+ * @param arg    Unused.
+ * @return       Always returns NULL.
+ */
+static void* sampling_thread(void* arg)
+{
+#if !defined(NDEBUG)
+    if (IsDebugEnabled)
+    {
+        printf("[CUDA %d:%d] sampling_thread()\n",
+               getpid(), monitor_get_thread_num());
+    }
+#endif
+
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Loop until cbtf_collector_stop() tells us to exit */
+    while (!ExitSamplingThread)
+    {
+        /* Initialize a new periodic sample */
+        PeriodicSample sample;
+        memset(&sample, 0, sizeof(PeriodicSample));
+        sample.time = CBTF_GetTime();
+        
+        /* Sample the CUPTI metrics and events */
+        CUPTI_metrics_sample(tls, &sample);
+        CUPTI_events_sample(tls, &sample);
+    
+        /* Add this sample to the performance data blob for this thread */
+        TLS_add_periodic_sample(tls, &sample);
+
+        /* Sleep for the configuration-specified period  */
+        usleep(TheSamplingConfig.interval / 1000 /* uS/nS */);
+    }
+    
+    return NULL;
 }
 
 
@@ -235,13 +296,6 @@ static void timer_callback(const ucontext_t* context)
     memset(&sample, 0, sizeof(PeriodicSample));
     sample.time = CBTF_GetTime();
     
-    /* Sample the CUPTI metrics and events from the main thread (only) */
-    if (pthread_equal(pthread_self(), TheMainThread))
-    {
-        CUPTI_metrics_sample(tls, &sample);
-        CUPTI_events_sample(tls, &sample);
-    }
-    
     /* Sample PAPI counters for this thread */
     PAPI_sample(tls, &sample);
 
@@ -259,7 +313,8 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_start()\n");
+        printf("[CUDA %d:%d] cbtf_collector_start()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -279,8 +334,9 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_start(): "
+        printf("[CUDA %d:%d] cbtf_collector_start(): "
                "ThreadCount.value = %d --> %d\n",
+               getpid(), monitor_get_thread_num(),
                ThreadCount.value, ThreadCount.value + 1);
     }
 #endif
@@ -293,9 +349,11 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] cbtf_collector_start()\n");
-            printf("[CBTF/CUDA] cbtf_collector_start(): "
+            printf("[CUDA %d:%d] cbtf_collector_start()\n",
+                   getpid(), monitor_get_thread_num());
+            printf("[CUDA %d:%d] cbtf_collector_start(): "
                    "ThreadCount.value = %d --> %d\n",
+                   getpid(), monitor_get_thread_num(),
                    ThreadCount.value, ThreadCount.value + 1);
         }
 #endif
@@ -311,10 +369,11 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
         {
             /* Initialize PAPI for this process */
             PAPI_initialize();
-        }
 
-        /* Get the Pthread ID of the main (first seen) thread */
-        TheMainThread = pthread_self();
+            /* Start the CUPTI metrics and events sampling thread */
+            PTHREAD_CHECK(pthread_create(&TheSamplingThread, NULL,
+                                         sampling_thread, &tls->data_header));
+        }
 
         /* Start CUPTI activity data collection for this process */
         CUPTI_activities_start();
@@ -349,8 +408,9 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 
     /* Resume data collection for this thread */
     cbtf_collector_resume();
-
-    if (TheSamplingConfig.events.events_len > 0)
+    
+    if ((TheSamplingConfig.events.events_len > 0) &&
+        (monitor_get_addr_thread_start() != sampling_thread))
     {
         /* Start PAPI data collection for this thread */
         PAPI_start_data_collection();
@@ -370,7 +430,8 @@ void cbtf_collector_pause()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_pause()\n");
+        printf("[CUDA %d:%d] cbtf_collector_pause()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -391,7 +452,8 @@ void cbtf_collector_resume()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_resume()\n");
+        printf("[CUDA %d:%d] cbtf_collector_resume()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -412,11 +474,13 @@ void cbtf_collector_stop()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_stop()\n");
+        printf("[CUDA %d:%d] cbtf_collector_stop()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
-    if (TheSamplingConfig.events.events_len > 0)
+    if ((TheSamplingConfig.events.events_len > 0) &&
+        (monitor_get_addr_thread_start() != sampling_thread))
     {
         /* Stop the periodic sampling timer for this thread */
         CBTF_Timer(0, NULL);
@@ -435,8 +499,9 @@ void cbtf_collector_stop()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_stop(): "
+        printf("[CUDA %d:%d] cbtf_collector_stop(): "
                "ThreadCount.value = %d --> %d\n",
+               getpid(), monitor_get_thread_num(),
                ThreadCount.value, ThreadCount.value - 1);
     }
 #endif
@@ -456,6 +521,10 @@ void cbtf_collector_stop()
 
         if (TheSamplingConfig.events.events_len > 0)
         {
+            /* Stop the CUPTI metrics and events sampling thread */
+            ExitSamplingThread = true;
+            PTHREAD_CHECK(pthread_join(TheSamplingThread, NULL));
+            
             /* Finalize PAPI for this process */
             PAPI_finalize();
         }
