@@ -23,7 +23,9 @@ if(CUDA_FOUND AND CUPTI_FOUND AND MRNET_FOUND)
 
     add_subdirectory(collector)
     add_subdirectory(components)
-    add_subdirectory(cupti_avail)
+    if (${CUPTI_API_VERSION} GREATER 6)
+        add_subdirectory(cupti_avail)
+    endif()
 
     configure_file(cuda.xml.in cuda.xml)
 

@@ -43,6 +43,7 @@ add_library(cuda-collector-monitor-fileio SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-fileio PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
@@ -62,12 +63,14 @@ target_link_libraries(cuda-collector-monitor-fileio
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-mrnet PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
@@ -87,12 +90,14 @@ target_link_libraries(cuda-collector-monitor-mrnet
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-mrnet-mpi PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
@@ -112,6 +117,7 @@ target_link_libraries(cuda-collector-monitor-mrnet-mpi
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 if(PAPI_FOUND)
