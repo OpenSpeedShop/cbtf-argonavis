@@ -21,7 +21,13 @@ add_subdirectory(messages)
 
 if(CUDA_FOUND AND CUPTI_FOUND AND MRNET_FOUND)
 
-    add_subdirectory(collector)
+    # Do not build the collectors if we are building the front-end version of
+    # cbtf-argonavis on the Cray.  The collectors were built when the compute
+    # node version of the cbtf components was built.
+    if (NOT CN_RUNTIME_PLATFORM MATCHES "cray")
+        add_subdirectory(collector)
+    endif()
+  
     add_subdirectory(components)
     if (${CUPTI_API_VERSION} GREATER 6)
         add_subdirectory(cupti_avail)
