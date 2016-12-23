@@ -38,6 +38,14 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_COMPILER_FLAGS}")
 endif()
 
+# We are building the front-end code for a cray platform, so do not build runtime/collector code
+# that is already built in another build for the compute node
+set(CN_RUNTIME_PLATFORM "" CACHE STRING "cbtf-argonavis runtime platform: none or [bgq,bgp,arm,mic,cray]")
+if (CN_RUNTIME_PLATFORM MATCHES "cray")
+    add_definitions(-DCN_RUNTIME_PLATFORM=cray)
+    message(STATUS "Build runtimes for the FE of a cray platform.")
+endif()
+
 find_package(Boost 1.39.0 REQUIRED
     COMPONENTS filesystem program_options regex system unit_test_framework
     )
@@ -47,6 +55,8 @@ find_package(CUDA)
 find_package(CUPTI 2)
 find_package(MRNet)
 find_package(PAPI 5.4.0)
+find_package(LibMonitor)
+
 find_package(Threads REQUIRED)
 
 if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
