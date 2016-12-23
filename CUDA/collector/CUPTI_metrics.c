@@ -36,6 +36,7 @@
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Send.h>
+#include <KrellInstitute/Services/Time.h>
 
 #include "collector.h"
 #include "CUDA_check.h"
