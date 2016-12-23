@@ -41,6 +41,7 @@ add_library(cuda-collector-monitor-fileio SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-fileio PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
@@ -50,6 +51,7 @@ target_include_directories(cuda-collector-monitor-fileio PUBLIC
 
 target_link_libraries(cuda-collector-monitor-fileio
     cbtf-messages-cuda
+    ${LibMonitor_SHARED_LIBRARIES}
     ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_COLLECTOR_MONITOR_FILEIO_SHARED_LIBRARY}
@@ -66,6 +68,7 @@ add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-mrnet PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
@@ -75,6 +78,7 @@ target_include_directories(cuda-collector-monitor-mrnet PUBLIC
 
 target_link_libraries(cuda-collector-monitor-mrnet
     cbtf-messages-cuda
+    ${LibMonitor_SHARED_LIBRARIES}
     ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_COLLECTOR_MONITOR_MRNET_SHARED_LIBRARY}
@@ -91,6 +95,7 @@ add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-mrnet-mpi PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
@@ -100,6 +105,7 @@ target_include_directories(cuda-collector-monitor-mrnet-mpi PUBLIC
 
 target_link_libraries(cuda-collector-monitor-mrnet-mpi
     cbtf-messages-cuda
+    ${LibMonitor_SHARED_LIBRARIES}
     ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_COLLECTOR_MONITOR_MRNET_MPI_SHARED_LIBRARY}

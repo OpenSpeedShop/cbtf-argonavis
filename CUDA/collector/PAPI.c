@@ -34,13 +34,12 @@
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Timer.h>
+#include <KrellInstitute/Services/Time.h>
 
 #include "collector.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
 #include "TLS.h"
-
-
 
 #if defined(PAPI_FOUND)
 
@@ -162,6 +161,21 @@ static void timer_callback(const ucontext_t* context)
     PeriodicSample sample;
     memset(&sample, 0, sizeof(PeriodicSample));
     sample.time = CBTF_GetTime();
+    
+    // WDH DEBUG
+    if (0)
+      {
+       struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        sample.time = (uint64_t)now.tv_sec * (uint64_t)1000000000llu +
+          (uint64_t)now.tv_nsec;
+      }
+    if (1)
+      {
+        printf("[WDH %p] timer_callback(): t=%016llX\n", pthread_self(), sample.time);
+        fflush(stdout);
+     }
+   // WDH DEBUG
 
     /* Read the counters for each of our event sets */
     int s;

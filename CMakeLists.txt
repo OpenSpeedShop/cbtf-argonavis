@@ -20,6 +20,7 @@ cmake_minimum_required(VERSION 2.8.12)
 
 project(CBTF-ArgoNavis)
 
+set(CMAKE_VERBOSE_MAKEFILE on)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
@@ -46,6 +47,7 @@ find_package(CBTF-Krell REQUIRED)
 find_package(CUDA)
 find_package(CUPTI 2)
 find_package(MRNet)
+find_package(LibMonitor)
 find_package(PAPI 5.4.0)
 find_package(Threads REQUIRED)
 

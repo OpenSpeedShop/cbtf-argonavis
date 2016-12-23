@@ -36,6 +36,7 @@
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Send.h>
+#include <KrellInstitute/Services/Time.h>
 
 #include "collector.h"
 #include "CUDA_check.h"
@@ -43,8 +44,6 @@
 #include "CUPTI_context.h"
 #include "CUPTI_metrics.h"
 #include "Pthread_check.h"
-
-
 
 /** Flag indicating if CUDA kernel execution is to be serialized. */
 bool CUPTI_metrics_do_kernel_serialization = FALSE;
@@ -130,6 +129,21 @@ static void take_sample(int i)
     PeriodicSample sample;
     memset(&sample, 0, sizeof(PeriodicSample));
     sample.time = CBTF_GetTime();
+
+    // WDH DEBUG
+    if (0)
+      {
+       struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        sample.time = (uint64_t)now.tv_sec * (uint64_t)1000000000llu +
+          (uint64_t)now.tv_nsec;
+      }
+    if (1)
+      {
+        printf("[WDH %p] take_sample(): t=%016llX\n", pthread_self(), sample.time);
+        fflush(stdout);
+      }
+    // WDH DEBUG
     
     /* Read the counters for each event group for this context */
     
