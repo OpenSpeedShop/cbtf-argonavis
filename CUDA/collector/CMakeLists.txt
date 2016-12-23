@@ -62,6 +62,7 @@ target_link_libraries(cuda-collector-monitor-fileio
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
@@ -89,6 +90,7 @@ target_link_libraries(cuda-collector-monitor-mrnet
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
@@ -116,6 +118,7 @@ target_link_libraries(cuda-collector-monitor-mrnet-mpi
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 if(PAPI_FOUND)

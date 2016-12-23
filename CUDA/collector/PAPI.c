@@ -33,6 +33,7 @@
 #include <KrellInstitute/Messages/CUDA_data.h>
 
 #include <KrellInstitute/Services/Assert.h>
+#include <KrellInstitute/Services/Time.h>
 #include <KrellInstitute/Services/Timer.h>
 #include <KrellInstitute/Services/Time.h>
 

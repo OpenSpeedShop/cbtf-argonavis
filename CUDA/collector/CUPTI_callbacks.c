@@ -264,6 +264,9 @@ static void callback(void* userdata,
                     message->call_site = call_site;
                     
                     TLS_update_header_with_time(tls, message->time);
+
+                    /* Sample the CUPTI metrics for this CUDA context */
+                    CUPTI_metrics_sample(cbdata->context);
                 }
                 else if (cbdata->callbackSite == CUPTI_API_EXIT)
                 {
