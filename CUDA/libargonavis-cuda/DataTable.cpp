@@ -1165,10 +1165,10 @@ void DataTable::processPeriodicSamples(const boost::uint8_t* begin,
 {
     static int kAdditionalBytes[4] = { 0, 2, 3, 8 };
 
-    std::vector<uint64_t>::size_type n = 0;
-    std::vector<uint64_t>::size_type N = 1 + per_thread.dm_counters.size();
+    std::vector<boost::uint64_t>::size_type n = 0;
+    std::vector<boost::uint64_t>::size_type N = 1 + per_thread.dm_counters.size();
 
-    std::vector<uint64_t> samples(N, 0);
+    std::vector<boost::uint64_t> samples(N, 0);
 
     for (const boost::uint8_t* ptr = begin; ptr != end;)
     {
@@ -1195,7 +1195,7 @@ void DataTable::processPeriodicSamples(const boost::uint8_t* begin,
             per_thread.dm_periodic_samples.insert(
                 std::make_pair(
                     samples[0],
-                    std::vector<uint64_t>(samples.begin() + 1, samples.end())
+                    std::vector<boost::uint64_t>(samples.begin() + 1, samples.end())
                     )
                 );
             n = 0;
