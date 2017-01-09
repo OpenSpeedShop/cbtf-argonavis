@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -44,6 +44,8 @@
 #include "CUPTI_context.h"
 #include "CUPTI_metrics.h"
 #include "Pthread_check.h"
+
+extern void CBTF_MRNet_Send(const int, const xdrproc_t, const void*);
 
 
 
