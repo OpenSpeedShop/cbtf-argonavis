@@ -27,7 +27,7 @@ if(CUDA_FOUND AND CUPTI_FOUND AND MRNET_FOUND)
   
     add_subdirectory(components)
 
-    if (${CUPTI_API_VERSION} GREATER 6)
+    if (${CUPTI_API_VERSION} GREATER 3)
         add_subdirectory(cupti_avail)
     endif()
 
