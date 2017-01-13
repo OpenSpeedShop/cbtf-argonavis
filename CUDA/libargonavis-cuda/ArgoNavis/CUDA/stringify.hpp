@@ -98,8 +98,8 @@ namespace ArgoNavis { namespace CUDA {
     };
 
     /**
-     * Type representing a hardware performance counter name. Typically the
-     * name used by either CUPTI or PAPI. Its only reason for existence is
+     * Type representing a (long) hardware performance counter name. Typically
+     * the name used by either CUPTI or PAPI. Its only reason for existence is
      * to allow the Stringify<> template below to be specialized for counter
      * names versus other strings.
      *
@@ -110,15 +110,40 @@ namespace ArgoNavis { namespace CUDA {
      * @sa http://docs.nvidia.com/cuda/cupti/r_main.html#r_metric_api
      * @sa http://icl.cs.utk.edu/projects/papi/wiki/PAPI3:PAPI_presets.3
      */
-    class CounterName
+    class LongCounterName
     {
     public:
-        CounterName(const char* value) : dm_value(value ? value : "") { }
-        CounterName(const std::string& value) : dm_value(value) { }
+        LongCounterName(const char* value) : dm_value(value ? value : "") { }
+        LongCounterName(const std::string& value) : dm_value(value) { }
         operator std::string() const { return dm_value; }
     private:
         std::string dm_value;
     };
+
+    /**
+     * Type representing a (short) hardware performance counter name. Typically
+     * the name used by either CUPTI or PAPI. Its only reason for existence is
+     * to allow the Stringify<> template below to be specialized for counter
+     * names versus other strings.
+     *
+     * @note    The string returned by stringify<CounterName>() may or may
+     *          not be identical to the name returned by CUPTI or PAPI for
+     *          their similar counter name query functions.
+     *
+     * @sa http://docs.nvidia.com/cuda/cupti/r_main.html#r_metric_api
+     * @sa http://icl.cs.utk.edu/projects/papi/wiki/PAPI3:PAPI_presets.3
+     */
+    class ShortCounterName
+    {
+    public:
+        ShortCounterName(const char* value) : dm_value(value ? value : "") { }
+        ShortCounterName(const std::string& value) : dm_value(value) { }
+        operator std::string() const { return dm_value; }
+    private:
+        std::string dm_value;
+    };
+
+    typedef ShortCounterName CounterName;
 
     /** Type of container used to store ordered fields (key/value pairs). */
     typedef std::list<boost::tuples::tuple<std::string, std::string> > Fields;
@@ -281,21 +306,35 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         }
     };
 
-    extern const std::map<std::string, std::string> kCounterNames;
+    extern const std::map<std::string, std::string> kLongCounterNames;
+    extern const std::map<std::string, std::string> kShortCounterNames;
     
     template <>
-    struct Stringify<CounterName>
+    struct Stringify<LongCounterName>
     {
         static std::string impl(const CounterName& value)
         {
             std::map<std::string, std::string>::const_iterator i =
-                kCounterNames.find(value);
+                kLongCounterNames.find(value);
 
-            return (i == kCounterNames.end()) ? 
+            return (i == kLongCounterNames.end()) ? 
                 static_cast<std::string>(value) : i->second;
         }
     };
-    
+
+    template <>
+    struct Stringify<ShortCounterName>
+    {
+        static std::string impl(const CounterName& value)
+        {
+            std::map<std::string, std::string>::const_iterator i =
+                kShortCounterNames.find(value);
+
+            return (i == kShortCounterNames.end()) ? 
+                static_cast<std::string>(value) : i->second;
+        }
+    };
+
     template <>
     struct Stringify<FunctionName>
     {
