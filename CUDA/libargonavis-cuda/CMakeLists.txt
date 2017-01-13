@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2015-2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,6 +19,8 @@
 add_library(argonavis-cuda SHARED
     ArgoNavis/CUDA/CachePreference.hpp
     ArgoNavis/CUDA/CopyKind.hpp
+    ArgoNavis/CUDA/CounterDescription.hpp
+    ArgoNavis/CUDA/CounterKind.hpp
     ArgoNavis/CUDA/DataTransfer.hpp
     ArgoNavis/CUDA/DataTransferVisitor.hpp
     ArgoNavis/CUDA/Device.hpp

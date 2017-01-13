@@ -171,6 +171,7 @@ static void parse_configuration(const char* const configuration)
                 ];
             
             event->name = malloc(sizeof(copy));
+            event->kind = UnknownEventKind;
             
             /* Token is an event name and threshold */
             if (at != NULL)

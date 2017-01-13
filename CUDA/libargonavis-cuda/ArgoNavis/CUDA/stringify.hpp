@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -39,6 +39,7 @@
 
 #include <ArgoNavis/CUDA/CachePreference.hpp>
 #include <ArgoNavis/CUDA/CopyKind.hpp>
+#include <ArgoNavis/CUDA/CounterKind.hpp>
 #include <ArgoNavis/CUDA/MemoryKind.hpp>
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
@@ -361,6 +362,22 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     };
 
     template <>
+    struct Stringify<CUDA_EventKind>
+    {
+        static std::string impl(const CUDA_EventKind& value)
+        {
+            switch (value)
+            {
+            case UnknownEventKind: return "UnknownEventKind";
+            case Count: return "Count";
+            case Percentage: return "Percentage";
+            case Rate: return "Rate";
+            }
+            return "?";
+        }
+    };
+    
+    template <>
     struct Stringify<CUDA_MemoryKind>
     {
         static std::string impl(const CUDA_MemoryKind& value)
@@ -404,10 +421,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     {
         static std::string impl(const CUDA_EventDescription& value)
         {
-            return (value.threshold == 0) ? 
-                std::string(value.name) :
-                boost::str(boost::format("%1% (threshold=%2%)") %
-                           value.name % value.threshold);
+            return boost::str((value.threshold == 0) ?
+                boost::format("%1% (kind=%2%)") %
+                              value.name %
+                              stringify(value.kind) :
+                boost::format("%1% (kind=%2%, threshold=%3%)") %
+                              value.name %
+                              stringify(value.kind)
+                              % value.threshold
+                );
         }
     };
 
@@ -799,6 +821,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     };
 
     template <>
+    struct Stringify<CounterKind>
+    {
+        static std::string impl(const CounterKind& value)
+        {
+            return stringify(static_cast<CUDA_EventKind>(value));
+        }
+    };
+
+    template <>
     struct Stringify<MemoryKind>
     {
         static std::string impl(const MemoryKind& value)
@@ -806,5 +837,5 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             return stringify(static_cast<CUDA_MemoryKind>(value));
         }
     };
-        
+    
 } } } // namespace ArgoNavis::CUDA::Impl 

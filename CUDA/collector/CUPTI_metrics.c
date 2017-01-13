@@ -82,6 +82,9 @@ static struct {
         /** Identifiers for the metrics. */
         CUpti_MetricID ids[MAX_EVENTS];
 
+        /** Kinds for the metrics. */
+        CUpti_MetricValueKind kinds[MAX_EVENTS];
+        
         /** Map metric indicies to periodic count indicies. */
         int to_periodic[MAX_EVENTS];
 
@@ -182,11 +185,41 @@ static void take_sample(int i)
                         dt,
                         &metric
                         ));
+
+        uint64_t value = 0;
+
+        switch (Metrics.values[i].kinds[m])
+        {
+
+        case CUPTI_METRIC_VALUE_KIND_DOUBLE:
+            value = (uint64_t)(100.0 * metric.metricValueDouble);
+            break;
+
+        case CUPTI_METRIC_VALUE_KIND_UINT64:
+            value = metric.metricValueUint64;
+            break;
+
+        case CUPTI_METRIC_VALUE_KIND_PERCENT:
+            value = (uint64_t)(metric.metricValuePercent);
+            break;
+            
+        case CUPTI_METRIC_VALUE_KIND_THROUGHPUT:
+            value = metric.metricValueThroughput;
+            break;
+            
+        case CUPTI_METRIC_VALUE_KIND_INT64:
+            value = (uint64_t)metric.metricValueInt64;
+            break;
+            
+        case CUPTI_METRIC_VALUE_KIND_UTILIZATION_LEVEL:
+            value = 10 * (uint64_t)(metric.metricValueUtilizationLevel);
+            break;
+            
+        }
         
         int e = Metrics.values[i].to_periodic[m];
         
-        sample.count[e] = Metrics.values[i].origins.count[e] + 
-            metric.metricValueUint64;
+        sample.count[e] = Metrics.values[i].origins.count[e] + value;
     }
     
     /* Add this sample to the performance data blob for this context */
@@ -313,13 +346,14 @@ void CUPTI_metrics_start(CUcontext context)
     for (e = 0; e < TheSamplingConfig.events.events_len; ++e)
     {
         CUDA_EventDescription* event = &TheSamplingConfig.events.events_val[e];
-        
+
         /*
-         * Look up the metric id for this event. Note that an unidentified
-         * event is NOT treated as fatal since it may simply be an event
-         * that will be handled elsewhere. Just continue to the next event.
+         * Look up the metric id and kind for this event. Note that an
+         * unidentified event is NOT treated as fatal since it may simply
+         * be an event that will be handled by PAPI. Just continue to the
+         * next event.
          */
-        
+
         CUpti_MetricID id;
         
         if (cuptiMetricGetIdFromName(
@@ -329,11 +363,6 @@ void CUPTI_metrics_start(CUcontext context)
             continue;
         }
         
-        /*
-         * Only support uint64_t metrics for now. If a non-uint64_t metric
-         * is specified, warn the user and continue to the next event.
-         */
-
         CUpti_MetricValueKind kind;
         size_t size = sizeof(kind);
 
@@ -341,19 +370,30 @@ void CUPTI_metrics_start(CUcontext context)
                         id, CUPTI_METRIC_ATTR_VALUE_KIND, &size, &kind
                         ));
 
-        if (kind != CUPTI_METRIC_VALUE_KIND_UINT64)
+        /* Translate the metric kind into the proper event kind */
+        switch (kind)
         {
-            fprintf(stderr, "[CUDA %d:%d] CUPTI_metrics_start(): "
-                    "Valid GPU event \"%s\" is of an unsupported value kind "
-                    "(%d). Ignoring this event.\n", 
-                    getpid(), monitor_get_thread_num(), event->name, kind);
-            fflush(stderr);
             
-            continue;
-        }
+        case CUPTI_METRIC_VALUE_KIND_UINT64:
+        case CUPTI_METRIC_VALUE_KIND_INT64:
+            event->kind = Count;
+            break;
 
+        case CUPTI_METRIC_VALUE_KIND_DOUBLE:
+        case CUPTI_METRIC_VALUE_KIND_PERCENT:
+        case CUPTI_METRIC_VALUE_KIND_UTILIZATION_LEVEL:
+            event->kind = Percentage;
+            break;
+
+        case CUPTI_METRIC_VALUE_KIND_THROUGHPUT:
+            event->kind = Rate;
+            break;
+            
+        }
+        
         /* Add this metric */
         Metrics.values[i].ids[Metrics.values[i].count] = id;
+        Metrics.values[i].kinds[Metrics.values[i].count] = kind;
         Metrics.values[i].to_periodic[Metrics.values[i].count] = e;
 
         /* Increment the number of metrics */

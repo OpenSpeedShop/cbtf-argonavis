@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -36,6 +36,7 @@
 #include <ArgoNavis/Base/ThreadVisitor.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
+#include <ArgoNavis/CUDA/CounterDescription.hpp>
 #include <ArgoNavis/CUDA/DataTransferVisitor.hpp>
 #include <ArgoNavis/CUDA/Device.hpp>
 #include <ArgoNavis/CUDA/KernelExecutionVisitor.hpp>
@@ -76,8 +77,8 @@ namespace ArgoNavis { namespace CUDA {
         void apply(const Base::ThreadName& thread,
                    const CBTF_cuda_data& message);
         
-        /** Names of all sampled hardware performance counters. */
-        const std::vector<std::string>& counters() const;
+        /** Name and kind of all sampled hardware performance counters. */
+        const std::vector<CounterDescription>& counters() const;
         
         /**
          * Counts for all sampled hardware performance counters for the given

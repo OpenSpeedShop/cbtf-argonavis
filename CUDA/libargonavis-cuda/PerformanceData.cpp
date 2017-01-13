@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -116,7 +116,7 @@ void PerformanceData::apply(const ThreadName& thread,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-const std::vector<std::string>& PerformanceData::counters() const
+const std::vector<CounterDescription>& PerformanceData::counters() const
 {
     return dm_data_table->counters();
 }
