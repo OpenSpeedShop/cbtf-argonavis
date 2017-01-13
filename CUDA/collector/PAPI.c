@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -18,6 +18,7 @@
 
 /** @file Definition of PAPI functions. */
 
+#include <cupti.h>
 #include <inttypes.h>
 #include <monitor.h>
 #if defined(PAPI_FOUND)
@@ -33,10 +34,10 @@
 #include <KrellInstitute/Messages/CUDA_data.h>
 
 #include <KrellInstitute/Services/Assert.h>
-#include <KrellInstitute/Services/Time.h>
 #include <KrellInstitute/Services/Timer.h>
 
 #include "collector.h"
+#include "CUPTI_check.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
 #include "TLS.h"
@@ -103,7 +104,7 @@ static void papi_callback(int event_set, void* address,
     /* Initialize a new overflow sample */
     OverflowSample sample;
     memset(&sample, 0, sizeof(OverflowSample));
-    sample.time = CBTF_GetTime();
+    CUPTI_CHECK(cuptiGetTimestamp(&sample.time));
     sample.pc = (CBTF_Protocol_Address)address;
     
     /* Find this event set in the TLS for this thread */
@@ -162,7 +163,7 @@ static void timer_callback(const ucontext_t* context)
     /* Initialize a new periodic sample */
     PeriodicSample sample;
     memset(&sample, 0, sizeof(PeriodicSample));
-    sample.time = CBTF_GetTime();
+    CUPTI_CHECK(cuptiGetTimestamp(&sample.time));
 
     /* Read the counters for each of our event sets */
     int s;

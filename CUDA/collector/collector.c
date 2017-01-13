@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,6 @@
 #include "CUPTI_activities.h"
 #include "CUPTI_callbacks.h"
 #include "CUPTI_metrics.h"
-#include "CUPTI_time.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
 #include "TLS.h"
@@ -287,9 +286,6 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
         
         /* Subscribe to CUPTI callbacks for this process */
         CUPTI_callbacks_subscribe();
-
-        /* Estimate the offset from CUPTI-provided times to CBTF_GetTime() */
-        CUPTI_time_synchronize();
     }
 
     ThreadCount.value++;

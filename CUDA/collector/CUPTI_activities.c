@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -18,6 +18,7 @@
 
 /** @file Definition of CUPTI activity functions. */
 
+#include <cupti.h>
 #include <malloc.h>
 #include <monitor.h>
 #include <stdio.h>
@@ -33,7 +34,6 @@
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
 #include "CUPTI_stream.h"
-#include "CUPTI_time.h"
 
 
 
@@ -261,8 +261,8 @@ static void add_kernel(TLS* tls, const CUpti_Activity* const raw_activity)
 
     message->id = activity->correlationId;
  
-    message->time_begin = activity->start + TimeOffset;
-    message->time_end = activity->end + TimeOffset;
+    message->time_begin = activity->start;
+    message->time_end = activity->end;
 
     message->function = (char*)activity->name;
     
@@ -315,8 +315,8 @@ static void add_memcpy(TLS* tls, const CUpti_Activity* const raw_activity)
 
     message->id = activity->correlationId;
 
-    message->time_begin = activity->start + TimeOffset;
-    message->time_end = activity->end + TimeOffset;
+    message->time_begin = activity->start;
+    message->time_end = activity->end;
 
     message->size = activity->bytes;
     

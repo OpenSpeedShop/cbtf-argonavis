@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,6 @@
 #include <KrellInstitute/Messages/CUDA_data.h>
 
 #include <KrellInstitute/Services/Assert.h>
-#include <KrellInstitute/Services/Time.h>
 
 #include "collector.h"
 #include "CUPTI_activities.h"
@@ -260,7 +259,7 @@ static void callback(void* userdata,
                     message->stream = (CBTF_Protocol_Address)get_stream(
                         id, cbdata->functionParams
                         );
-                    message->time = CBTF_GetTime();
+                    CUPTI_CHECK(cuptiGetTimestamp(&message->time));
                     message->call_site = call_site;
                     
                     TLS_update_header_with_time(tls, message->time);
@@ -403,7 +402,7 @@ static void callback(void* userdata,
                     message->stream = (CBTF_Protocol_Address)get_stream(
                         id, cbdata->functionParams
                         );
-                    message->time = CBTF_GetTime();
+                    CUPTI_CHECK(cuptiGetTimestamp(&message->time));
                     message->call_site = call_site;
                     
                     TLS_update_header_with_time(tls, message->time);

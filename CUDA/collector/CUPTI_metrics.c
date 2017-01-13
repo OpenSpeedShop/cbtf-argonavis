@@ -18,7 +18,7 @@
 
 /** @file Definition of CUPTI metrics functions. */
 
-#include <cuda.h>
+#include <cupti.h>
 #include <errno.h>
 #include <monitor.h>
 #include <pthread.h>
@@ -36,7 +36,6 @@
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Send.h>
-#include <KrellInstitute/Services/Time.h>
 
 #include "collector.h"
 #include "CUDA_check.h"
@@ -132,7 +131,7 @@ static void take_sample(int i)
     /* Initialize a new periodic sample */
     PeriodicSample sample;
     memset(&sample, 0, sizeof(PeriodicSample));
-    sample.time = CBTF_GetTime();
+    CUPTI_CHECK(cuptiGetTimestamp(&sample.time));
     
     /* Read the counters for each event group for this context */
     
@@ -497,7 +496,7 @@ void CUPTI_metrics_start(CUcontext context)
         object.linked_object.checksum = 0;
         object.range.begin = 0xFFFF0BADC0DABEEF;
         object.range.end = object.range.begin + 1;
-        object.time_begin = CBTF_GetTime();
+        CUPTI_CHECK(cuptiGetTimestamp(&object.time_begin));
         object.time_end = -1;
         object.is_executable = false;
         
