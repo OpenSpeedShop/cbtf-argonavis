@@ -44,7 +44,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Construct an empty completed event table. */
         EventTable() :
-	    dm_contexts(),
+            dm_contexts(),
             dm_events()
         {
         }

@@ -21,7 +21,9 @@
 #pragma once
 
 #include <boost/cstdint.hpp>
+#include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
+#include <stddef.h>
 #include <string>
 #include <vector>
 
@@ -96,6 +98,18 @@ namespace ArgoNavis { namespace CUDA {
         std::vector<boost::uint64_t> counts(
             const Base::ThreadName& thread,
             const Base::TimeInterval& interval
+            ) const;
+
+        /**
+         * Index, within devices(), of the device for which the given thread is
+         * a GPU hardware performance counter sampling thread. Returns "none" if
+         * the thread isn't a GPU hardware performance counter sampling thread.
+         *
+         * @param thread    Name of thread for which to get the device index.
+         * @return          Index of the device within devices() or "none".
+         */
+        boost::optional<std::size_t> device(
+            const Base::ThreadName& thread
             ) const;
         
         /** Information about all known CUDA devices. */

@@ -245,9 +245,14 @@ void TLS_send_data(TLS* tls)
          * be sent, MPI_Init() almost certainly has been called, so obtain the
          * MPI and OpenMP ranks and put them in the performance data header.
          */
-        tls->data_header.rank = monitor_mpi_comm_rank();
-        tls->data_header.omp_tid = monitor_get_thread_num();
 
+        tls->data_header.rank = monitor_mpi_comm_rank();
+
+        if (tls->data_header.omp_tid != -1)
+        {
+            tls->data_header.omp_tid = monitor_get_thread_num();
+        }
+        
         cbtf_collector_send(
             &tls->data_header, (xdrproc_t)xdr_CBTF_cuda_data, &tls->data
             );
