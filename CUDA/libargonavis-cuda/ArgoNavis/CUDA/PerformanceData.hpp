@@ -31,6 +31,7 @@
 
 #include <ArgoNavis/Base/AddressVisitor.hpp>
 #include <ArgoNavis/Base/BlobVisitor.hpp>
+#include <ArgoNavis/Base/PeriodicSampleVisitor.hpp>
 #include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/ThreadVisitor.hpp>
@@ -40,7 +41,6 @@
 #include <ArgoNavis/CUDA/DataTransferVisitor.hpp>
 #include <ArgoNavis/CUDA/Device.hpp>
 #include <ArgoNavis/CUDA/KernelExecutionVisitor.hpp>
-#include <ArgoNavis/CUDA/PeriodicSampleVisitor.hpp>
 
 namespace ArgoNavis { namespace CUDA {
 
@@ -180,9 +180,11 @@ namespace ArgoNavis { namespace CUDA {
          * @param interval    Time interval for the visitation.
          * @param visitor     Visitor invoked for each periodic sample.
          */
-        void visitPeriodicSamples(const Base::ThreadName& thread,
-                                  const Base::TimeInterval& interval,
-                                  const PeriodicSampleVisitor& visitor) const;
+        void visitPeriodicSamples(
+            const Base::ThreadName& thread,
+            const Base::TimeInterval& interval,
+            const Base::PeriodicSampleVisitor& visitor
+            ) const;
 
         /**
          * Visit the threads containing performance data.
