@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,11 +23,8 @@ set(SOURCES
     CUPTI_callbacks.c CUPTI_callbacks.h
     CUPTI_check.h
     CUPTI_context.h CUPTI_context.c
-    CUPTI_events.h CUPTI_events.c
     CUPTI_metrics.h CUPTI_metrics.c
     CUPTI_stream.h CUPTI_stream.c
-    CUPTI_time.h CUPTI_time.c
-    Mutex.h Mutex.c
     PAPI.h PAPI.c
     Pthread_check.h
     TLS.h TLS.c
@@ -64,12 +61,14 @@ target_link_libraries(cuda-collector-monitor-fileio
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-mrnet PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
@@ -91,12 +90,14 @@ target_link_libraries(cuda-collector-monitor-mrnet
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-mrnet-mpi PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
@@ -118,6 +119,7 @@ target_link_libraries(cuda-collector-monitor-mrnet-mpi
     ${CMAKE_THREAD_LIBS_INIT}
     ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 if(PAPI_FOUND)

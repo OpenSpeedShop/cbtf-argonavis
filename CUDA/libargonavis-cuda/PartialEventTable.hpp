@@ -195,7 +195,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Get the device ID for the given context address. */
         boost::uint32_t device(const Base::Address& context) const
-        {            
+        {
             Contexts::left_const_iterator i = dm_contexts.left.find(context);
 
             if (i == dm_contexts.left.end())

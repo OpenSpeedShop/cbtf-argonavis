@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,9 +21,15 @@ add_subdirectory(messages)
 
 if(CUDA_FOUND AND CUPTI_FOUND AND MRNET_FOUND)
 
-    add_subdirectory(collector)
+    if (PLATFORM_BUILD_COLLECTOR)
+        add_subdirectory(collector)
+    endif()
+  
     add_subdirectory(components)
-    add_subdirectory(cupti_avail)
+
+    if (${CUPTI_API_VERSION} GREATER 3)
+        add_subdirectory(cupti_avail)
+    endif()
 
     configure_file(cuda.xml.in cuda.xml)
 
@@ -35,4 +41,3 @@ if(CUDA_FOUND AND CUPTI_FOUND AND MRNET_FOUND)
         )
 
 endif()
-

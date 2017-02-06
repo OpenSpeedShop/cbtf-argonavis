@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -484,14 +484,21 @@ void displayMetrics(CUdevice device, bool details)
                     cout << "PCIe Generation"; break;
                 case CUPTI_METRIC_PROPERTY_DEVICE_CLASS:
                     cout << "Device Class"; break;
+
+#if (CUPTI_API_VERSION >= 6)
                 case CUPTI_METRIC_PROPERTY_FLOP_SP_PER_CYCLE:
                     cout << "Single-Precision FLOPS/Cycle"; break;
                 case CUPTI_METRIC_PROPERTY_FLOP_DP_PER_CYCLE:
                     cout << "Double-Precision FLOPS/Cycle"; break;
                 case CUPTI_METRIC_PROPERTY_L2_UNITS:
                     cout << "L2 Unit Count"; break;
+#endif
+
+#if (CUPTI_API_VERSION >= 8)
                 case CUPTI_METRIC_PROPERTY_ECC_ENABLED:
                     cout << "ECC Enabled"; break;
+#endif
+
                 default: cout << "?";
                 }
                 cout << endl;
