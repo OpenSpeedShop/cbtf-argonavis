@@ -1,3 +1,5 @@
+#!/bin/bash
+
 rm -rf  build
 mkdir build
 pushd build
@@ -5,12 +7,12 @@ pushd build
 export CC=`which gcc`
 export CXX=`which g++`
 
-export KRELL_ROOT=/opt/DEVEL/krellroot_v2.2.3
-export DYNINST_ROOT=/opt/DEVEL/krellroot_v2.2.3
-export CBTF_ROOT=/opt/DEVEL2/cbtf_v2.2.4
-export CBTF_KRELL_ROOT=/opt/DEVEL2/cbtf_v2.2.4
-export CBTF_ARGO_PREFIX=/opt/DEVEL2/cbtf_v2.2.4
-export MY_CUDA_ROOT=/usr/local/cuda-7.5
+export KRELL_ROOT=/opt/DEVEL/krellroot_v2.2.4
+export DYNINST_ROOT=/opt/DEVEL/krellroot_v2.2.4
+export CBTF_ROOT=/opt/DEVEL/cbtf_v2.2.4
+export CBTF_KRELL_ROOT=/opt/DEVEL/cbtf_v2.2.4
+export CBTF_ARGO_PREFIX=/opt/DEVEL/cbtf_v2.2.4
+export MY_CUDA_ROOT=/usr/local/cuda
 
 #./install-cbtf --install-prefix /opt/DEVEL/cbtf_only_v1.1 \
 #               --with-cbtf-root /opt/DEVEL/cbtf_only_v1.1 \
