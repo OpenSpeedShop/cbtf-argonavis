@@ -19,8 +19,10 @@
 /** @file Definition of the TLS support functions. */
 
 #include <malloc.h>
+#include <monitor.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
@@ -228,8 +230,9 @@ void TLS_send_data(TLS* tls)
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] TLS_send_data(): "
+            printf("[CUDA %d:%d] TLS_send_data(): "
                    "sending CBTF_cuda_data message (%u msg, %u pc)\n",
+                   getpid(), monitor_get_thread_num(),
                    tls->data.messages.messages_len,
                    tls->data.stack_traces.stack_traces_len);
         }
@@ -242,9 +245,14 @@ void TLS_send_data(TLS* tls)
          * be sent, MPI_Init() almost certainly has been called, so obtain the
          * MPI and OpenMP ranks and put them in the performance data header.
          */
-        tls->data_header.rank = monitor_mpi_comm_rank();
-        tls->data_header.omp_tid = monitor_get_thread_num();
 
+        tls->data_header.rank = monitor_mpi_comm_rank();
+
+        if (tls->data_header.omp_tid != -1)
+        {
+            tls->data_header.omp_tid = monitor_get_thread_num();
+        }
+        
         cbtf_collector_send(
             &tls->data_header, (xdrproc_t)xdr_CBTF_cuda_data, &tls->data
             );

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -16,28 +16,18 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-add_subdirectory(libargonavis-cuda)
-add_subdirectory(messages)
+add_executable(cupti_avail cupti_avail.cpp)
 
-if(CUDA_FOUND AND CUPTI_FOUND AND MRNET_FOUND)
+target_include_directories(cupti_avail PUBLIC
+    ${Boost_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
+    ${CUPTI_INCLUDE_DIRS}
+    )
 
-    if (PLATFORM_BUILD_COLLECTOR)
-        add_subdirectory(collector)
-    endif()
-  
-    add_subdirectory(components)
+target_link_libraries(cupti_avail
+    ${Boost_PROGRAM_OPTIONS_LIBRARY}
+    ${CUDA_LIBRARIES}
+    ${CUPTI_LIBRARIES}
+    )
 
-    if (${CUPTI_API_VERSION} GREATER 3)
-        add_subdirectory(cupti_avail)
-    endif()
-
-    configure_file(cuda.xml.in cuda.xml)
-
-    install(
-        FILES
-            ${PROJECT_BINARY_DIR}/CUDA/cuda.xml
-        DESTINATION
-            share/KrellInstitute/xml
-        )
-
-endif()
+install(TARGETS cupti_avail RUNTIME DESTINATION bin)

@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -18,9 +18,12 @@
 
 /** @file Definition of CUPTI activity functions. */
 
+#include <cupti.h>
 #include <malloc.h>
+#include <monitor.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Messages/CUDA_data.h>
 
@@ -31,7 +34,6 @@
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
 #include "CUPTI_stream.h"
-#include "CUPTI_time.h"
 
 
 
@@ -259,8 +261,8 @@ static void add_kernel(TLS* tls, const CUpti_Activity* const raw_activity)
 
     message->id = activity->correlationId;
  
-    message->time_begin = activity->start + TimeOffset;
-    message->time_end = activity->end + TimeOffset;
+    message->time_begin = activity->start;
+    message->time_end = activity->end;
 
     message->function = (char*)activity->name;
     
@@ -313,8 +315,8 @@ static void add_memcpy(TLS* tls, const CUpti_Activity* const raw_activity)
 
     message->id = activity->correlationId;
 
-    message->time_begin = activity->start + TimeOffset;
-    message->time_end = activity->end + TimeOffset;
+    message->time_begin = activity->start;
+    message->time_end = activity->end;
 
     message->size = activity->bytes;
     
@@ -352,8 +354,9 @@ static void add(TLS* tls, CUcontext context, uint32_t stream_id,
                                                   &dropped));
     if (dropped > 0)
     {
-        fprintf(stderr, "[CBTF/CUDA] "
+        fprintf(stderr, "[CUDA %d:%d] "
                 "dropped %u activity records for stream ID %u in context %p\n",
+                getpid(), monitor_get_thread_num(),
                 (unsigned int)dropped, stream_id, context);
         fflush(stderr);
     }
@@ -404,11 +407,13 @@ static void add(TLS* tls, CUcontext context, uint32_t stream_id,
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] "
+        printf("[CUDA %d:%d] "
                "added %u activity records for stream ID %u in context %p\n",
+               getpid(), monitor_get_thread_num(),
                (unsigned int)(total - ignored), stream_id, context);
-        printf("[CBTF/CUDA] "
+        printf("[CUDA %d:%d] "
                "ignored %u activity records for stream ID %u in context %p\n",
+               getpid(), monitor_get_thread_num(),
                (unsigned int)ignored, stream_id, context);
     }
 #endif
@@ -464,7 +469,8 @@ void CUPTI_activities_start()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_activities_start()\n");
+        printf("[CUDA %d:%d] CUPTI_activities_start()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -510,8 +516,8 @@ void CUPTI_activities_add(TLS* tls, CUcontext context, CUstream stream)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_activities_add(%p, %p, %p)\n",
-               tls, context, stream);
+        printf("[CUDA %d:%d] CUPTI_activities_add(%p, %p, %p)\n",
+               getpid(), monitor_get_thread_num(), tls, context, stream);
     }
 #endif
 
@@ -562,7 +568,8 @@ void CUPTI_activities_flush()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_activities_flush()\n");
+        printf("[CUDA %d:%d] CUPTI_activities_flush()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -585,7 +592,8 @@ void CUPTI_activities_stop()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_activities_stop()\n");
+        printf("[CUDA %d:%d] CUPTI_activities_stop()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 

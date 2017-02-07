@@ -179,8 +179,8 @@ bool DataAggregatorForCUDA::emitBlob(
         const CBTF_cuda_data& cuda_data = *unpacked.second;
 
         std::cout << std::endl
-                  << "[CBTF/CUDA] Emitted Blob" << std::endl
-		  << std::endl
+                  << "[CUDA] Emitted Blob" << std::endl
+                  << std::endl
                   << CUDA::stringify<>(cuda_data_header)
                   << CUDA::stringify<>(cuda_data);
     }
@@ -214,8 +214,8 @@ void DataAggregatorForCUDA::handleData(
     if (dm_is_debug_enabled)
     {
         std::cout << std::endl
-                  << "[CBTF/CUDA] Received Blob" << std::endl
-		  << std::endl
+                  << "[CUDA] Received Blob" << std::endl
+                  << std::endl
                   << CUDA::stringify<>(cuda_data_header)
                   << CUDA::stringify<>(cuda_data);
     }

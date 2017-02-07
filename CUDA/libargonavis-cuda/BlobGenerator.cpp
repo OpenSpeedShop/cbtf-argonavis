@@ -391,16 +391,24 @@ void BlobGenerator::initialize()
     
     dm_data->messages.messages_len = 0;
     dm_data->messages.messages_val = &dm_messages[0];
+
+    // It is very important that the following assign of dm_stack_traces, and
+    // that of dm_periodic_samples_deltas just below, occur BEFORE the address
+    // of their respective zero'th element is calculated. The assign() method
+    // is documented in the standard as invalidating all element pointers. And
+    // it does so in some implementations - even if the total element count is
+    // not changing.
+    
+    dm_stack_traces.assign(kMaxAddressesPerBlob, 0);
     
     dm_data->stack_traces.stack_traces_len = 0;
     dm_data->stack_traces.stack_traces_val = &dm_stack_traces[0];
 
-    dm_stack_traces.assign(kMaxAddressesPerBlob, 0);
-    
+    dm_periodic_samples_deltas.assign(kMaxDeltaBytesPerBlob, 0);
+
     dm_periodic_samples.deltas.deltas_len = 0;
     dm_periodic_samples.deltas.deltas_val = &dm_periodic_samples_deltas[0];
     
-    dm_periodic_samples_deltas.assign(kMaxDeltaBytesPerBlob, 0);
     dm_periodic_samples_previous.clear();
 }
 
@@ -422,6 +430,17 @@ void BlobGenerator::generate()
             &raw_message->CBTF_cuda_message_u.periodic_samples;
         
         memcpy(message, &dm_periodic_samples, sizeof(CUDA_PeriodicSamples));
+
+        // When generating a blob containing periodic samples, if the header's
+        // address range is undefined, replace it with a range that covers ALL
+        // addresses. Without this special case Open|SpeedShop tosses out data
+        // blobs produced by the CUTPI metrics and events sampling thread.
+
+        if ((dm_header->addr_begin == ~0) && (dm_header->addr_end == 0))
+        {
+            dm_header->addr_begin = 0;
+            dm_header->addr_end	= ~0;
+        }
     }
     
     boost::shared_ptr<CBTF_Protocol_Blob> blob =

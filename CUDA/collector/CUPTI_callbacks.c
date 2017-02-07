@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -20,21 +20,23 @@
 
 #include <cupti.h>
 #include <malloc.h>
+#include <monitor.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Messages/CUDA_data.h>
 
 #include <KrellInstitute/Services/Assert.h>
-#include <KrellInstitute/Services/Time.h>
 
 #include "collector.h"
 #include "CUPTI_activities.h"
 #include "CUPTI_callbacks.h"
 #include "CUPTI_check.h"
 #include "CUPTI_context.h"
-#include "CUPTI_events.h"
 #include "CUPTI_metrics.h"
 #include "CUPTI_stream.h"
+#include "Pthread_check.h"
 #include "TLS.h"
 
 
@@ -53,6 +55,9 @@
 
 /** CUPTI subscriber handle for this collector. */
 static CUpti_SubscriberHandle Handle;
+
+/** Mutex used to serialization kernel execution (when necessary). */
+pthread_mutex_t KernelSerializationMutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 
@@ -166,9 +171,6 @@ static void callback(void* userdata,
         {
             /* Start CUPTI metrics collection for this context */
             CUPTI_metrics_start(((CUpti_ResourceData*)data)->context);
-
-            /* Start CUPTI events collection for this context */
-            CUPTI_events_start(((CUpti_ResourceData*)data)->context);
         }
     }
     
@@ -178,9 +180,6 @@ static void callback(void* userdata,
     {
         if (TheSamplingConfig.events.events_len > 0)
         {
-            /* Stop CUPTI events collection for this context */
-            CUPTI_events_stop(((CUpti_ResourceData*)data)->context);
-
             /* Stop CUPTI metrics collection for this context */
             CUPTI_metrics_stop(((CUpti_ResourceData*)data)->context);
         }
@@ -219,12 +218,21 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] enter cuLaunchKernel()\n");
+                        printf("[CUDA %d:%d] enter cuLaunch*()\n",
+                               getpid(), monitor_get_thread_num());
                     }
 #endif
 
                     /* Add the context ID to pointer mapping */
                     CUPTI_context_add(cbdata->contextUid, cbdata->context);
+
+                    /* Obtain the kernel serialization mutex if required */
+                    if (CUPTI_metrics_do_kernel_serialization)
+                    {
+                        PTHREAD_CHECK(pthread_mutex_lock(
+                                          &KernelSerializationMutex
+                                          ));
+                    }
                     
                     /*
                      * Add a message for this event.
@@ -251,10 +259,37 @@ static void callback(void* userdata,
                     message->stream = (CBTF_Protocol_Address)get_stream(
                         id, cbdata->functionParams
                         );
-                    message->time = CBTF_GetTime();
+                    CUPTI_CHECK(cuptiGetTimestamp(&message->time));
                     message->call_site = call_site;
                     
                     TLS_update_header_with_time(tls, message->time);
+
+                    /* Sample the CUPTI metrics for this CUDA context */
+                    CUPTI_metrics_sample(cbdata->context);
+                }
+                else if (cbdata->callbackSite == CUPTI_API_EXIT)
+                {
+                    /* Sample the CUPTI metrics for this CUDA context */
+                    CUPTI_metrics_sample(cbdata->context);
+                    
+                    /* Release the kernel serialization mutex if required */
+                    if (CUPTI_metrics_do_kernel_serialization)
+                    {
+                        /*
+                         * Checking of pthread_mutex_unlock()'s return value
+                         * is intentionally skipped here. The only documented
+                         * return value other than 0 is EPERM, which indicates
+                         * this thread doesn't own the mutex. That IS possible
+                         * because CUPTI_metrics_do_kernel_serialization may
+                         * have been FALSE when the kernel was entered, but
+                         * is now TRUE on exit. Nothing can be done about that
+                         * after the fact. Simply ignore the error and solider
+                         * on. All future kernel executions will be serialized
+                         * properly.
+                         */
+
+                        pthread_mutex_unlock(&KernelSerializationMutex);
+                    }                    
                 }
                 break;
 
@@ -334,7 +369,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] enter cuMemcpy*()\n");
+                        printf("[CUDA %d:%d] enter cuMemcpy*()\n",
+                               getpid(), monitor_get_thread_num());
                     }
 #endif
 
@@ -366,7 +402,7 @@ static void callback(void* userdata,
                     message->stream = (CBTF_Protocol_Address)get_stream(
                         id, cbdata->functionParams
                         );
-                    message->time = CBTF_GetTime();
+                    CUPTI_CHECK(cuptiGetTimestamp(&message->time));
                     message->call_site = call_site;
                     
                     TLS_update_header_with_time(tls, message->time);
@@ -393,8 +429,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] created context %p\n",
-                               rdata->context);
+                        printf("[CUDA %d:%d] created context %p\n", getpid(),
+                               monitor_get_thread_num(), rdata->context);
                     }
 #endif
 
@@ -417,8 +453,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] destroying context %p\n",
-                               rdata->context);
+                        printf("[CUDA %d:%d] destroying context %p\n", getpid(),
+                               monitor_get_thread_num(), rdata->context);
                     }
 #endif
 
@@ -442,7 +478,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] created stream %p in context %p\n",
+                        printf("[CUDA %d:%d] created stream %p in context %p\n",
+                               getpid(), monitor_get_thread_num(),
                                rdata->resourceHandle.stream, rdata->context);
                     }
 #endif
@@ -475,8 +512,9 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] "
+                        printf("[CUDA %d:%d] "
                                "destroying stream %p in context %p\n",
+                               getpid(), monitor_get_thread_num(),
                                rdata->resourceHandle.stream, rdata->context);
                     }
 #endif
@@ -515,7 +553,8 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] synchronized context %p\n",
+                        printf("[CUDA %d:%d] synchronized context %p\n",
+                               getpid(), monitor_get_thread_num(),
                                sdata->context);
                     }
 #endif
@@ -537,8 +576,9 @@ static void callback(void* userdata,
 #if !defined(NDEBUG)
                     if (IsDebugEnabled)
                     {
-                        printf("[CBTF/CUDA] "
+                        printf("[CUDA %d:%d] "
                                "synchronized stream %p in context %p\n",
+                               getpid(), monitor_get_thread_num(),
                                sdata->stream, sdata->context);
                     }
 #endif
@@ -576,7 +616,8 @@ void CUPTI_callbacks_subscribe()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_callbacks_subscribe()\n");
+        printf("[CUDA %d:%d] CUPTI_callbacks_subscribe()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -596,7 +637,8 @@ void CUPTI_callbacks_unsubscribe()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] CUPTI_callbacks_unsubscribe()\n");
+        printf("[CUDA %d:%d] CUPTI_callbacks_unsubscribe()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 

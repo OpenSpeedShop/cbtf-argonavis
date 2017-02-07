@@ -172,6 +172,17 @@ std::vector<boost::uint64_t> PerformanceData::counts(
 
 
 //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+boost::optional<std::size_t> PerformanceData::device(
+    const ThreadName& thread
+    ) const
+{
+    return dm_data_table->device(thread);
+}
+
+
+
+//------------------------------------------------------------------------------
 // The fully qualfified name below when referring to Device should NOT be
 // required since we are using the ArgoNavis::CUDA namespace above. But GCC
 // 4.8.2 was complaining that the template paramter was invalid if the fully

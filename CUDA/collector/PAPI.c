@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,9 @@
 
 /** @file Definition of PAPI functions. */
 
+#include <cupti.h>
 #include <inttypes.h>
+#include <monitor.h>
 #if defined(PAPI_FOUND)
 #include <papi.h>
 #endif
@@ -27,18 +29,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <KrellInstitute/Messages/CUDA_data.h>
 
 #include <KrellInstitute/Services/Assert.h>
+#include <KrellInstitute/Services/Timer.h>
 
 #include "collector.h"
+#include "CUPTI_check.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
+#include "TLS.h"
 
 
 
 #if defined(PAPI_FOUND)
+
 /**
  * Checks that the given PAPI function call returns the value "PAPI_OK" or
  * "PAPI_VER_CURRENT". If the call was unsuccessful, the returned error is
@@ -46,31 +53,31 @@
  *
  * @param x    PAPI function call to be checked.
  */
-#define PAPI_CHECK(x)                                               \
-    do {                                                            \
-        int RETVAL = x;                                             \
-        if ((RETVAL != PAPI_OK) && (RETVAL != PAPI_VER_CURRENT))    \
-        {                                                           \
-            const char* description = PAPI_strerror(RETVAL);        \
-            if (description != NULL)                                \
-            {                                                       \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d (%s)\n", \
-                        __func__, #x, RETVAL, description);         \
-            }                                                       \
-            else                                                    \
-            {                                                       \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d\n",      \
-                        __func__, #x, RETVAL);                      \
-            }                                                       \
-            fflush(stderr);                                         \
-            abort();                                                \
-        }                                                           \
+#define PAPI_CHECK(x)                                                \
+    do {                                                             \
+        int RETVAL = x;                                              \
+        if ((RETVAL != PAPI_OK) && (RETVAL != PAPI_VER_CURRENT))     \
+        {                                                            \
+            const char* description = PAPI_strerror(RETVAL);         \
+            if (description != NULL)                                 \
+            {                                                        \
+                fprintf(stderr, "[CUDA %d:%d] %s(): %s = %d (%s)\n", \
+                        getpid(), monitor_get_thread_num(),          \
+                        __func__, #x, RETVAL, description);          \
+            }                                                        \
+            else                                                     \
+            {                                                        \
+                fprintf(stderr, "[CUDA %d:%d] %s(): %s = %d\n",      \
+                        getpid(), monitor_get_thread_num(),          \
+                        __func__, #x, RETVAL);                       \
+            }                                                        \
+            fflush(stderr);                                          \
+            abort();                                                 \
+        }                                                            \
     } while (0)
-#endif
 
 
 
-#if defined(PAPI_FOUND)
 /**
  * Callback invoked by PAPI every time an event counter overflows. I.e. reaches
  * the threshold value previously specified in parse_configuration().
@@ -97,7 +104,7 @@ static void papi_callback(int event_set, void* address,
     /* Initialize a new overflow sample */
     OverflowSample sample;
     memset(&sample, 0, sizeof(OverflowSample));
-    sample.time = CBTF_GetTime();
+    CUPTI_CHECK(cuptiGetTimestamp(&sample.time));
     sample.pc = (CBTF_Protocol_Address)address;
     
     /* Find this event set in the TLS for this thread */
@@ -134,6 +141,51 @@ static void papi_callback(int event_set, void* address,
     /* Add this sample to the performance data blob for this thread */
     TLS_add_overflow_sample(tls, &sample);
 }
+
+
+
+/**
+ * Callback invoked by the timer service every time a timer interrupt occurs.
+ *
+ * @param context    Thread context at this timer interrupt.
+ */
+static void timer_callback(const ucontext_t* context)
+{
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+
+    /* Do nothing if data collection is paused for this thread */
+    if (tls->paused)
+    {
+        return;
+    }
+
+    /* Initialize a new periodic sample */
+    PeriodicSample sample;
+    memset(&sample, 0, sizeof(PeriodicSample));
+    CUPTI_CHECK(cuptiGetTimestamp(&sample.time));
+
+    /* Read the counters for each of our event sets */
+    int s;
+    for (s = 0; s < tls->papi_event_set_count; ++s)
+    {
+        long long counts[MAX_EVENTS];
+        PAPI_CHECK(PAPI_read(tls->papi_event_sets[s].event_set,
+                             (long long*)&counts));
+        
+        int e;
+        for (e = 0; e < tls->papi_event_sets[s].event_count; ++e)
+        {
+            sample.count[
+                tls->papi_event_sets[s].event_to_periodic[e]
+                ] = counts[e];
+        }
+    }
+    
+    /* Add this sample to the performance data blob for this thread */
+    TLS_add_periodic_sample(tls, &sample);
+}
+
 #endif
 
 
@@ -148,7 +200,8 @@ void PAPI_initialize()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] PAPI_initialize()\n");
+        printf("[CUDA %d:%d] PAPI_initialize()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -170,7 +223,8 @@ void PAPI_start_data_collection()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] PAPI_start_data_collection()\n");
+        printf("[CUDA %d:%d] PAPI_start_data_collection()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -195,13 +249,13 @@ void PAPI_start_data_collection()
             continue;
         }
 
-	if (PAPI_query_event(code) != PAPI_OK)
-	{
-	    fprintf(stderr, "[CBTF/CUDA] "
-		    "CPU event \"%s\" is not available on this system\n",
-		    event->name);
-	    continue;
-	}
+        if (PAPI_query_event(code) != PAPI_OK)
+        {
+            fprintf(stderr, "[CUDA %d:%d] "
+                    "CPU event \"%s\" is not available on this system\n",
+                    getpid(), monitor_get_thread_num(), event->name);
+            continue;
+        }
         
         /* Look up the component for this event code */
         int component = PAPI_get_event_component(code);
@@ -256,7 +310,8 @@ void PAPI_start_data_collection()
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] recording CPU event \"%s\" for thread %p\n",
+            printf("[CUDA %d:%d] recording CPU event \"%s\" for thread %p\n",
+                   getpid(), monitor_get_thread_num(),
                    event->name, (void*)pthread_self());
         }
 #endif
@@ -268,36 +323,9 @@ void PAPI_start_data_collection()
     {
         PAPI_CHECK(PAPI_start(tls->papi_event_sets[s].event_set));
     }
-#endif
-}
 
-
-
-/**
- * Sample the PAPI events for the current thread.
- *
- * @param tls       Thread-local storage of the current thread.
- * @param sample    Periodic sample to hold the PAPI event counts.
- */
-void PAPI_sample(TLS* tls, PeriodicSample* sample)
-{
-#if defined(PAPI_FOUND)
-    /* Read the counters for each of our event sets */
-    int s;
-    for (s = 0; s < tls->papi_event_set_count; ++s)
-    {
-        long long counts[MAX_EVENTS];
-        PAPI_CHECK(PAPI_read(tls->papi_event_sets[s].event_set,
-                             (long long*)&counts));
-        
-        int e;
-        for (e = 0; e < tls->papi_event_sets[s].event_count; ++e)
-        {
-            sample->count[
-                tls->papi_event_sets[s].event_to_periodic[e]
-                ] = counts[e];
-        }
-    }
+    /* Start the periodic sampling timer for this thread */
+    CBTF_Timer(TheSamplingConfig.interval, timer_callback);
 #endif
 }
 
@@ -313,12 +341,16 @@ void PAPI_stop_data_collection()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] PAPI_stop_data_collection()\n");
+        printf("[CUDA %d:%d] PAPI_stop_data_collection()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
+
+    /* Stop the periodic sampling timer for this thread */
+    CBTF_Timer(0, NULL);
 
     /* Stop the sampling of our event sets */
     int s;
@@ -349,7 +381,8 @@ void PAPI_finalize()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] PAPI_finalize()\n");
+        printf("[CUDA %d:%d] PAPI_finalize()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 

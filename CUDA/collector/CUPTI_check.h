@@ -21,8 +21,10 @@
 #pragma once
 
 #include <cupti.h>
+#include <monitor.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /**
  * Checks that the given CUPTI function call returns the value "CUPTI_SUCCESS".
@@ -39,12 +41,14 @@
             const char* description = NULL;                                  \
             if (cuptiGetResultString(RETVAL, &description) == CUPTI_SUCCESS) \
             {                                                                \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d (%s)\n",          \
+                fprintf(stderr, "[CUDA %d:%d] %s(): %s = %d (%s)\n",         \
+                        getpid(), monitor_get_thread_num(),                  \
                         __func__, #x, RETVAL, description);                  \
             }                                                                \
             else                                                             \
             {                                                                \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d\n",               \
+                fprintf(stderr, "[CUDA %d:%d] %s(): %s = %d\n",              \
+                        getpid(), monitor_get_thread_num(),                  \
                         __func__, #x, RETVAL);                               \
             }                                                                \
             fflush(stderr);                                                  \

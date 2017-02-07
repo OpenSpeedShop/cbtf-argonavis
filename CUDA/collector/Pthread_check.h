@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -20,8 +20,10 @@
 
 #pragma once
 
+#include <monitor.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /**
  * Checks that the given pthread function call returns the value "0". If the
@@ -30,14 +32,15 @@
  *
  * @param x    Pthread function call to be checked.
  */
-#define PTHREAD_CHECK(x)                                   \
-    do {                                                   \
-        int RETVAL = x;                                    \
-        if (RETVAL != 0)                                   \
-        {                                                  \
-            fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d\n", \
-                    __func__, #x, RETVAL);                 \
-            fflush(stderr);                                \
-            abort();                                       \
-        }                                                  \
+#define PTHREAD_CHECK(x)                                    \
+    do {                                                    \
+        int RETVAL = x;                                     \
+        if (RETVAL != 0)                                    \
+        {                                                   \
+            fprintf(stderr, "[CUDA %d:%d] %s(): %s = %d\n", \
+                    getpid(), monitor_get_thread_num(),     \
+                    __func__, #x, RETVAL);                  \
+            fflush(stderr);                                 \
+            abort();                                        \
+        }                                                   \
     } while (0)
