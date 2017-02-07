@@ -21,10 +21,12 @@
 #pragma once
 
 #include <boost/cstdint.hpp>
+#include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <map>
 #include <set>
+#include <stddef.h>
 #include <string>
 #include <vector>
 #include <mutex>
@@ -102,6 +104,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         {
             return dm_counters;
         }
+
+        /**
+         * Index, within devices(), of the device for which the given thread is
+         * a GPU hardware performance counter sampling thread. Returns "none" if
+         * the thread isn't a GPU hardware performance counter sampling thread.
+         */
+        boost::optional<std::size_t> device(
+            const Base::ThreadName& thread
+            ) const;
 
         /** Information about all known CUDA devices. */
         const std::vector<Device>& devices() const

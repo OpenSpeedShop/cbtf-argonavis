@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
-Copyright (c) 2012,2014-2016 Argo Navis Technologies. All Rights Reserved.
+Copyright (c) 2012,2014-2017 Argo Navis Technologies. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -108,8 +108,8 @@ Place, Suite 330, Boston, MA  02111-1307  USA
       <Type>cuda_frontend</Type>
       <Version>5.0.0</Version>
       
-      <SearchPath>${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/KrellInstitute/Components</SearchPath>
-      
+      <SearchPath>${PLATFORM_FE_COMPONENT_LOCATION}</SearchPath>
+
       <Plugin>CUDA.so</Plugin>
       
       <!-- List of the frontend network's component instances -->

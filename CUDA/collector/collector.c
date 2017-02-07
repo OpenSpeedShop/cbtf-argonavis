@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -30,14 +30,10 @@
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
-#include <KrellInstitute/Services/Time.h>
-#include <KrellInstitute/Services/Timer.h>
 
 #include "CUPTI_activities.h"
 #include "CUPTI_callbacks.h"
-#include "CUPTI_events.h"
 #include "CUPTI_metrics.h"
-#include "CUPTI_time.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
 #include "TLS.h"
@@ -61,22 +57,6 @@ CUDA_SamplingConfig TheSamplingConfig;
  * initialization in cbtf_collector_start() through parse_configuration().
  */
 static CUDA_EventDescription EventDescriptions[MAX_EVENTS];
-
-/**
- * Boolean flag for exiting the CUPTI metrics and events sampling thread.
- * Used by the process-wide finalization in cbtf_collector_stop() to signal
- * that thread it should exit. Marked volatile to insure the compiler does
- * not optimize out references to this variable.
- */
-static volatile bool ExitSamplingThread = false;
-
-/**
- * Pthread ID of the CUPTI metrics and events sampling thread. Initialized
- * by the process-wide initialization in cbtf_collector_start(), and used by
- * the process-wide finalization in cbtf_collector_stop() to wait for that
- * thread to exit.
- */
-static pthread_t TheSamplingThread;
 
 /**
  * The number of threads for which are are collecting data (actively or not).
@@ -233,79 +213,6 @@ static void parse_configuration(const char* const configuration)
 
 
 /**
- * Function implementing the CUTPI metrics and events sampling thread.
- *
- * @param arg    Unused.
- * @return       Always returns NULL.
- */
-static void* sampling_thread(void* arg)
-{
-#if !defined(NDEBUG)
-    if (IsDebugEnabled)
-    {
-        printf("[CUDA %d:%d] sampling_thread()\n",
-               getpid(), monitor_get_thread_num());
-    }
-#endif
-
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-
-    /* Loop until cbtf_collector_stop() tells us to exit */
-    while (!ExitSamplingThread)
-    {
-        /* Initialize a new periodic sample */
-        PeriodicSample sample;
-        memset(&sample, 0, sizeof(PeriodicSample));
-        sample.time = CBTF_GetTime();
-        
-        /* Sample the CUPTI metrics and events */
-        CUPTI_metrics_sample(tls, &sample);
-        CUPTI_events_sample(tls, &sample);
-    
-        /* Add this sample to the performance data blob for this thread */
-        TLS_add_periodic_sample(tls, &sample);
-
-        /* Sleep for the configuration-specified period  */
-        usleep(TheSamplingConfig.interval / 1000 /* uS/nS */);
-    }
-    
-    return NULL;
-}
-
-
-
-/**
- * Callback invoked by the timer service each time a timer interrupt occurs.
- *
- * @param context    Thread context at this timer interrupt.
- */
-static void timer_callback(const ucontext_t* context)
-{
-    /* Access our thread-local storage */
-    TLS* tls = TLS_get();
-
-    /* Do nothing if data collection is paused for this thread */
-    if (tls->paused)
-    {
-        return;
-    }
-
-    /* Initialize a new periodic sample */
-    PeriodicSample sample;
-    memset(&sample, 0, sizeof(PeriodicSample));
-    sample.time = CBTF_GetTime();
-    
-    /* Sample PAPI counters for this thread */
-    PAPI_sample(tls, &sample);
-
-    /* Add this sample to the performance data blob for this thread */
-    TLS_add_periodic_sample(tls, &sample);
-}
-
-
-
-/**
  * Called by the CBTF collector service in order to start data collection.
  */
 void cbtf_collector_start(const CBTF_DataHeader* const header)
@@ -370,9 +277,8 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
             /* Initialize PAPI for this process */
             PAPI_initialize();
 
-            /* Start the CUPTI metrics and events sampling thread */
-            PTHREAD_CHECK(pthread_create(&TheSamplingThread, NULL,
-                                         sampling_thread, &tls->data_header));
+            /* Initialize CUPTI metrics data collection for this process */
+            CUPTI_metrics_initialize();
         }
 
         /* Start CUPTI activity data collection for this process */
@@ -380,9 +286,6 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
         
         /* Subscribe to CUPTI callbacks for this process */
         CUPTI_callbacks_subscribe();
-
-        /* Estimate the offset from CUPTI-provided times to CBTF_GetTime() */
-        CUPTI_time_synchronize();
     }
 
     ThreadCount.value++;
@@ -410,13 +313,10 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     cbtf_collector_resume();
     
     if ((TheSamplingConfig.events.events_len > 0) &&
-        (monitor_get_addr_thread_start() != sampling_thread))
+        (monitor_get_addr_thread_start() != CUPTI_metrics_sampling_thread))
     {
         /* Start PAPI data collection for this thread */
         PAPI_start_data_collection();
-
-        /* Start the periodic sampling timer for this thread */
-        CBTF_Timer(TheSamplingConfig.interval, timer_callback);
     }
 }
 
@@ -480,11 +380,8 @@ void cbtf_collector_stop()
 #endif
 
     if ((TheSamplingConfig.events.events_len > 0) &&
-        (monitor_get_addr_thread_start() != sampling_thread))
+        (monitor_get_addr_thread_start() != CUPTI_metrics_sampling_thread))
     {
-        /* Stop the periodic sampling timer for this thread */
-        CBTF_Timer(0, NULL);
-
         /* Stop PAPI data collection for this thread */
         PAPI_stop_data_collection();
     }
@@ -521,9 +418,8 @@ void cbtf_collector_stop()
 
         if (TheSamplingConfig.events.events_len > 0)
         {
-            /* Stop the CUPTI metrics and events sampling thread */
-            ExitSamplingThread = true;
-            PTHREAD_CHECK(pthread_join(TheSamplingThread, NULL));
+            /* Finalize CUPTI metrics data collection for this process */
+            CUPTI_metrics_finalize();
             
             /* Finalize PAPI for this process */
             PAPI_finalize();
