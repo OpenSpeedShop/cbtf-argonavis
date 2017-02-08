@@ -107,7 +107,13 @@ namespace ArgoNavis { namespace Base {
                    const PeriodicSampleVisitor& visitor) const;
         
     private:
-        
+
+        /** Resample these samples via weighted averages. */
+        PeriodicSamples resampleAverages(const Time& rate) const;
+
+        /** Resample these samples via weighted sums. */
+        PeriodicSamples resampleSums(const Time& rate) const;
+
         /** Name of these samples. */
         std::string dm_name;
 
