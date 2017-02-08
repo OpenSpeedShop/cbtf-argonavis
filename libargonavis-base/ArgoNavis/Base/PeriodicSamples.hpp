@@ -21,6 +21,7 @@
 #pragma once
 
 #include <boost/cstdint.hpp>
+#include <boost/optional.hpp>
 #include <map>
 #include <string>
 
@@ -65,13 +66,34 @@ namespace ArgoNavis { namespace Base {
         {
             return dm_kind;
         }
+
+        /** Number of samples. */
+        boost::uint64_t size() const
+        {
+            return dm_samples.size();
+        }
         
         /** Smallest time interval containing all of these samples. */
         TimeInterval interval() const;
-
+        
+        /** Average sampling rate of these samples. */
+        Time rate() const;
+        
         /** Add a new sample. */
         void add(const Time& time, boost::uint64_t value);
 
+        /**
+         * Resample these samples at a fixed sampling rate. If no sampling
+         * rate is provided, the average sampling rate (to the nearest mS)
+         * is used.
+         *
+         * @param rate    Fixed sampling rate for the resampling.
+         * @return        Resampled copy of these samples.
+         */
+        PeriodicSamples resample(
+            const boost::optional<Time>& rate = boost::none
+            ) const;
+        
         /**
          * Visit those samples within the specified time interval.
          *
@@ -85,7 +107,7 @@ namespace ArgoNavis { namespace Base {
                    const PeriodicSampleVisitor& visitor) const;
         
     private:
-
+        
         /** Name of these samples. */
         std::string dm_name;
 

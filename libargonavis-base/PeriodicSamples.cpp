@@ -18,6 +18,8 @@
 
 /** @file Definition of the PeriodicSamples class. */
 
+#include <cmath>
+
 #include <ArgoNavis/Base/PeriodicSamples.hpp>
 
 using namespace ArgoNavis::Base;
@@ -51,9 +53,52 @@ TimeInterval PeriodicSamples::interval() const
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+Time PeriodicSamples::rate() const
+{
+    boost::uint64_t sum = 0, n = 0;
+    Time previous;
+    
+    for (std::map<Time, boost::uint64_t>::const_iterator
+             i = dm_samples.begin(); i != dm_samples.end(); ++i)
+    {
+        if (i != dm_samples.begin())
+        {
+            sum += i->first - previous;
+        }
+        
+        previous = i->first;
+    }
+
+    return Time(static_cast<boost::uint64_t>(round(
+        static_cast<double>(sum) / static_cast<double>(n)
+        )));
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void PeriodicSamples::add(const Time& time, boost::uint64_t value)
 {
     dm_samples[time] = value;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+PeriodicSamples PeriodicSamples::resample(
+    const boost::optional<Time>& rate
+    ) const
+{
+    Time actual = rate ? *rate :
+        Time(1000000 /* ms/ns */ * static_cast<boost::uint64_t>(
+            round(static_cast<double>(this->rate()) / 1000000.0 /* ms/ns */)
+            ));
+    
+    // ...
+
+    return *this;
 }
 
 

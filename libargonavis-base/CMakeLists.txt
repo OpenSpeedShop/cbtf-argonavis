@@ -36,6 +36,7 @@ add_library(argonavis-base SHARED
     ArgoNavis/Base/MappingVisitor.hpp
     ArgoNavis/Base/OverflowSamples.hpp OverflowSamples.cpp
     ArgoNavis/Base/OverflowSampleVisitor.hpp
+    ArgoNavis/Base/PeriodicSamplesGroup.hpp PeriodicSamplesGroup.cpp
     ArgoNavis/Base/PeriodicSamples.hpp PeriodicSamples.cpp
     ArgoNavis/Base/PeriodicSampleVisitor.hpp
     ArgoNavis/Base/Raise.hpp
