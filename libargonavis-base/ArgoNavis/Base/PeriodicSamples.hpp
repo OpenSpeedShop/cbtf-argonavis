@@ -83,14 +83,18 @@ namespace ArgoNavis { namespace Base {
         void add(const Time& time, boost::uint64_t value);
 
         /**
-         * Resample these samples at a fixed sampling rate. If no sampling
-         * rate is provided, the average sampling rate (to the nearest mS)
-         * is used.
+         * Resample these samples at a fixed sampling rate.
          *
-         * @param rate    Fixed sampling rate for the resampling.
-         * @return        Resampled copy of these samples.
+         * @param interval    Time interval for the resampling. If not
+         *                    provided, the smallest time interval
+         *                    containing all of these samples is used.
+         * @param rate        Fixed sampling rate for the resampling. If
+         *                    not provided, the average sampling (to the
+         *                    nearest mS) is used.
+         * @return            Resampled copy of these samples.
          */
         PeriodicSamples resample(
+            const boost::optional<TimeInterval>& interval = boost::none,
             const boost::optional<Time>& rate = boost::none
             ) const;
         
@@ -108,11 +112,13 @@ namespace ArgoNavis { namespace Base {
         
     private:
 
-        /** Resample these samples via weighted averages. */
-        PeriodicSamples resampleAverages(const Time& rate) const;
+        /** Resample these samples using weighted deltas. */
+        PeriodicSamples resampleDeltas(const TimeInterval& interval,
+                                       const Time& rate) const;
 
-        /** Resample these samples via weighted sums. */
-        PeriodicSamples resampleSums(const Time& rate) const;
+        /** Resample these samples using weighted values. */
+        PeriodicSamples resampleValues(const TimeInterval& interval,
+                                       const Time& rate) const;
 
         /** Name of these samples. */
         std::string dm_name;

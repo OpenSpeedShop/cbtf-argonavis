@@ -88,21 +88,25 @@ Time ArgoNavis::Base::getAverageSamplingRate(const PeriodicSamplesGroup& group)
 //------------------------------------------------------------------------------
 PeriodicSamplesGroup ArgoNavis::Base::getResampled(
     const PeriodicSamplesGroup& group,
-    const boost::optional<Time>& rate
+    const boost::optional<TimeInterval>& interval_,
+    const boost::optional<Time>& rate_
     )
 {
-    PeriodicSamplesGroup result;
+    TimeInterval interval = interval_ ? *interval_ :
+        getSmallestTimeInterval(group);
     
-    Time actual = rate ? *rate :
+    Time rate = rate_ ? *rate_ :
         Time(1000000 /* ms/ns */ * static_cast<boost::uint64_t>(
             round(static_cast<double>(getAverageSamplingRate(group)) /
                   1000000.0 /* ms/ns */)
             ));
-    
+
+    PeriodicSamplesGroup result;
+
     for (PeriodicSamplesGroup::const_iterator
              i = group.begin(); i != group.end(); ++i)
     {
-        result.push_back(i->resample(actual));
+        result.push_back(i->resample(interval, rate));
     }
     
     return result;    

@@ -115,10 +115,13 @@ void PeriodicSamples::add(const Time& time, boost::uint64_t value)
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 PeriodicSamples PeriodicSamples::resample(
-    const boost::optional<Time>& rate
+    const boost::optional<TimeInterval>& interval_,
+    const boost::optional<Time>& rate_
     ) const
 {
-    Time actual = rate ? *rate : Time(
+    TimeInterval interval = interval_ ? *interval_ : this->interval();
+
+    Time rate = rate_ ? *rate_ : Time(
         1000000 /* ms/ns */ * static_cast<boost::uint64_t>(
             round(static_cast<double>(this->rate()) / 1000000.0 /* ms/ns */)
             )
@@ -127,7 +130,8 @@ PeriodicSamples PeriodicSamples::resample(
 #if defined(DEBUG_RESAMPLING)
     std::cout << std::endl;
     std::cout << "PeriodicSamples::resample("
-              << (rate ? debug(*rate) : "<none>")
+              << (interval_ ? debug(*interval_) : "<none>") << ", "
+              << (rate_ ? debug(*rate_) : "<none>")
               << ")" << std::endl;
     std::cout << "           name = " << dm_name;
     std::cout << "           kind = ";
@@ -139,19 +143,16 @@ PeriodicSamples PeriodicSamples::resample(
     }
     std::cout << std::endl;
     std::cout << "           size = " << dm_samples.size() << std::endl;
-    std::cout << "     interval() = " << debug(interval()) << std::endl;
+    std::cout << "     interval() = " << debug(this->interval()) << std::endl;
     std::cout << "         rate() = " << debug(this->rate()) << std::endl;
-    std::cout << "         actual = " << debug(actual) << std::endl;
+    std::cout << "       interval = " << debug(interval) << std::endl;    
+    std::cout << "           rate = " << debug(rate) << std::endl;
     std::cout << std::endl;
 #endif
 
-    switch (dm_kind)
-    {
-    case Count: return resampleSums(actual);
-    case Percentage: return resampleAverages(actual);
-    case Rate: return resampleAverages(actual);
-    default: return resampleAverages(actual);
-    }
+    return (dm_kind == Count) ?
+        resampleDeltas(interval, rate) :
+        resampleValues(interval, rate);
 }
 
 
@@ -179,43 +180,25 @@ void PeriodicSamples::visit(const TimeInterval& interval,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-PeriodicSamples PeriodicSamples::resampleAverages(const Time& rate) const
+PeriodicSamples PeriodicSamples::resampleDeltas(const TimeInterval& interval,
+                                                const Time& rate) const
 {
-    PeriodicSamples resampled(dm_name, dm_kind);
-
-    // ...
-
-    return resampled;
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-PeriodicSamples PeriodicSamples::resampleSums(const Time& rate) const
-{
-    // Determine the number of (re)samples
-
-    boost::uint64_t b = interval().begin(), e = interval().end(), r = rate;
-    
-    TimeInterval all(r * (b / r), (r * ((1 + e) / r)) - 1);
-    
-    boost::uint64_t N = all.width() / r;
+    // Compute the number of new samples
+    boost::uint64_t N = (interval.width() + rate - 1) / rate;
     
 #if defined(DEBUG_RESAMPLING)
-    std::cout << "            all = " << debug(all) << std::endl;
     std::cout << "              N = " << N << std::endl;
     
     int debug_count = 10;
 #endif
 
     std::vector<std::uint64_t> values(N, 0);
-    
+
     // Iterate over each of the original samples
     
-    Time tprevious = all.begin();
+    Time tprevious = Time::TheBeginning();
     boost::uint64_t vprevious = 0;
-    
+
     for (std::map<Time, boost::uint64_t>::const_iterator
              i = dm_samples.begin(); i != dm_samples.end(); ++i)
     {
@@ -234,8 +217,8 @@ PeriodicSamples PeriodicSamples::resampleSums(const Time& rate) const
         boost::uint64_t original_dv = i->second - vprevious;
 
         // Compute the range of new samples covering this original sample
-        boost::uint64_t jbegin = (tprevious - all.begin()) / r;
-        boost::uint64_t jend = 1 + ((i->first - all.begin()) / r);
+        boost::uint64_t jbegin = (tprevious - interval.begin()) / rate;
+        boost::uint64_t jend = 1 + ((i->first - interval.begin()) / rate);
 
 #if defined(DEBUG_RESAMPLING)
         if (do_debug)
@@ -262,13 +245,13 @@ PeriodicSamples PeriodicSamples::resampleSums(const Time& rate) const
             std::cout << "           jend = " << jend << std::endl;
         }
 #endif
-
+        
         // Iterate over each new sample covering this original sample
         for (boost::uint64_t j = jbegin; j < jend; ++j)
         {
             // Compute the time range covered by this new sample
-            TimeInterval nue(all.begin() + Time(j * r),
-                             all.begin() + Time(((j + 1) * r) - 1));
+            TimeInterval nue(interval.begin() + Time(j * rate),
+                             interval.begin() + Time(((j + 1) * rate) - 1));
             
             // Compute the intersection of the new and original samples
             TimeInterval intersection = original & nue;
@@ -282,7 +265,7 @@ PeriodicSamples PeriodicSamples::resampleSums(const Time& rate) const
                           << debug(intersection) << std::endl;
             }
 #endif
-            
+
             if (intersection.empty())
             {
                 continue;
@@ -312,16 +295,16 @@ PeriodicSamples PeriodicSamples::resampleSums(const Time& rate) const
             values[j] += intersection_dv;
         }
     }
-
-    // Construct and return the final, resampled, PeriodicSamples
+        
+    // Construct and return the final resampled PeriodicSamples
     
     PeriodicSamples resampled(dm_name, dm_kind);
    
     for (boost::uint64_t n = 0; n < N; ++n)
     {
-        resampled.add(all.begin() + Time(n * r), values[n]);
+        resampled.add(interval.begin() + Time(n * rate), values[n]);
     }
-
+    
 #if defined(DEBUG_RESAMPLING)
     boost::uint64_t sum_original = 0, sum_resampled = 0;
 
@@ -343,11 +326,110 @@ PeriodicSamples PeriodicSamples::resampleSums(const Time& rate) const
     {
         std::cout << "WARNING: The sum of the resampled values ("
                   << sum_resampled
-                  << ") was not equal to the sum of hte original values ("
+                  << ") was not equal to the sum of the original values ("
                   << sum_original
                   << ")!" << std::endl;
-    }    
+    }
 #endif
     
+    return resampled;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+PeriodicSamples PeriodicSamples::resampleValues(const TimeInterval& interval,
+                                                const Time& rate) const
+{
+    // Compute the number of new samples
+    boost::uint64_t N = (interval.width() + rate - 1) / rate;
+
+#if defined(DEBUG_RESAMPLING)
+    std::cout << "              N = " << N << std::endl;
+    
+    int debug_count = 10;
+#endif
+
+    // Construct and return the final resampled PeriodicSamples
+    
+    PeriodicSamples resampled(dm_name, dm_kind);
+   
+    for (boost::uint64_t n = 0; n < N; ++n)
+    {
+#if defined(DEBUG_RESAMPLING)
+        bool do_debug = (n == 0) || (n == (N - 1)) || (debug_count-- > 0);
+#endif
+
+        // Compute the time of this new sample
+        Time t = interval.begin() + Time(n * rate);
+
+        // Compute the value of this new sample
+
+        boost::uint64_t v = 0;
+        
+        std::map<Time, boost::uint64_t>::const_iterator min =
+            dm_samples.lower_bound(t);
+
+        std::map<Time, boost::uint64_t>::const_iterator max =
+            dm_samples.upper_bound(t);
+
+        if (max == dm_samples.begin())
+        {
+            v = dm_samples.begin()->second;
+        }
+        else if (min == dm_samples.end())
+        {
+            v = dm_samples.rbegin()->second;
+        }
+        else
+        {
+            if ((min != dm_samples.begin()) && (min->first != t))
+            {
+                --min;
+            }
+            
+            double w = static_cast<double>(t - min->first) /
+                static_cast<double>(max->first - min->first);
+            
+            v = static_cast<boost::uint64_t>(
+                round(w * static_cast<double>(min->second) +
+                      (1.0 - w) * static_cast<double>(max->second))
+                );
+        }
+        
+#if defined(DEBUG_RESAMPLING)
+        if (do_debug)
+        {
+            std::cout << std::endl;
+            std::cout << "              n = " << n << std::endl;
+            std::cout << "              t = " << debug(t) << std::endl;
+            std::cout << "            min = ";
+            if (min == dm_samples.end())
+            {
+                std::cout << "<end>";
+            }
+            else
+            {
+                std::cout << min->first << ", " << min->second;
+            }
+            std::cout << std::endl;
+            std::cout << "            max = ";
+            if (max == dm_samples.end())
+            {
+                std::cout << "<end>";
+            }
+            else
+            {
+                std::cout << max->first << ", " << max->second;
+            }
+            std::cout << std::endl;
+            std::cout << "              v = " << v << std::endl;
+        }
+#endif
+        
+        resampled.add(t, v);
+    }
+
     return resampled;
 }

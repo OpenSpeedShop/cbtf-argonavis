@@ -42,13 +42,10 @@ namespace ArgoNavis { namespace Base {
     /** Get the average sampling rate of all samples in a group. */
     Time getAverageSamplingRate(const PeriodicSamplesGroup& group);
 
-    /**
-     * Resample a group at a fixed sampling rate. If no sampling rate is
-     * provided, the average sampling rate of the group (to the nearest
-     * mS) is used.
-     */
+    /** Resample a group at a fixed sampling rate. */
     PeriodicSamplesGroup getResampled(
         const PeriodicSamplesGroup& group,
+        const boost::optional<TimeInterval>& interval = boost::none,
         const boost::optional<Time>& rate = boost::none
         );
     
