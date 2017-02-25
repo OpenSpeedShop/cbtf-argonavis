@@ -64,8 +64,7 @@ namespace ArgoNavis { namespace Base {
 
             if (clock_gettime(CLOCK_REALTIME, &now) != 0)
             {
-                using namespace boost::system;
-                throw system_error(errno, system_category(), "clock_gettime");
+                throw boost::system::system_error(errno, boost::system::system_category(), "clock_gettime");
             }
 
             return Time((static_cast<boost::uint64_t>(now.tv_sec) *
@@ -167,8 +166,7 @@ namespace ArgoNavis { namespace Base {
 
             if (localtime_r(&calendar_time, &broken_down_time) == NULL)
             {
-                using namespace boost::system;
-                throw system_error(errno, system_category(), "localtime_r");
+                throw boost::system::system_error(errno, boost::system::system_category(), "localtime_r");
             }
             
             char buffer[32];
@@ -176,8 +174,7 @@ namespace ArgoNavis { namespace Base {
             if (strftime(buffer, sizeof(buffer),
                          "%Y/%m/%d %H:%M:%S", &broken_down_time) == 0)
             {
-                using namespace boost::system;
-                throw system_error(errno, system_category(), "strftime");
+                throw boost::system::system_error(errno, boost::system::system_category(), "strftime_r");
             }
             
             stream << buffer;
