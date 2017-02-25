@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2013 Krell Institute. All Rights Reserved.
-// Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2015,2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -64,8 +64,9 @@ namespace ArgoNavis { namespace Base {
 
             if (clock_gettime(CLOCK_REALTIME, &now) != 0)
             {
-                using namespace boost::system;
-                throw system_error(errno, system_category(), "clock_gettime");
+                throw boost::system::system_error(
+                    errno, boost::system::system_category(), "clock_gettime"
+                    );
             }
 
             return Time((static_cast<boost::uint64_t>(now.tv_sec) *
@@ -167,8 +168,9 @@ namespace ArgoNavis { namespace Base {
 
             if (localtime_r(&calendar_time, &broken_down_time) == NULL)
             {
-                using namespace boost::system;
-                throw system_error(errno, system_category(), "localtime_r");
+                throw boost::system::system_error(
+                    errno, boost::system::system_category(), "localtime_r"
+                    );
             }
             
             char buffer[32];
@@ -176,8 +178,9 @@ namespace ArgoNavis { namespace Base {
             if (strftime(buffer, sizeof(buffer),
                          "%Y/%m/%d %H:%M:%S", &broken_down_time) == 0)
             {
-                using namespace boost::system;
-                throw system_error(errno, system_category(), "strftime");
+                throw boost::system::system_error(
+                    errno, boost::system::system_category(), "strftime"
+                    );
             }
             
             stream << buffer;
