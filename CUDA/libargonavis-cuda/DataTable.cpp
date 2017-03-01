@@ -524,7 +524,7 @@ void DataTable::process(const Base::ThreadName& thread,
             process(raw.CBTF_cuda_message_u.overflow_samples, per_thread);
             break;
 
-        case PeriodicSamples:
+        case ::PeriodicSamples:
             process(raw.CBTF_cuda_message_u.periodic_samples, per_thread);
             break;
             
@@ -633,9 +633,8 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     
     // Add the periodic samples to the generator
     
-    for (std::map<
-             boost::uint64_t, std::vector<boost::uint64_t>
-             >::const_iterator i = per_thread.dm_periodic_samples.begin();
+    for (PeriodicSamples::const_iterator
+             i = per_thread.dm_periodic_samples.begin();
          (i != per_thread.dm_periodic_samples.end()) && !generator.terminate();
          ++i)
     {

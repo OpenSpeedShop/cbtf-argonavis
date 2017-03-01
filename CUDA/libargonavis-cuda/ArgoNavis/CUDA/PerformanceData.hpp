@@ -31,6 +31,7 @@
 
 #include <ArgoNavis/Base/AddressVisitor.hpp>
 #include <ArgoNavis/Base/BlobVisitor.hpp>
+#include <ArgoNavis/Base/PeriodicSamples.hpp>
 #include <ArgoNavis/Base/PeriodicSampleVisitor.hpp>
 #include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
@@ -100,7 +101,7 @@ namespace ArgoNavis { namespace CUDA {
             const Base::ThreadName& thread,
             const Base::TimeInterval& interval
             ) const;
-
+        
         /**
          * Index, within devices(), of the device for which the given thread is
          * a GPU hardware performance counter sampling thread. Returns "none" if
@@ -119,6 +120,24 @@ namespace ArgoNavis { namespace CUDA {
         /** Smallest time interval containing this performance data. */
         const Base::TimeInterval& interval() const;
 
+        /**
+         * Periodic hardware performance counter samples within the given
+         * thread whose sample time is within the specified time interval.
+         *
+         * @param thread      Name of the thread for which to get samples.
+         * @param interval    Time interval over which to get samples.
+         * @param counter     Index, within counters(), of the counter
+         *                    for which to get samples.
+         * @return            Samples over the specified time interval.
+         *
+         * @throw std::invalid_argument    The given counter index is not valid.
+         */
+        Base::PeriodicSamples periodic(
+            const Base::ThreadName& thread,
+            const Base::TimeInterval& interval,
+            std::size_t counter
+            ) const;
+        
         /** Call sites of all known CUDA requests. */
         const std::vector<Base::StackTrace>& sites() const;
 

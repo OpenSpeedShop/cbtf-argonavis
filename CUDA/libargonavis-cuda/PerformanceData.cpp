@@ -21,11 +21,15 @@
 #include <boost/assert.hpp>
 #include <map>
 #include <stddef.h>
+#include <stdexcept>
+
+#include <ArgoNavis/Base/Raise.hpp>
 
 #include <ArgoNavis/CUDA/PerformanceData.hpp>
 
 #include "DataTable.hpp"
 
+using namespace ArgoNavis;
 using namespace ArgoNavis::Base;
 using namespace ArgoNavis::CUDA;
 using namespace ArgoNavis::CUDA::Impl;
@@ -35,15 +39,11 @@ using namespace ArgoNavis::CUDA::Impl;
 /** Anonymous namespace hiding implementation details. */
 namespace {
 
-    /** Type of container used to store periodic samples. */
-    typedef std::map<
-        boost::uint64_t, std::vector<boost::uint64_t>
-        > PeriodicSamples;
-
     /** Find the smallest range of samples enclosing the given interval. */
-    bool find(const PeriodicSamples& samples, const TimeInterval& interval,
-              PeriodicSamples::const_iterator& min,
-              PeriodicSamples::const_iterator& max)
+    bool find(const DataTable::PeriodicSamples& samples,
+              const TimeInterval& interval,
+              DataTable::PeriodicSamples::const_iterator& min,
+              DataTable::PeriodicSamples::const_iterator& max)
     {
         if (samples.empty())
         {
@@ -144,7 +144,7 @@ std::vector<boost::uint64_t> PerformanceData::counts(
     std::size_t M = i->second.dm_counters.size();
     BOOST_ASSERT(M <= N);
     
-    PeriodicSamples::const_iterator j_min, j_max;
+    DataTable::PeriodicSamples::const_iterator j_min, j_max;
 
     if (!find(i->second.dm_periodic_samples, interval, j_min, j_max))
     {
@@ -200,6 +200,78 @@ const std::vector<ArgoNavis::CUDA::Device>& PerformanceData::devices() const
 const TimeInterval& PerformanceData::interval() const
 {
     return dm_data_table->interval();
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+Base::PeriodicSamples PerformanceData::periodic(const ThreadName& thread,
+                                                const TimeInterval& interval,
+                                                std::size_t counter) const
+{
+    if (counter >= dm_data_table->counters().size())
+    {
+        raise<std::invalid_argument>(
+            "The given counter index (%1%) is not valid (< %2%).",
+            counter, dm_data_table->counters().size()
+            );
+    }
+    
+    Base::PeriodicSamples::Kind kind = Base::PeriodicSamples::Count;
+
+    switch (dm_data_table->counters()[counter].kind)
+    {
+    case kCount: kind = Base::PeriodicSamples::Count; break;
+    case kPercentage: kind = Base::PeriodicSamples::Percentage; break;
+    case kRate: kind = Base::PeriodicSamples::Rate; break;
+    default: kind = Base::PeriodicSamples::Count;      
+    }
+    
+    Base::PeriodicSamples samples(
+        dm_data_table->counters()[counter].name, kind
+        );
+    
+    std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
+        dm_data_table->threads().find(thread);
+    
+    if (i == dm_data_table->threads().end())
+    {
+        return samples;
+    }
+    
+    std::size_t n;
+
+    for (std::size_t n = 0;
+         (n < i->second.dm_counters.size()) &&
+             (i->second.dm_counters[n] != counter);
+         ++n);
+    
+    if (n == i->second.dm_counters.size())
+    {
+        return samples;
+    }
+
+    DataTable::PeriodicSamples::const_iterator j_min, j_max;
+
+    if (!find(i->second.dm_periodic_samples, interval, j_min, j_max))
+    {
+        return samples;
+    }
+
+    ++j_max;
+    
+    for (DataTable::PeriodicSamples::const_iterator j = j_min; j != j_max; ++j)
+    {
+        Time t(j->first);
+        
+        if (interval.contains(t))
+        {
+            samples.add(t, j->second[n]);
+        }
+    }
+    
+    return samples;
 }
 
 
@@ -292,7 +364,7 @@ void PerformanceData::visitPeriodicSamples(
     
     bool terminate = false;
 
-    PeriodicSamples::const_iterator j_min, j_max;
+    DataTable::PeriodicSamples::const_iterator j_min, j_max;
 
     if (!find(i->second.dm_periodic_samples, interval, j_min, j_max))
     {
@@ -301,7 +373,7 @@ void PerformanceData::visitPeriodicSamples(
 
     ++j_max;
     
-    for (PeriodicSamples::const_iterator
+    for (DataTable::PeriodicSamples::const_iterator
              j = j_min; !terminate && (j != j_max); ++j)
     {
         Time t(j->first);

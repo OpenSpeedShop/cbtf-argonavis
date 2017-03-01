@@ -61,6 +61,11 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Type of handle (smart pointer) to a data table. */
         typedef boost::shared_ptr<DataTable> Handle;
 
+        /** Type of container used to store processed periodic samples. */
+        typedef std::map<
+            boost::uint64_t, std::vector<boost::uint64_t>
+            > PeriodicSamples;
+        
         /** Structure containing per-thread data. */
         struct PerThreadData
         {
@@ -77,9 +82,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             EventTable<KernelExecution> dm_kernel_executions;
             
             /** Processed periodic samples. */
-            std::map<
-                boost::uint64_t, std::vector<boost::uint64_t>
-                > dm_periodic_samples;
+            PeriodicSamples dm_periodic_samples;
             
             /** Unprocessed periodic samples. */
             std::vector<
