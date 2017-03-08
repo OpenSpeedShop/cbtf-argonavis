@@ -42,9 +42,9 @@ namespace ArgoNavis { namespace Base {
         /** Enumeration of the supported kinds of sampled values. */
         enum Kind
         {
-            Count,      /**< Each sampled value is an event count. */
-            Percentage, /**< Each sampled value is a percentage. */
-            Rate        /**< Each sampled value is a rate. */
+            kCount,      /**< Each sampled value is an event count. */
+            kPercentage, /**< Each sampled value is a percentage. */
+            kRate        /**< Each sampled value is a rate. */
         };
         
         /**
@@ -53,7 +53,7 @@ namespace ArgoNavis { namespace Base {
          * @param name    Name of these samples.
          * @param kind    Kind of sampled values.
          */
-        PeriodicSamples(const std::string& name, Kind kind = Count);
+        PeriodicSamples(const std::string& name, Kind kind = kCount);
 
         /** Get the name of these samples. */
         const std::string& name() const

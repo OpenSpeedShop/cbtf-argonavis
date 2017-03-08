@@ -25,6 +25,7 @@
 #include <vector>
 
 #include <ArgoNavis/Base/PeriodicSamples.hpp>
+#include <ArgoNavis/Base/PeriodicSampleVisitor.hpp>
 #include <ArgoNavis/Base/Time.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
@@ -48,5 +49,21 @@ namespace ArgoNavis { namespace Base {
         const boost::optional<TimeInterval>& interval = boost::none,
         const boost::optional<Time>& rate = boost::none
         );
+
+    /**
+     * Resample a group at a fixed sampling rate and then combine identically
+     * named samples within the group using the operation most appropriate for
+     * the kind of samples. I.e. summation for counts, averaging for rates, etc.
+     */
+    PeriodicSamplesGroup getResampledAndCombined(
+        const PeriodicSamplesGroup& group,
+        const boost::optional<TimeInterval>& interval = boost::none,
+        const boost::optional<Time>& rate = boost::none
+        );
+
+    /** Concurrently visit a group. */
+    void visitConcurrently(const PeriodicSamplesGroup& group,
+                           const boost::optional<TimeInterval>& interval,
+                           const PeriodicSampleVisitor& visitor);
     
 } } // namespace ArgoNavis::Base

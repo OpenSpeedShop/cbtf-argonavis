@@ -218,14 +218,14 @@ Base::PeriodicSamples PerformanceData::periodic(const ThreadName& thread,
             );
     }
     
-    Base::PeriodicSamples::Kind kind = Base::PeriodicSamples::Count;
+    Base::PeriodicSamples::Kind kind = Base::PeriodicSamples::kCount;
 
     switch (dm_data_table->counters()[counter].kind)
     {
-    case kCount: kind = Base::PeriodicSamples::Count; break;
-    case kPercentage: kind = Base::PeriodicSamples::Percentage; break;
-    case kRate: kind = Base::PeriodicSamples::Rate; break;
-    default: kind = Base::PeriodicSamples::Count;      
+    case kCount: kind = Base::PeriodicSamples::kCount; break;
+    case kPercentage: kind = Base::PeriodicSamples::kPercentage; break;
+    case kRate: kind = Base::PeriodicSamples::kRate; break;
+    default: kind = Base::PeriodicSamples::kCount;      
     }
     
     Base::PeriodicSamples samples(

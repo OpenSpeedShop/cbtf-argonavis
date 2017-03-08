@@ -86,7 +86,7 @@ Time PeriodicSamples::rate() const
     Time previous;
     
     for (std::map<Time, boost::uint64_t>::const_iterator
-             i = dm_samples.begin(); i != dm_samples.end(); ++i)
+             i = dm_samples.begin(), i_end = dm_samples.end(); i != i_end; ++i)
     {
         if (i != dm_samples.begin())
         {
@@ -137,9 +137,9 @@ PeriodicSamples PeriodicSamples::resample(
     std::cout << "           kind = ";
     switch (dm_kind)
     {
-    case Count: std::cout << "Count"; break;
-    case Percentage: std::cout << "Percentage"; break;
-    case Rate: std::cout << "Rate"; break;
+    case kCount: std::cout << "Count"; break;
+    case kPercentage: std::cout << "Percentage"; break;
+    case kRate: std::cout << "Rate"; break;
     }
     std::cout << std::endl;
     std::cout << "           size = " << dm_samples.size() << std::endl;
@@ -150,7 +150,7 @@ PeriodicSamples PeriodicSamples::resample(
     std::cout << std::endl;
 #endif
 
-    return (dm_kind == Count) ?
+    return (dm_kind == kCount) ?
         resampleDeltas(interval, rate) :
         resampleValues(interval, rate);
 }
@@ -200,7 +200,7 @@ PeriodicSamples PeriodicSamples::resampleDeltas(const TimeInterval& interval,
     boost::uint64_t vprevious = 0;
 
     for (std::map<Time, boost::uint64_t>::const_iterator
-             i = dm_samples.begin(); i != dm_samples.end(); ++i)
+             i = dm_samples.begin(), i_end = dm_samples.end(); i != i_end; ++i)
     {
 #if defined(DEBUG_RESAMPLING)
         bool do_debug =
@@ -217,8 +217,8 @@ PeriodicSamples PeriodicSamples::resampleDeltas(const TimeInterval& interval,
         boost::uint64_t original_dv = i->second - vprevious;
 
         // Compute the range of new samples covering this original sample
-        boost::uint64_t jbegin = (tprevious - interval.begin()) / rate;
-        boost::uint64_t jend = 1 + ((i->first - interval.begin()) / rate);
+        boost::uint64_t j_begin = (tprevious - interval.begin()) / rate;
+        boost::uint64_t j_end = 1 + ((i->first - interval.begin()) / rate);
 
 #if defined(DEBUG_RESAMPLING)
         if (do_debug)
@@ -241,13 +241,13 @@ PeriodicSamples PeriodicSamples::resampleDeltas(const TimeInterval& interval,
             std::cout << "    original_dt = "
                       << debug(original_dt) << std::endl;
             std::cout << "    original_dv = " << original_dv << std::endl;
-            std::cout << "         jbegin = " << jbegin << std::endl;
-            std::cout << "           jend = " << jend << std::endl;
+            std::cout << "        j_begin = " << j_begin << std::endl;
+            std::cout << "          j_end = " << j_end << std::endl;
         }
 #endif
         
         // Iterate over each new sample covering this original sample
-        for (boost::uint64_t j = jbegin; j < jend; ++j)
+        for (boost::uint64_t j = j_begin; j < j_end; ++j)
         {
             // Compute the time range covered by this new sample
             TimeInterval nue(interval.begin() + Time(j * rate),
@@ -309,19 +309,20 @@ PeriodicSamples PeriodicSamples::resampleDeltas(const TimeInterval& interval,
     boost::uint64_t sum_original = 0, sum_resampled = 0;
 
     for (std::map<Time, boost::uint64_t>::const_iterator
-             i = dm_samples.begin(); i != dm_samples.end(); ++i)
+             i = dm_samples.begin(), i_end = dm_samples.end(); i != i_end; ++i)
     {
         sum_original += i->second;
     }
 
     for (std::map<Time, boost::uint64_t>::const_iterator
-             i = resampled.dm_samples.begin();
-         i != resampled.dm_samples.end();
+             i = resampled.dm_samples.begin(),
+             i_end = resampled.dm_samples.end();
+         i != i_end;
          ++i)
     {
         sum_resampled += i->second;
     }
-
+    
     if (sum_resampled != sum_original)
     {
         std::cout << "WARNING: The sum of the resampled values ("
