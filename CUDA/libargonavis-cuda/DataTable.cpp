@@ -636,7 +636,8 @@ DataTable::PerProcessData& DataTable::accessPerProcessData(
     
     if (i == dm_processes.end())
     {
-        i = dm_processes.insert(std::make_pair(key, PerProcessData())).first;
+        auto item = std::make_pair(key, PerProcessData());
+        i = dm_processes.insert(item).first;
     }
     
     return i->second;
@@ -656,7 +657,8 @@ DataTable::PerThreadData& DataTable::accessPerThreadData(
     
     if (i == dm_threads.end())
     {
-        i = dm_threads.insert(std::make_pair(key, PerThreadData())).first;
+        auto item = std::make_pair(key, PerThreadData());
+        i = dm_threads.insert(item).first;
     }
     
     return i->second;

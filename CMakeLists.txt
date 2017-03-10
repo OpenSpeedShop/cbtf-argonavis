@@ -59,5 +59,7 @@ if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
     set(CUPTI_INCLUDE_DIRS ${CUDA_INCLUDE_DIRS} ${CUPTI_INCLUDE_DIR})
 endif()
 
+add_definitions(-std=c++11)
+
 add_subdirectory(libargonavis-base)
 add_subdirectory(CUDA)
