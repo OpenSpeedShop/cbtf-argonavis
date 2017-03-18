@@ -7,14 +7,14 @@ pushd build
 export CC=`which gcc`
 export CXX=`which g++`
 
-export KRELL_ROOT=/opt/STABLE/krellroot_v2.3.0
-export DYNINST_ROOT=/opt/STABLE/krellroot_v2.3.0
-export CBTF_ROOT=/opt/DEVEL3/cbtf_v2.3.1
-export CBTF_KRELL_ROOT=/opt/DEVEL3/cbtf_v2.3.1
-export CBTF_ARGO_PREFIX=/opt/DEVEL3/cbtf_v2.3.1
+export KRELL_ROOT=/opt/STABLE/krellroot_v2.3.1
+export DYNINST_ROOT=/opt/STABLE/krellroot_v2.3.1
+export CBTF_ROOT=/opt/DEVEL/cbtf_v2.3.0
+export CBTF_KRELL_ROOT=/opt/DEVEL/cbtf_v2.3.0
+export CBTF_ARGO_PREFIX=/opt/DEVEL/cbtf_v2.3.0
 export MY_CUDA_ROOT=/usr/local/cuda
-export BOOST_ROOT=/opt/boost-1.59.0
-export LIBMONITOR_DIR=/opt/STABLE/krellroot_v2.3.0
+export BOOST_ROOT=/usr
+export LIBMONITOR_DIR=/opt/STABLE/krellroot_v2.3.1
 
 export MY_CMAKE_PREFIX_PATH="${KRELL_ROOT}:${CBTF_ROOT}:${CBTF_KRELL_ROOT}"
 
