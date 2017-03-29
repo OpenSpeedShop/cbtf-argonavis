@@ -234,15 +234,15 @@ Base::PeriodicSamples PerformanceData::periodic(const ThreadName& thread,
     
     std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
         dm_data_table->threads().find(thread);
-    
+
     if (i == dm_data_table->threads().end())
     {
         return samples;
     }
-    
+
     std::size_t n;
 
-    for (std::size_t n = 0;
+    for (n = 0;
          (n < i->second.dm_counters.size()) &&
              (i->second.dm_counters[n] != counter);
          ++n);
@@ -260,17 +260,17 @@ Base::PeriodicSamples PerformanceData::periodic(const ThreadName& thread,
     }
 
     ++j_max;
-    
+
     for (DataTable::PeriodicSamples::const_iterator j = j_min; j != j_max; ++j)
     {
         Time t(j->first);
-        
+
         if (interval.contains(t))
         {
             samples.add(t, j->second[n]);
         }
     }
-    
+
     return samples;
 }
 

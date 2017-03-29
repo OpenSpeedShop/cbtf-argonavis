@@ -216,8 +216,8 @@ PeriodicSamplesGroup ArgoNavis::Base::getResampledAndCombined(
              j != j_end;
              ++j)
         {
-            group[*j].visit(
-                group[*j].interval(),
+            resampled[*j].visit(
+                resampled[*j].interval(),
                 boost::bind(accumulate, _1, _2, boost::ref(data))
                 );
         }
