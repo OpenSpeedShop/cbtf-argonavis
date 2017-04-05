@@ -51,6 +51,20 @@
  */
 #define MAX_DELTAS_BYTES_PER_BLOB (32 * 1024 /* 32 KB */)
 
+/*
+ * The SHOC-MaxFlops benchmark was crashing on NASA Pleiades, and the cause
+ * appears to be that this benchmark runs for a long time without intervening
+ * CUDA calls, generating a full 32 KB buffer of deltas. And the encoding of
+ * these fails, crashing CBTF_MRNet_Send(). Dropping this constant to 8 KB
+ * seems to fix the issue. But is not really a great solution. So this issue
+ * should be revisited in the future...
+ *
+ * WDH 2017-APR-4
+ */
+#undef MAX_DELTAS_BYTES_PER_BLOB
+#define MAX_DELTAS_BYTES_PER_BLOB (8 * 1024 /* 8 KB */)
+
+
 /**
  * Maximum supported number of concurrently sampled events. Controls the fixed
  * size of several of the tables related to event sampling.
