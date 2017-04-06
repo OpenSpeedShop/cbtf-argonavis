@@ -256,6 +256,9 @@ void PAPI_start_data_collection()
                     getpid(), monitor_get_thread_num(), event->name);
             continue;
         }
+
+        /* All PAPI events are counts */
+        event->kind = Count;
         
         /* Look up the component for this event code */
         int component = PAPI_get_event_component(code);

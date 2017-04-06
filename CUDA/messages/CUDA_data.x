@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -54,6 +54,17 @@ enum CUDA_CopyKind
 };
 
 /**
+ * Enumeration of different sampled event kinds.
+ */ 
+enum CUDA_EventKind
+{
+    UnknownEventKind = 0,    
+    Count = 1,
+    Percentage = 2,
+    Rate = 3
+};
+
+/**
  * Enumeration of the different memory kinds.
  */
 enum CUDA_MemoryKind
@@ -91,15 +102,19 @@ enum CUDA_MessageTypes
 struct CUDA_EventDescription
 {
     /**
-     * Name of the event. This is PAPI's ASCII name for the event.
+     * Name of the event. This is PAPI's or CUPTI's ASCII name for the event.
      *
      * @sa http://icl.cs.utk.edu/papi/
+     * @sa http://docs.nvidia.com/cuda/cupti/r_main.html#r_metric_api
      */
     string name<>;
 
+    /** Kind of the event. */
+    CUDA_EventKind kind;
+
     /**
      * Threshold for the event. This the number of events between consecutive
-     * overflow samples. Zero if only periodic (in time) sampling was used.
+     * overflow samples. Zero when only periodic (in time) sampling was used.
      */
     int threshold;
 };

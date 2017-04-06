@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -38,6 +38,7 @@
 #include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
+#include <ArgoNavis/CUDA/CounterDescription.hpp>
 #include <ArgoNavis/CUDA/DataTransfer.hpp>
 #include <ArgoNavis/CUDA/Device.hpp>
 #include <ArgoNavis/CUDA/KernelExecution.hpp>
@@ -60,6 +61,11 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Type of handle (smart pointer) to a data table. */
         typedef boost::shared_ptr<DataTable> Handle;
 
+        /** Type of container used to store processed periodic samples. */
+        typedef std::map<
+            boost::uint64_t, std::vector<boost::uint64_t>
+            > PeriodicSamples;
+        
         /** Structure containing per-thread data. */
         struct PerThreadData
         {
@@ -67,7 +73,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
              * Index within DataTable::counters() for each of this thread's
              * sampled hardware performance counters.
              */
-            std::vector<std::vector<std::string>::size_type> dm_counters;
+            std::vector<std::vector<CounterDescription>::size_type> dm_counters;
             
             /** Table of this thread's data transfers. */
             EventTable<DataTransfer> dm_data_transfers;
@@ -76,9 +82,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             EventTable<KernelExecution> dm_kernel_executions;
             
             /** Processed periodic samples. */
-            std::map<
-                boost::uint64_t, std::vector<boost::uint64_t>
-                > dm_periodic_samples;
+            PeriodicSamples dm_periodic_samples;
             
             /** Unprocessed periodic samples. */
             std::vector<
@@ -97,8 +101,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         void process(const Base::ThreadName& thread,
                      const CBTF_cuda_data& message);
         
-        /** Names of all sampled hardware performance counters. */
-        const std::vector<std::string>& counters() const
+        /** Name and kind of all sampled hardware performance counters. */
+        const std::vector<CounterDescription>& counters() const
         {
             return dm_counters;
         }
@@ -242,8 +246,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                                     const boost::uint8_t* end,
                                     PerThreadData& per_thread);
 
-        /** Names of all sampled hardware performance counters. */
-        std::vector<std::string> dm_counters;
+        /** Name and kind of all sampled hardware performance counters. */
+        std::vector<CounterDescription> dm_counters;
 
         /** Information about all known CUDA devices. */
         std::vector<Device> dm_devices;

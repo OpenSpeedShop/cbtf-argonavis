@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -16,7 +16,7 @@
 // 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
-/** @file Declaration of the PeriodicSampleVisitor type. */
+/** @file Declaration of the OverflowSampleVisitor type. */
 
 #pragma once
 
@@ -24,16 +24,16 @@
 #include <boost/function.hpp>
 #include <vector>
 
-#include <ArgoNavis/Base/Time.hpp>
+#include <ArgoNavis/Base/Address.hpp>
 
-namespace ArgoNavis { namespace CUDA {
+namespace ArgoNavis { namespace Base {
 
     /**
-     * Type of function invoked when visiting one or more hardware performance
-     * counter periodic samples. Used with implicit iterations, a reference to
-     * the time and values for the periodic sample are passed as parameters to
-     * the function, and the function returns either "true" to continue the
-     * iteration or "false" to terminate it.
+     * Type of function invoked when visiting one or more overflow samples.
+     * Used with implicit iterations, a reference to the address and value(s)
+     * for the overflow sample are passed as parameters to the function, and
+     * the function returns either "true" to continue the iteration or "false"
+     * to terminate it.
      *
      * @note    The usage of the term "visitor" here does <em>not</em>
      *          refer to the design pattern of the same name.
@@ -42,7 +42,7 @@ namespace ArgoNavis { namespace CUDA {
      * @sa http://en.wikipedia.org/wiki/Visitor_pattern
      */
     typedef boost::function<
-        bool (const Base::Time&, const std::vector<boost::uint64_t>&)
-        > PeriodicSampleVisitor;
+        bool (const Address&, const std::vector<boost::uint64_t>&)
+        > OverflowSampleVisitor;
     
-} } // namespace ArgoNavis::CUDA
+} } // namespace ArgoNavis::Base
