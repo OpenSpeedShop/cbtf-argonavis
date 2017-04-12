@@ -404,9 +404,7 @@ void BlobGenerator::initialize()
         reinterpret_cast<CBTF_Protocol_Address*>(malloc(
             kMaxAddressesPerBlob * sizeof(CBTF_Protocol_Address)
             ));
-
-    memset(dm_data->stack_traces.stack_traces_val, 0,
-           kMaxAddressesPerBlob * sizeof(CBTF_Protocol_Address));         
+    dm_data->stack_traces.stack_traces_val[0] = 0;
 
     dm_periodic_samples.deltas.deltas_len = 0;
     dm_periodic_samples.deltas.deltas_val =
