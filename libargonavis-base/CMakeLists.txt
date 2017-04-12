@@ -1,6 +1,6 @@
 ################################################################################
 # Copyright (c) 2013 Krell Institute. All Rights Reserved.
-# Copyright (c) 2015, 2016 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2015-2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,11 @@ add_library(argonavis-base SHARED
     ArgoNavis/Base/Loop.hpp Loop.cpp
     ArgoNavis/Base/LoopVisitor.hpp
     ArgoNavis/Base/MappingVisitor.hpp
+    ArgoNavis/Base/OverflowSamples.hpp OverflowSamples.cpp
+    ArgoNavis/Base/OverflowSampleVisitor.hpp
+    ArgoNavis/Base/PeriodicSamplesGroup.hpp PeriodicSamplesGroup.cpp
+    ArgoNavis/Base/PeriodicSamples.hpp PeriodicSamples.cpp
+    ArgoNavis/Base/PeriodicSampleVisitor.hpp
     ArgoNavis/Base/Raise.hpp
     ArgoNavis/Base/Resolver.hpp Resolver.cpp
     ArgoNavis/Base/StackTrace.hpp

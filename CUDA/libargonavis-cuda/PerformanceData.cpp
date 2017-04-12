@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -21,11 +21,15 @@
 #include <boost/assert.hpp>
 #include <map>
 #include <stddef.h>
+#include <stdexcept>
+
+#include <ArgoNavis/Base/Raise.hpp>
 
 #include <ArgoNavis/CUDA/PerformanceData.hpp>
 
 #include "DataTable.hpp"
 
+using namespace ArgoNavis;
 using namespace ArgoNavis::Base;
 using namespace ArgoNavis::CUDA;
 using namespace ArgoNavis::CUDA::Impl;
@@ -35,15 +39,11 @@ using namespace ArgoNavis::CUDA::Impl;
 /** Anonymous namespace hiding implementation details. */
 namespace {
 
-    /** Type of container used to store periodic samples. */
-    typedef std::map<
-        boost::uint64_t, std::vector<boost::uint64_t>
-        > PeriodicSamples;
-
     /** Find the smallest range of samples enclosing the given interval. */
-    bool find(const PeriodicSamples& samples, const TimeInterval& interval,
-              PeriodicSamples::const_iterator& min,
-              PeriodicSamples::const_iterator& max)
+    bool find(const DataTable::PeriodicSamples& samples,
+              const TimeInterval& interval,
+              DataTable::PeriodicSamples::const_iterator& min,
+              DataTable::PeriodicSamples::const_iterator& max)
     {
         if (samples.empty())
         {
@@ -116,7 +116,7 @@ void PerformanceData::apply(const ThreadName& thread,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-const std::vector<std::string>& PerformanceData::counters() const
+const std::vector<CounterDescription>& PerformanceData::counters() const
 {
     return dm_data_table->counters();
 }
@@ -144,7 +144,7 @@ std::vector<boost::uint64_t> PerformanceData::counts(
     std::size_t M = i->second.dm_counters.size();
     BOOST_ASSERT(M <= N);
     
-    PeriodicSamples::const_iterator j_min, j_max;
+    DataTable::PeriodicSamples::const_iterator j_min, j_max;
 
     if (!find(i->second.dm_periodic_samples, interval, j_min, j_max))
     {
@@ -172,6 +172,17 @@ std::vector<boost::uint64_t> PerformanceData::counts(
 
 
 //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+boost::optional<std::size_t> PerformanceData::device(
+    const ThreadName& thread
+    ) const
+{
+    return dm_data_table->device(thread);
+}
+
+
+
+//------------------------------------------------------------------------------
 // The fully qualfified name below when referring to Device should NOT be
 // required since we are using the ArgoNavis::CUDA namespace above. But GCC
 // 4.8.2 was complaining that the template paramter was invalid if the fully
@@ -189,6 +200,78 @@ const std::vector<ArgoNavis::CUDA::Device>& PerformanceData::devices() const
 const TimeInterval& PerformanceData::interval() const
 {
     return dm_data_table->interval();
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+Base::PeriodicSamples PerformanceData::periodic(const ThreadName& thread,
+                                                const TimeInterval& interval,
+                                                std::size_t counter) const
+{
+    if (counter >= dm_data_table->counters().size())
+    {
+        raise<std::invalid_argument>(
+            "The given counter index (%1%) is not valid (< %2%).",
+            counter, dm_data_table->counters().size()
+            );
+    }
+    
+    Base::PeriodicSamples::Kind kind = Base::PeriodicSamples::kCount;
+
+    switch (dm_data_table->counters()[counter].kind)
+    {
+    case kCount: kind = Base::PeriodicSamples::kCount; break;
+    case kPercentage: kind = Base::PeriodicSamples::kPercentage; break;
+    case kRate: kind = Base::PeriodicSamples::kRate; break;
+    default: kind = Base::PeriodicSamples::kCount;      
+    }
+    
+    Base::PeriodicSamples samples(
+        dm_data_table->counters()[counter].name, kind
+        );
+    
+    std::map<ThreadName, DataTable::PerThreadData>::const_iterator i =
+        dm_data_table->threads().find(thread);
+
+    if (i == dm_data_table->threads().end())
+    {
+        return samples;
+    }
+
+    std::size_t n;
+
+    for (n = 0;
+         (n < i->second.dm_counters.size()) &&
+             (i->second.dm_counters[n] != counter);
+         ++n);
+    
+    if (n == i->second.dm_counters.size())
+    {
+        return samples;
+    }
+
+    DataTable::PeriodicSamples::const_iterator j_min, j_max;
+
+    if (!find(i->second.dm_periodic_samples, interval, j_min, j_max))
+    {
+        return samples;
+    }
+
+    ++j_max;
+
+    for (DataTable::PeriodicSamples::const_iterator j = j_min; j != j_max; ++j)
+    {
+        Time t(j->first);
+
+        if (interval.contains(t))
+        {
+            samples.add(t, j->second[n]);
+        }
+    }
+
+    return samples;
 }
 
 
@@ -281,7 +364,7 @@ void PerformanceData::visitPeriodicSamples(
     
     bool terminate = false;
 
-    PeriodicSamples::const_iterator j_min, j_max;
+    DataTable::PeriodicSamples::const_iterator j_min, j_max;
 
     if (!find(i->second.dm_periodic_samples, interval, j_min, j_max))
     {
@@ -290,7 +373,7 @@ void PerformanceData::visitPeriodicSamples(
 
     ++j_max;
     
-    for (PeriodicSamples::const_iterator
+    for (DataTable::PeriodicSamples::const_iterator
              j = j_min; !terminate && (j != j_max); ++j)
     {
         Time t(j->first);

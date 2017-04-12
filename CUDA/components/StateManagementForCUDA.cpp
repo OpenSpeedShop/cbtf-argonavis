@@ -93,6 +93,9 @@ private:
         const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
         );
 
+    /** Flag indicating if debugging is enabled for this component. */
+    bool dm_is_debug_enabled;
+    
     /** Address spaces of all (including terminated) threads. */
     AddressSpaces dm_address_spaces;
 
@@ -109,6 +112,7 @@ KRELL_INSTITUTE_CBTF_REGISTER_FACTORY_FUNCTION(StateManagementForCUDA)
 //------------------------------------------------------------------------------
 StateManagementForCUDA::StateManagementForCUDA() :
     Component(Type(typeid(StateManagementForCUDA)), Version(1, 0, 0)),
+    dm_is_debug_enabled(getenv("CBTF_DEBUG_STATE_MANAGEMENT_FOR_CUDA") != NULL),
     dm_address_spaces(),
     dm_threads()
 {
@@ -158,7 +162,15 @@ void StateManagementForCUDA::handleAttachedToThreads(
 {
     for (u_int i = 0; i < message->threads.names.names_len; ++i)
     {
-        dm_threads.insert(ThreadName(message->threads.names.names_val[i]));
+        ThreadName thread(message->threads.names.names_val[i]);
+
+        if (dm_is_debug_enabled)
+        {
+            std::cout << "[CUDA] Received AttachedToThreads for "
+                      << thread << std::endl;
+        }
+
+        dm_threads.insert(thread);
     }
 }
 
@@ -170,6 +182,14 @@ void StateManagementForCUDA::handleInitialLinkedObjects(
     const boost::shared_ptr<CBTF_Protocol_LinkedObjectGroup>& message
     )
 {
+    if (dm_is_debug_enabled)
+    {
+        ThreadName thread(message->thread);
+
+        std::cout << "[CUDA] Received InitialLinkedObjects for "
+                  << thread << std::endl;
+    }
+    
     dm_address_spaces.apply(*message);
 }
 
@@ -181,6 +201,17 @@ void StateManagementForCUDA::handleLoadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_LoadedLinkedObject>& message
     )
 {
+    if (dm_is_debug_enabled)
+    {
+        for (u_int i = 0; i < message->threads.names.names_len; ++i)
+        {
+            ThreadName thread(message->threads.names.names_val[i]);
+                    
+            std::cout << "[CUDA] Received LoadedLinkedObject for " 
+                      << thread << std::endl;
+        }
+    }
+    
     dm_address_spaces.apply(*message);
 }
 
@@ -198,12 +229,25 @@ void StateManagementForCUDA::handleThreadsStateChanged(
     {
         for (u_int i = 0; i < message->threads.names.names_len; ++i)
         {
-            dm_threads.erase(ThreadName(message->threads.names.names_val[i]));
+            ThreadName thread(message->threads.names.names_val[i]);
+
+            if (dm_is_debug_enabled)
+            {
+                std::cout << "[CUDA] Received Terminated for " 
+                          << thread << std::endl;
+            }
+            
+            dm_threads.erase(thread);
         }
         
         if (dm_threads.empty())
         {
             emitOutput<bool>("TriggerData", true);
+
+            if (dm_is_debug_enabled)
+            {
+                std::cout << "[CUDA] Emitted TriggerData" << std::endl;
+            }
             
             CBTF_Protocol_AttachedToThreads threads = dm_address_spaces;
 
@@ -214,8 +258,24 @@ void StateManagementForCUDA::handleThreadsStateChanged(
                     )
                 );
 
+            if (dm_is_debug_enabled)
+            {
+                for (u_int i = 0; i < threads.threads.names.names_len; ++i)
+                {
+                    ThreadName thread(threads.threads.names.names_val[i]);
+                    
+                    std::cout << "[CUDA] Emitted AttachedToThreads for " 
+                              << thread << std::endl;
+                }
+            }
+
             emitOutput<bool>("TriggerAddressBuffer", true);
 
+            if (dm_is_debug_enabled)
+            {
+                std::cout << "[CUDA] Emitted TriggerAddressBuffer" << std::endl;
+            }
+            
             std::vector<
                 CBTF_Protocol_LinkedObjectGroup
                 > groups = dm_address_spaces;
@@ -229,9 +289,22 @@ void StateManagementForCUDA::handleThreadsStateChanged(
                         new CBTF_Protocol_LinkedObjectGroup(*i)
                         )
                     );
+
+                if (dm_is_debug_enabled)
+                {
+                    ThreadName thread(i->thread);
+                    
+                    std::cout << "[CUDA] Emitted LinkedObjectGroup for "
+                              << thread << std::endl;
+                }
             }
             
             emitOutput<bool>("ThreadsFinished", true);
+
+            if (dm_is_debug_enabled)
+            {
+                std::cout << "[CUDA] Emitted ThreadsFinished" << std::endl;
+            }
         }
     }
 }
@@ -244,5 +317,16 @@ void StateManagementForCUDA::handleUnloadedLinkedObject(
     const boost::shared_ptr<CBTF_Protocol_UnloadedLinkedObject>& message
     )
 {
+    if (dm_is_debug_enabled)
+    {
+        for (u_int i = 0; i < message->threads.names.names_len; ++i)
+        {
+            ThreadName thread(message->threads.names.names_val[i]);
+                    
+            std::cout << "[CUDA] Received UnloadedLinkedObject for " 
+                      << thread << std::endl;
+        }
+    }
+
     dm_address_spaces.apply(*message);
 }

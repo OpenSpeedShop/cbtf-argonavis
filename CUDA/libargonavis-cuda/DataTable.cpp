@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -28,6 +28,7 @@
 
 #include <ArgoNavis/CUDA/CachePreference.hpp>
 #include <ArgoNavis/CUDA/CopyKind.hpp>
+#include <ArgoNavis/CUDA/CounterKind.hpp>
 #include <ArgoNavis/CUDA/MemoryKind.hpp>
 
 #include "DataTable.hpp"
@@ -75,6 +76,19 @@ namespace {
         }
     }
 
+    /** Convert a CUDA_EventKind into a CounterKind. */
+    CounterKind convert(const CUDA_EventKind& value)
+    {
+        switch (value)
+        {
+        case UnknownEventKind: return kUnknownCounterKind;
+        case Count: return kCount;
+        case Percentage: return kPercentage;
+        case Rate: return kRate;
+        default: return kUnknownCounterKind;
+        }
+    }
+    
     /** Convert a CUDA_MemoryKind into a MemoryKind. */
     MemoryKind convert(const CUDA_MemoryKind& value)
     {
@@ -90,6 +104,18 @@ namespace {
         }
     }
 
+    /** Convert a CUDA_EventDescription into a CounterDescription. */
+    CounterDescription convert(const CUDA_EventDescription& message)
+    {
+        CounterDescription description;
+
+        description.name = message.name;
+        description.kind = convert(message.kind);
+        description.threshold = message.threshold;
+
+        return description;
+    }
+    
     /** Convert a CUDA_CompletedExec into a (partial) KernelExecution. */
     KernelExecution convert(const CUDA_CompletedExec& message)
     {    
@@ -222,6 +248,19 @@ namespace {
         }
     }
 
+    /** Convert a CounterKind into a CUDA_EventKind. */
+    CUDA_EventKind convert(const CounterKind& value)
+    {
+        switch (value)
+        {
+        case kUnknownCounterKind: return UnknownEventKind;
+        case kCount: return Count;
+        case kPercentage: return Percentage;
+        case kRate: return Rate;
+        default: return UnknownEventKind;
+        }
+    }
+    
     /** Convert a MemoryKind into a CUDA_MemoryKind. */
     CUDA_MemoryKind convert(const MemoryKind& value)
     {
@@ -237,6 +276,18 @@ namespace {
         }
     }
 
+    /** Convert a CounterDescription into a CUDA_EventDescription. */
+    CUDA_EventDescription convert(const CounterDescription& description)
+    {
+        CUDA_EventDescription message;
+
+        message.name = strdup(description.name.c_str());
+        message.kind = convert(description.kind);
+        message.threshold = description.threshold;
+
+        return message;
+    }
+    
     /** Convert a Device into a CUDA_DeviceInfo. */
     CUDA_DeviceInfo convert(const ArgoNavis::CUDA::Device& device)
     {
@@ -474,7 +525,7 @@ void DataTable::process(const Base::ThreadName& thread,
             process(raw.CBTF_cuda_message_u.overflow_samples, per_thread);
             break;
 
-        case PeriodicSamples:
+        case ::PeriodicSamples:
             process(raw.CBTF_cuda_message_u.periodic_samples, per_thread);
             break;
             
@@ -483,6 +534,43 @@ void DataTable::process(const Base::ThreadName& thread,
             break;
             
         }
+    }
+}
+
+
+
+//------------------------------------------------------------------------------
+// Note that it doesn't matter whether we search the partial data transfers or
+// kernel executions for the device information as both tables contain exactly
+// the same CUDA context to device mapping.
+//------------------------------------------------------------------------------
+boost::optional<std::size_t> DataTable::device(const ThreadName& thread) const
+{
+    PerProcessData& per_process = 
+        const_cast<DataTable*>(this)->accessPerProcessData(thread);
+    
+    try
+    {
+        boost::optional<boost::uint64_t> tid = thread.tid();
+         
+        if (!tid)
+        {
+            return boost::none;
+        }
+
+        Address context = *tid;
+        
+        boost::uint32_t id = 
+            per_process.dm_partial_data_transfers.device(context);
+
+        std::size_t index =
+            per_process.dm_partial_data_transfers.index(id);
+        
+        return index;            
+    }
+    catch (...)
+    {
+        return boost::none;
     }
 }
 
@@ -546,9 +634,8 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     
     // Add the periodic samples to the generator
     
-    for (std::map<
-             boost::uint64_t, std::vector<boost::uint64_t>
-             >::const_iterator i = per_thread.dm_periodic_samples.begin();
+    for (PeriodicSamples::const_iterator
+             i = per_thread.dm_periodic_samples.begin();
          (i != per_thread.dm_periodic_samples.end()) && !generator.terminate();
          ++i)
     {
@@ -804,10 +891,7 @@ bool DataTable::generate(const PerProcessData& per_process,
          i  != per_thread.dm_counters.end();
          ++i)
     {
-        CUDA_EventDescription& description = config.events.events_val[*i];
-        
-        description.name = strdup(dm_counters[*i].c_str());
-        description.threshold = 0; // TODO: Use the real threshold!?
+        config.events.events_val[*i] = convert(dm_counters[*i]);
     }
     
     // Continue the iteration
@@ -1086,21 +1170,21 @@ void DataTable::process(const CUDA_SamplingConfig& message,
     
     for (u_int i = 0; i < message.events.events_len; ++i)
     {
-        std::string name(message.events.events_val[i].name);
-
-        std::vector<std::string>::size_type j;
+        CounterDescription description = convert(message.events.events_val[i]);
+        
+        std::vector<CounterDescription>::size_type j;
         for (j = 0; j < dm_counters.size(); ++j)
         {
-            if (dm_counters[j] == name)
+            if (dm_counters[j].name == description.name)
             {
                 break;
             }
         }
         if (j == dm_counters.size())
         {
-            dm_counters.push_back(name);
+            dm_counters.push_back(description);
         }
-
+        
         per_thread.dm_counters.push_back(j);
     }
     
@@ -1165,10 +1249,10 @@ void DataTable::processPeriodicSamples(const boost::uint8_t* begin,
 {
     static int kAdditionalBytes[4] = { 0, 2, 3, 8 };
 
-    std::vector<uint64_t>::size_type n = 0;
-    std::vector<uint64_t>::size_type N = 1 + per_thread.dm_counters.size();
+    std::vector<boost::uint64_t>::size_type n = 0;
+    std::vector<boost::uint64_t>::size_type N = 1 + per_thread.dm_counters.size();
 
-    std::vector<uint64_t> samples(N, 0);
+    std::vector<boost::uint64_t> samples(N, 0);
 
     for (const boost::uint8_t* ptr = begin; ptr != end;)
     {
@@ -1195,7 +1279,9 @@ void DataTable::processPeriodicSamples(const boost::uint8_t* begin,
             per_thread.dm_periodic_samples.insert(
                 std::make_pair(
                     samples[0],
-                    std::vector<uint64_t>(samples.begin() + 1, samples.end())
+                    std::vector<boost::uint64_t>(
+                        samples.begin() + 1, samples.end()
+                        )
                     )
                 );
             n = 0;

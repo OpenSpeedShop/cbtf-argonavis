@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,15 +23,34 @@ project(CBTF-ArgoNavis)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
+include(${PROJECT_SOURCE_DIR}/cmake/CheckPlatform.cmake)
+
+# The following inclusion and associated HAS_CXX11_AUTO condition can be
+# removed once we are able to advance our required CMake version to 3.1.0
+# (or above). It introduces new C++11 feature checking that obviates the
+# need for this explicit checking.
+
+include(${PROJECT_SOURCE_DIR}/cmake/CheckCXX11Features.cmake)
+
+if(HAS_CXX11_AUTO)
+    message(STATUS "C++11 support found: TRUE")
+    message(STATUS "C++11 flags: " ${CXX11_COMPILER_FLAGS})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_COMPILER_FLAGS}")
+else()
+    message(STATUS "C++11 support found: FALSE")
+endif()
+
 find_package(Boost 1.39.0 REQUIRED
-    COMPONENTS filesystem regex system unit_test_framework
+    COMPONENTS filesystem program_options regex system unit_test_framework
     )
 find_package(CBTF REQUIRED)
 find_package(CBTF-Krell REQUIRED)
-#find_package(CUDA 5.0 REQUIRED)
+find_package(CUDA)
 find_package(CUPTI 2)
 find_package(MRNet)
 find_package(PAPI 5.4.0)
+find_package(LibMonitor)
+
 find_package(Threads REQUIRED)
 
 if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
@@ -41,19 +60,6 @@ if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
     set(CUPTI_INCLUDE_DIRS ${CUDA_INCLUDE_DIRS} ${CUPTI_INCLUDE_DIR})
 endif()
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64*")
-    set(CMAKE_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/lib64)
-    set(LIB_SUFFIX 64)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc*")
-    set(CMAKE_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/lib)
-elseif(EXISTS /usr/lib64)
-    set(LIB_SUFFIX 64)
-    set(CMAKE_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX})
-endif()
-
 add_subdirectory(libargonavis-base)
 add_subdirectory(Clustering)
-
-if(CUPTI_FOUND AND MRNET_FOUND)
-    add_subdirectory(CUDA)
-endif()
+add_subdirectory(CUDA)

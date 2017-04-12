@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <cxxabi.h>
 #include <list>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -38,6 +39,7 @@
 
 #include <ArgoNavis/CUDA/CachePreference.hpp>
 #include <ArgoNavis/CUDA/CopyKind.hpp>
+#include <ArgoNavis/CUDA/CounterKind.hpp>
 #include <ArgoNavis/CUDA/MemoryKind.hpp>
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
@@ -66,13 +68,6 @@ namespace ArgoNavis { namespace CUDA {
     {
         return Impl::Stringify<T>::impl(value);
     }
-    
-} } // namespace ArgoNavis::CUDA
-    
-namespace ArgoNavis { namespace CUDA { namespace Impl {
-
-    /** Type of container used to store ordered fields (key/value pairs). */
-    typedef std::list<boost::tuples::tuple<std::string, std::string> > Fields;
 
     /**
      * Type representing a byte count. Its only reason for existence is to
@@ -101,7 +96,58 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     private:
         boost::uint64_t dm_value;
     };
-    
+
+    /**
+     * Type representing a (long) hardware performance counter name. Typically
+     * the name used by either CUPTI or PAPI. Its only reason for existence is
+     * to allow the Stringify<> template below to be specialized for counter
+     * names versus other strings.
+     *
+     * @note    The string returned by stringify<CounterName>() may or may
+     *          not be identical to the name returned by CUPTI or PAPI for
+     *          their similar counter name query functions.
+     *
+     * @sa http://docs.nvidia.com/cuda/cupti/r_main.html#r_metric_api
+     * @sa http://icl.cs.utk.edu/projects/papi/wiki/PAPI3:PAPI_presets.3
+     */
+    class LongCounterName
+    {
+    public:
+        LongCounterName(const char* value) : dm_value(value ? value : "") { }
+        LongCounterName(const std::string& value) : dm_value(value) { }
+        operator std::string() const { return dm_value; }
+    private:
+        std::string dm_value;
+    };
+
+    /**
+     * Type representing a (short) hardware performance counter name. Typically
+     * the name used by either CUPTI or PAPI. Its only reason for existence is
+     * to allow the Stringify<> template below to be specialized for counter
+     * names versus other strings.
+     *
+     * @note    The string returned by stringify<CounterName>() may or may
+     *          not be identical to the name returned by CUPTI or PAPI for
+     *          their similar counter name query functions.
+     *
+     * @sa http://docs.nvidia.com/cuda/cupti/r_main.html#r_metric_api
+     * @sa http://icl.cs.utk.edu/projects/papi/wiki/PAPI3:PAPI_presets.3
+     */
+    class ShortCounterName
+    {
+    public:
+        ShortCounterName(const char* value) : dm_value(value ? value : "") { }
+        ShortCounterName(const std::string& value) : dm_value(value) { }
+        operator std::string() const { return dm_value; }
+    private:
+        std::string dm_value;
+    };
+
+    typedef ShortCounterName CounterName;
+
+    /** Type of container used to store ordered fields (key/value pairs). */
+    typedef std::list<boost::tuples::tuple<std::string, std::string> > Fields;
+        
     /**
      * Type representing a function name. Its only reason for existence is to
      * allow the Stringify<> template below to be specialized for function names
@@ -117,6 +163,10 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         std::string dm_value;
     };
     
+} } // namespace ArgoNavis::CUDA
+    
+namespace ArgoNavis { namespace CUDA { namespace Impl {
+
     template <>
     struct Stringify<bool>
     {
@@ -256,6 +306,35 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         }
     };
 
+    extern const std::map<std::string, std::string> kLongCounterNames;
+    extern const std::map<std::string, std::string> kShortCounterNames;
+    
+    template <>
+    struct Stringify<LongCounterName>
+    {
+        static std::string impl(const CounterName& value)
+        {
+            std::map<std::string, std::string>::const_iterator i =
+                kLongCounterNames.find(value);
+
+            return (i == kLongCounterNames.end()) ? 
+                static_cast<std::string>(value) : i->second;
+        }
+    };
+
+    template <>
+    struct Stringify<ShortCounterName>
+    {
+        static std::string impl(const CounterName& value)
+        {
+            std::map<std::string, std::string>::const_iterator i =
+                kShortCounterNames.find(value);
+
+            return (i == kShortCounterNames.end()) ? 
+                static_cast<std::string>(value) : i->second;
+        }
+    };
+
     template <>
     struct Stringify<FunctionName>
     {
@@ -322,6 +401,22 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     };
 
     template <>
+    struct Stringify<CUDA_EventKind>
+    {
+        static std::string impl(const CUDA_EventKind& value)
+        {
+            switch (value)
+            {
+            case UnknownEventKind: return "UnknownEventKind";
+            case Count: return "Count";
+            case Percentage: return "Percentage";
+            case Rate: return "Rate";
+            }
+            return "?";
+        }
+    };
+    
+    template <>
     struct Stringify<CUDA_MemoryKind>
     {
         static std::string impl(const CUDA_MemoryKind& value)
@@ -365,10 +460,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     {
         static std::string impl(const CUDA_EventDescription& value)
         {
-            return (value.threshold == 0) ? 
-                std::string(value.name) :
-                boost::str(boost::format("%1% (threshold=%2%)") %
-                           value.name % value.threshold);
+            return boost::str((value.threshold == 0) ?
+                boost::format("%1% (kind=%2%)") %
+                              value.name %
+                              stringify(value.kind) :
+                boost::format("%1% (kind=%2%, threshold=%3%)") %
+                              value.name %
+                              stringify(value.kind)
+                              % value.threshold
+                );
         }
     };
 
@@ -729,7 +829,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 ("id", stringify(value.id))
                 ("host", stringify(value.host))
                 ("pid", stringify(value.pid))
-                ("posix_tid", stringify(value.posix_tid))
+                ("posix_tid",
+                 stringify(static_cast<boost::uint64_t>(value.posix_tid)))
                 ("rank", stringify(value.rank))
                 ("omp_tid", stringify(value.omp_tid))
                 ("time_begin", stringify(value.time_begin))
@@ -759,6 +860,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
     };
 
     template <>
+    struct Stringify<CounterKind>
+    {
+        static std::string impl(const CounterKind& value)
+        {
+            return stringify(static_cast<CUDA_EventKind>(value));
+        }
+    };
+
+    template <>
     struct Stringify<MemoryKind>
     {
         static std::string impl(const MemoryKind& value)
@@ -766,5 +876,5 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             return stringify(static_cast<CUDA_MemoryKind>(value));
         }
     };
-        
+    
 } } } // namespace ArgoNavis::CUDA::Impl 

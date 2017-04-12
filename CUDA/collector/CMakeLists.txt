@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,12 +18,13 @@
 
 set(SOURCES
     collector.h collector.c
+    CUDA_check.h
     CUPTI_activities.c CUPTI_activities.h
     CUPTI_callbacks.c CUPTI_callbacks.h
     CUPTI_check.h
     CUPTI_context.h CUPTI_context.c
+    CUPTI_metrics.h CUPTI_metrics.c
     CUPTI_stream.h CUPTI_stream.c
-    CUPTI_time.h CUPTI_time.c
     PAPI.h PAPI.c
     Pthread_check.h
     TLS.h TLS.c
@@ -39,14 +40,17 @@ add_library(cuda-collector-monitor-fileio SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-fileio PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
     ${CUPTI_INCLUDE_DIRS}
     )
 
 target_link_libraries(cuda-collector-monitor-fileio
     cbtf-messages-cuda
+    ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_COLLECTOR_MONITOR_FILEIO_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_MONITOR_SHARED_LIBRARY}
@@ -54,21 +58,26 @@ target_link_libraries(cuda-collector-monitor-fileio
     ${CBTF_KRELL_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 add_library(cuda-collector-monitor-mrnet SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-mrnet PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
     ${CUPTI_INCLUDE_DIRS}
     )
 
 target_link_libraries(cuda-collector-monitor-mrnet
     cbtf-messages-cuda
+    ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_COLLECTOR_MONITOR_MRNET_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_MONITOR_SHARED_LIBRARY}
@@ -76,21 +85,26 @@ target_link_libraries(cuda-collector-monitor-mrnet
     ${CBTF_KRELL_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 add_library(cuda-collector-monitor-mrnet-mpi SHARED ${SOURCES})
 
 target_include_directories(cuda-collector-monitor-mrnet-mpi PUBLIC
     ${PROJECT_BINARY_DIR}/CUDA/messages
+    ${LibMonitor_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     ${CBTF_KRELL_SERVICES_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
     ${CUPTI_INCLUDE_DIRS}
     )
 
 target_link_libraries(cuda-collector-monitor-mrnet-mpi
     cbtf-messages-cuda
+    ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     ${CBTF_KRELL_MESSAGES_EVENTS_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_COLLECTOR_MONITOR_MRNET_MPI_SHARED_LIBRARY}
     ${CBTF_KRELL_SERVICES_MONITOR_SHARED_LIBRARY}
@@ -98,7 +112,9 @@ target_link_libraries(cuda-collector-monitor-mrnet-mpi
     ${CBTF_KRELL_SERVICES_UNWIND_SHARED_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${CUDA_LIBRARIES}
     ${CUPTI_LIBRARIES}
+    ${LibMonitor_SHARED_LIBRARIES}
     )
 
 if(PAPI_FOUND)

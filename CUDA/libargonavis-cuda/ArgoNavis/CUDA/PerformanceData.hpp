@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014-2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -21,7 +21,9 @@
 #pragma once
 
 #include <boost/cstdint.hpp>
+#include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
+#include <stddef.h>
 #include <string>
 #include <vector>
 
@@ -29,15 +31,17 @@
 
 #include <ArgoNavis/Base/AddressVisitor.hpp>
 #include <ArgoNavis/Base/BlobVisitor.hpp>
+#include <ArgoNavis/Base/PeriodicSamples.hpp>
+#include <ArgoNavis/Base/PeriodicSampleVisitor.hpp>
 #include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/ThreadVisitor.hpp>
 #include <ArgoNavis/Base/TimeInterval.hpp>
 
+#include <ArgoNavis/CUDA/CounterDescription.hpp>
 #include <ArgoNavis/CUDA/DataTransferVisitor.hpp>
 #include <ArgoNavis/CUDA/Device.hpp>
 #include <ArgoNavis/CUDA/KernelExecutionVisitor.hpp>
-#include <ArgoNavis/CUDA/PeriodicSampleVisitor.hpp>
 
 namespace ArgoNavis { namespace CUDA {
 
@@ -74,8 +78,8 @@ namespace ArgoNavis { namespace CUDA {
         void apply(const Base::ThreadName& thread,
                    const CBTF_cuda_data& message);
         
-        /** Names of all sampled hardware performance counters. */
-        const std::vector<std::string>& counters() const;
+        /** Name and kind of all sampled hardware performance counters. */
+        const std::vector<CounterDescription>& counters() const;
         
         /**
          * Counts for all sampled hardware performance counters for the given
@@ -98,12 +102,42 @@ namespace ArgoNavis { namespace CUDA {
             const Base::TimeInterval& interval
             ) const;
         
+        /**
+         * Index, within devices(), of the device for which the given thread is
+         * a GPU hardware performance counter sampling thread. Returns "none" if
+         * the thread isn't a GPU hardware performance counter sampling thread.
+         *
+         * @param thread    Name of thread for which to get the device index.
+         * @return          Index of the device within devices() or "none".
+         */
+        boost::optional<std::size_t> device(
+            const Base::ThreadName& thread
+            ) const;
+        
         /** Information about all known CUDA devices. */
         const std::vector<Device>& devices() const;
 
         /** Smallest time interval containing this performance data. */
         const Base::TimeInterval& interval() const;
 
+        /**
+         * Periodic hardware performance counter samples within the given
+         * thread whose sample time is within the specified time interval.
+         *
+         * @param thread      Name of the thread for which to get samples.
+         * @param interval    Time interval over which to get samples.
+         * @param counter     Index, within counters(), of the counter
+         *                    for which to get samples.
+         * @return            Samples over the specified time interval.
+         *
+         * @throw std::invalid_argument    The given counter index is not valid.
+         */
+        Base::PeriodicSamples periodic(
+            const Base::ThreadName& thread,
+            const Base::TimeInterval& interval,
+            std::size_t counter
+            ) const;
+        
         /** Call sites of all known CUDA requests. */
         const std::vector<Base::StackTrace>& sites() const;
 
@@ -165,9 +199,11 @@ namespace ArgoNavis { namespace CUDA {
          * @param interval    Time interval for the visitation.
          * @param visitor     Visitor invoked for each periodic sample.
          */
-        void visitPeriodicSamples(const Base::ThreadName& thread,
-                                  const Base::TimeInterval& interval,
-                                  const PeriodicSampleVisitor& visitor) const;
+        void visitPeriodicSamples(
+            const Base::ThreadName& thread,
+            const Base::TimeInterval& interval,
+            const Base::PeriodicSampleVisitor& visitor
+            ) const;
 
         /**
          * Visit the threads containing performance data.

@@ -18,22 +18,15 @@
 
 /** @file Definition of the CUPTI context support functions. */
 
+#include <monitor.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "collector.h"
 #include "CUPTI_context.h"
 #include "Pthread_check.h"
-
-
-
-/** 
- * Maximum supported number of CUDA contexts. Controls the size of the table
- * used to translate between CUPTI context IDs and CUDA context pointers.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than testing indicates it is usually sufficient.
- */
-#define MAX_CONTEXTS 32
 
 
 
@@ -65,9 +58,10 @@ void CUPTI_context_add(uint32_t id, CUcontext ptr)
         {
             if (Contexts.values[i].ptr != ptr)
             {
-                fprintf(stderr, "[CBTF/CUDA] CUPTI_context_add(): "
+                fprintf(stderr, "[CUDA %d:%d] CUPTI_context_add(): "
                         "CUDA context pointer for CUPTI context "
-                        "ID %u changed!\n", id);
+                        "ID %u changed!\n",
+                        getpid(), monitor_get_thread_num(), id);
                 fflush(stderr);
                 abort();
             }
@@ -78,9 +72,9 @@ void CUPTI_context_add(uint32_t id, CUcontext ptr)
 
     if (i == MAX_CONTEXTS)
     {
-        fprintf(stderr, "[CBTF/CUDA] CUPTI_context_add(): "
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_context_add(): "
                 "Maximum supported CUDA context pointers (%d) was reached!\n",
-                MAX_CONTEXTS);
+                getpid(), monitor_get_thread_num(), MAX_CONTEXTS);
         fflush(stderr);
         abort();
     }
@@ -89,7 +83,8 @@ void CUPTI_context_add(uint32_t id, CUcontext ptr)
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] CUPTI_context_add(%u, %p)\n", id, ptr);
+            printf("[CUDA %d:%d] CUPTI_context_add(%u, %p)\n",
+                   getpid(), monitor_get_thread_num(), id, ptr);
         }
 #endif
         
@@ -126,8 +121,9 @@ CUcontext CUPTI_context_ptr_from_id(uint32_t id)
 
     if (i == MAX_CONTEXTS)
     {
-        fprintf(stderr, "[CBTF/CUDA] CUPTI_context_ptr_from_id(): "
-                "Unknown CUPTI context ID (%u) encountered!\n", id);
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_context_ptr_from_id(): "
+                "Unknown CUPTI context ID (%u) encountered!\n",
+                getpid(), monitor_get_thread_num(), id);
         fflush(stderr);
         abort();
     }
@@ -163,8 +159,9 @@ uint32_t CUPTI_context_id_from_ptr(CUcontext ptr)
 
     if (i == MAX_CONTEXTS)
     {
-        fprintf(stderr, "[CBTF/CUDA] CUPTI_context_id_from_ptr(): "
-                "Unknown CUDA context pointer (%p) encountered!\n", ptr);
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_context_id_from_ptr(): "
+                "Unknown CUDA context pointer (%p) encountered!\n",
+                getpid(), monitor_get_thread_num(), ptr);
         fflush(stderr);
         abort();
     }

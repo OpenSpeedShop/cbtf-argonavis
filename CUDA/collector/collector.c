@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -19,16 +19,21 @@
 /** @file Implementation of the CUDA collector. */
 
 #include <inttypes.h>
+#include <monitor.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ucontext.h>
+#include <unistd.h>
 
+#include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
 
 #include "CUPTI_activities.h"
 #include "CUPTI_callbacks.h"
-#include "CUPTI_time.h"
+#include "CUPTI_metrics.h"
 #include "PAPI.h"
 #include "Pthread_check.h"
 #include "TLS.h"
@@ -46,9 +51,6 @@ bool IsDebugEnabled = FALSE;
  * in cbtf_collector_start() through its call to parse_configuration().
  */
 CUDA_SamplingConfig TheSamplingConfig;
-
-/** Number of events for which overflow sampling is enabled. */
-int OverflowSamplingCount = 0;
 
 /**
  * Descriptions of sampled events. Also initialized by the process-wide
@@ -81,7 +83,8 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] parse_configuration(\"%s\")\n", configuration);
+        printf("[CUDA %d:%d] parse_configuration(\"%s\")\n",
+               getpid(), monitor_get_thread_num(), configuration);
     }
 #endif
 
@@ -93,17 +96,15 @@ static void parse_configuration(const char* const configuration)
 
     memset(EventDescriptions, 0, MAX_EVENTS * sizeof(CUDA_EventDescription));
 
-    OverflowSamplingCount = 0;
-
     /* Copy the configuration string for parsing */
     
     static char copy[4 * 1024 /* 4 KB */];
     
     if (strlen(configuration) >= sizeof(copy))
     {
-        fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
+        fprintf(stderr, "[CUDA %d:%d] parse_configuration(): "
                 "Configuration string \"%s\" exceeds the maximum "
-                "support length (%llu)!\n",
+                "support length (%llu)!\n", getpid(), monitor_get_thread_num(),
                 configuration, (unsigned long long)(sizeof(copy) - 1));
         fflush(stderr);
         abort();
@@ -132,9 +133,10 @@ static void parse_configuration(const char* const configuration)
             /* Warn if the samping interval was invalid */
             if (interval <= 0)
             {
-                fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
+                fprintf(stderr, "[CUDA %d:%d] parse_configuration(): "
                         "An invalid sampling interval (\"%s\") was "
-                        "specified!\n", ptr + strlen(kIntervalPrefix));
+                        "specified!\n", getpid(), monitor_get_thread_num(),
+                        ptr + strlen(kIntervalPrefix));
                 fflush(stderr);
                 abort();
             }
@@ -144,8 +146,9 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
             if (IsDebugEnabled)
             {
-                printf("[CBTF/CUDA] parse_configuration(): "
+                printf("[CUDA %d:%d] parse_configuration(): "
                        "sampling interval = %llu nS\n",
+                       getpid(), monitor_get_thread_num(),
                        (long long unsigned)TheSamplingConfig.interval);
             }
 #endif
@@ -155,9 +158,10 @@ static void parse_configuration(const char* const configuration)
             /* Warn if the maximum supported sampled events was reached */
             if (TheSamplingConfig.events.events_len == MAX_EVENTS)
             {
-                fprintf(stderr, "[CBTF/CUDA] parse_configuration(): "
+                fprintf(stderr, "[CUDA %d:%d] parse_configuration(): "
                         "Maximum supported number of concurrently sampled"
-                        "events (%d) was reached!\n", MAX_EVENTS);
+                        "events (%d) was reached!\n",
+                        getpid(), monitor_get_thread_num(), MAX_EVENTS);
                 fflush(stderr);
                 abort();
             }
@@ -167,6 +171,7 @@ static void parse_configuration(const char* const configuration)
                 ];
             
             event->name = malloc(sizeof(copy));
+            event->kind = UnknownEventKind;
             
             /* Token is an event name and threshold */
             if (at != NULL)
@@ -177,8 +182,9 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
                 if (IsDebugEnabled)
                 {
-                    printf("[CBTF/CUDA] parse_configuration(): "
+                    printf("[CUDA %d:%d] parse_configuration(): "
                            "event name = \"%s\", threshold = %d\n",
+                           getpid(), monitor_get_thread_num(),
                            event->name, event->threshold);
                 }
 #endif
@@ -192,18 +198,13 @@ static void parse_configuration(const char* const configuration)
 #if !defined(NDEBUG)
                 if (IsDebugEnabled)
                 {
-                    printf("[CBTF/CUDA] parse_configuration(): "
-                           "event name = \"%s\"\n", event->name);
+                    printf("[CUDA %d:%d] parse_configuration(): "
+                           "event name = \"%s\"\n", 
+                           getpid(), monitor_get_thread_num(), event->name);
                 }
 #endif
             }
 
-            /* Increment the number of overflow sampled events */
-            if (event->threshold > 0)
-            {
-                ++OverflowSamplingCount;
-            }
-            
             /* Increment the number of sampled events */
             ++TheSamplingConfig.events.events_len;
         }
@@ -220,7 +221,8 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_start()\n");
+        printf("[CUDA %d:%d] cbtf_collector_start()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -240,8 +242,9 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_start(): "
+        printf("[CUDA %d:%d] cbtf_collector_start(): "
                "ThreadCount.value = %d --> %d\n",
+               getpid(), monitor_get_thread_num(),
                ThreadCount.value, ThreadCount.value + 1);
     }
 #endif
@@ -254,9 +257,11 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] cbtf_collector_start()\n");
-            printf("[CBTF/CUDA] cbtf_collector_start(): "
+            printf("[CUDA %d:%d] cbtf_collector_start()\n",
+                   getpid(), monitor_get_thread_num());
+            printf("[CUDA %d:%d] cbtf_collector_start(): "
                    "ThreadCount.value = %d --> %d\n",
+                   getpid(), monitor_get_thread_num(),
                    ThreadCount.value, ThreadCount.value + 1);
         }
 #endif
@@ -268,14 +273,20 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
             parse_configuration(configuration);
         }
 
+        if (TheSamplingConfig.events.events_len > 0)
+        {
+            /* Initialize PAPI for this process */
+            PAPI_initialize();
+
+            /* Initialize CUPTI metrics data collection for this process */
+            CUPTI_metrics_initialize();
+        }
+
         /* Start CUPTI activity data collection for this process */
         CUPTI_activities_start();
         
         /* Subscribe to CUPTI callbacks for this process */
         CUPTI_callbacks_subscribe();
-
-        /* Estimate the offset from CUPTI-provided times to CBTF_GetTime() */
-        CUPTI_time_synchronize();
     }
 
     ThreadCount.value++;
@@ -285,11 +296,29 @@ void cbtf_collector_start(const CBTF_DataHeader* const header)
     /* Initialize our performance data header and blob */
     TLS_initialize_data(tls);
 
-    /* Start PAPI data collection for this thread */
-    PAPI_start_data_collection();
+    if (TheSamplingConfig.events.events_len > 0)
+    {
+        /* Append event sampling configuration to our performance data blob */
 
-    /* Resume (start) data collection for this thread */
-    tls->paused = FALSE;
+        CBTF_cuda_message* raw_message = TLS_add_message(tls);
+        Assert(raw_message != NULL);
+        raw_message->type = SamplingConfig;
+        
+        CUDA_SamplingConfig* message = 
+            &raw_message->CBTF_cuda_message_u.sampling_config;
+        
+        memcpy(message, &TheSamplingConfig, sizeof(CUDA_SamplingConfig));
+    }
+
+    /* Resume data collection for this thread */
+    cbtf_collector_resume();
+    
+    if ((TheSamplingConfig.events.events_len > 0) &&
+        (monitor_get_addr_thread_start() != CUPTI_metrics_sampling_thread))
+    {
+        /* Start PAPI data collection for this thread */
+        PAPI_start_data_collection();
+    }
 }
 
 
@@ -302,12 +331,10 @@ void cbtf_collector_pause()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_pause()\n");
+        printf("[CUDA %d:%d] cbtf_collector_pause()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
-    
-    /* Stop PAPI data collection for this thread */
-    PAPI_stop_data_collection();
 
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
@@ -326,7 +353,8 @@ void cbtf_collector_resume()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_resume()\n");
+        printf("[CUDA %d:%d] cbtf_collector_resume()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
 
@@ -335,9 +363,6 @@ void cbtf_collector_resume()
 
     /* Resume data collection for this thread */
     tls->paused = FALSE;
-
-    /* Start PAPI data collection for this thread */
-    PAPI_start_data_collection();
 }
 
 
@@ -350,10 +375,21 @@ void cbtf_collector_stop()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_stop()\n");
+        printf("[CUDA %d:%d] cbtf_collector_stop()\n",
+               getpid(), monitor_get_thread_num());
     }
 #endif
-    
+
+    if ((TheSamplingConfig.events.events_len > 0) &&
+        (monitor_get_addr_thread_start() != CUPTI_metrics_sampling_thread))
+    {
+        /* Stop PAPI data collection for this thread */
+        PAPI_stop_data_collection();
+    }
+
+    /* Pause data collection for this thread */
+    cbtf_collector_pause();
+
     /* Atomically decrement the active thread count */
     
     PTHREAD_CHECK(pthread_mutex_lock(&ThreadCount.mutex));
@@ -361,8 +397,9 @@ void cbtf_collector_stop()
 #if !defined(NDEBUG)
     if (IsDebugEnabled)
     {
-        printf("[CBTF/CUDA] cbtf_collector_stop(): "
+        printf("[CUDA %d:%d] cbtf_collector_stop(): "
                "ThreadCount.value = %d --> %d\n",
+               getpid(), monitor_get_thread_num(),
                ThreadCount.value, ThreadCount.value - 1);
     }
 #endif
@@ -379,19 +416,22 @@ void cbtf_collector_stop()
         
         /* Unsubscribe to CUPTI callbacks for this process */
         CUPTI_callbacks_unsubscribe();
+
+        if (TheSamplingConfig.events.events_len > 0)
+        {
+            /* Finalize CUPTI metrics data collection for this process */
+            CUPTI_metrics_finalize();
+            
+            /* Finalize PAPI for this process */
+            PAPI_finalize();
+        }
     }
     
     PTHREAD_CHECK(pthread_mutex_unlock(&ThreadCount.mutex));
 
-    /* Stop PAPI data collection for this thread */
-    PAPI_stop_data_collection();
-
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
 
-    /* Pause (stop) data collection for this thread */
-    tls->paused = TRUE;
-    
     /* Send any remaining performance data for this thread */
     TLS_send_data(tls);
     

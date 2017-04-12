@@ -18,22 +18,15 @@
 
 /** @file Definition of the CUPTI stream support functions. */
 
+#include <monitor.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "collector.h"
 #include "CUPTI_stream.h"
 #include "Pthread_check.h"
-
-
-
-/** 
- * Maximum supported number of CUDA streams. Controls the size of the table
- * used to translate between CUPTI stream IDs and CUDA stream pointers.
- *
- * @note    Currently there is no specific basis for the selection of this
- *          value other than testing indicates it is usually sufficient.
- */
-#define MAX_STREAMS 32
 
 
 
@@ -65,9 +58,10 @@ void CUPTI_stream_add(uint32_t id, CUstream ptr)
         {
             if (Streams.values[i].ptr != ptr)
             {
-                fprintf(stderr, "[CBTF/CUDA] CUPTI_stream_add(): "
+                fprintf(stderr, "[CUDA %d:%d] CUPTI_stream_add(): "
                         "CUDA stream pointer for CUPTI stream "
-                        "ID %u changed!\n", id);
+                        "ID %u changed!\n",
+                        getpid(), monitor_get_thread_num(), id);
                 fflush(stderr);
                 abort();
             }
@@ -78,9 +72,9 @@ void CUPTI_stream_add(uint32_t id, CUstream ptr)
 
     if (i == MAX_STREAMS)
     {
-        fprintf(stderr, "[CBTF/CUDA] CUPTI_stream_add(): "
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_stream_add(): "
                 "Maximum supported CUDA stream pointers (%d) was reached!\n",
-                MAX_STREAMS);
+                getpid(), monitor_get_thread_num(), MAX_STREAMS);
         fflush(stderr);
         abort();
     }
@@ -89,7 +83,8 @@ void CUPTI_stream_add(uint32_t id, CUstream ptr)
 #if !defined(NDEBUG)
         if (IsDebugEnabled)
         {
-            printf("[CBTF/CUDA] CUPTI_stream_add(%u, %p)\n", id, ptr);
+            printf("[CUDA %d:%d] CUPTI_stream_add(%u, %p)\n",
+                   getpid(), monitor_get_thread_num(), id, ptr);
         }
 #endif
         
@@ -126,8 +121,9 @@ CUstream CUPTI_stream_ptr_from_id(uint32_t id)
 
     if (i == MAX_STREAMS)
     {
-        fprintf(stderr, "[CBTF/CUDA] CUPTI_stream_ptr_from_id(): "
-                "Unknown CUPTI stream ID (%u) encountered!\n", id);
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_stream_ptr_from_id(): "
+                "Unknown CUPTI stream ID (%u) encountered!\n",
+                getpid(), monitor_get_thread_num(), id);
         fflush(stderr);
         abort();
     }
@@ -163,8 +159,9 @@ uint32_t CUPTI_stream_id_from_ptr(CUstream ptr)
 
     if (i == MAX_STREAMS)
     {
-        fprintf(stderr, "[CBTF/CUDA] CUPTI_stream_id_from_ptr(): "
-                "Unknown CUDA stream pointer (%p) encountered!\n", ptr);
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_stream_id_from_ptr(): "
+                "Unknown CUDA stream pointer (%p) encountered!\n",
+                getpid(), monitor_get_thread_num(), ptr);
         fflush(stderr);
         abort();
     }

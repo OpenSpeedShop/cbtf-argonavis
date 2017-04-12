@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2015-2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,6 +19,8 @@
 add_library(argonavis-cuda SHARED
     ArgoNavis/CUDA/CachePreference.hpp
     ArgoNavis/CUDA/CopyKind.hpp
+    ArgoNavis/CUDA/CounterDescription.hpp
+    ArgoNavis/CUDA/CounterKind.hpp
     ArgoNavis/CUDA/DataTransfer.hpp
     ArgoNavis/CUDA/DataTransferVisitor.hpp
     ArgoNavis/CUDA/Device.hpp
@@ -26,8 +28,7 @@ add_library(argonavis-cuda SHARED
     ArgoNavis/CUDA/KernelExecutionVisitor.hpp
     ArgoNavis/CUDA/MemoryKind.hpp
     ArgoNavis/CUDA/PerformanceData.hpp PerformanceData.cpp
-    ArgoNavis/CUDA/PeriodicSampleVisitor.hpp
-    ArgoNavis/CUDA/stringify.hpp
+    ArgoNavis/CUDA/stringify.hpp stringify.cpp
     ArgoNavis/CUDA/Vector.hpp
     BlobGenerator.hpp BlobGenerator.cpp
     DataTable.hpp DataTable.cpp
@@ -45,7 +46,7 @@ target_include_directories(argonavis-cuda PUBLIC
 target_link_libraries(argonavis-cuda
     argonavis-base
     cbtf-messages-cuda
-    ${CBTF_KRELL_MESSAGES_LIBRARIES}
+    ${CBTF_KRELL_MESSAGES_BASE_SHARED_LIBRARY}
     )
 
 set_target_properties(argonavis-cuda PROPERTIES VERSION 1.1.0)

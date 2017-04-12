@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -20,14 +20,14 @@
 
 #pragma once
 
-/* Called by the CUPTI callback to notify when a CUDA context is created. */
-void PAPI_notify_cuda_context_created();
-
-/* Called by the CUPTI callback to notify when a CUDA context is destroyed. */
-void PAPI_notify_cuda_context_destroyed();
+/* Initialize PAPI for this process. */
+void PAPI_initialize();
 
 /* Start PAPI data collection for the current thread. */
 void PAPI_start_data_collection();
 
 /* Stop PAPI data collection for the current thread. */
 void PAPI_stop_data_collection();
+
+/* Finalize PAPI for this process. */
+void PAPI_finalize();

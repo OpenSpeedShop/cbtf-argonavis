@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2012-2015 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2012-2016 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,10 @@
 #pragma once
 
 #include <cupti.h>
+#include <monitor.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /**
  * Checks that the given CUPTI function call returns the value "CUPTI_SUCCESS".
@@ -31,24 +33,25 @@
  *
  * @param x    CUPTI function call to be checked.
  */
-#define CUPTI_CHECK(x)                                              \
-    do {                                                            \
-        CUptiResult RETVAL = x;                                     \
-        if (RETVAL != CUPTI_SUCCESS)                                \
-        {                                                           \
-            const char* description = NULL;                         \
-            if (cuptiGetResultString(RETVAL, &description) ==       \
-                CUPTI_SUCCESS)                                      \
-            {                                                       \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d (%s)\n", \
-                        __func__, #x, RETVAL, description);         \
-            }                                                       \
-            else                                                    \
-            {                                                       \
-                fprintf(stderr, "[CBTF/CUDA] %s(): %s = %d\n",      \
-                        __func__, #x, RETVAL);                      \
-            }                                                       \
-            fflush(stderr);                                         \
-            abort();                                                \
-        }                                                           \
+#define CUPTI_CHECK(x)                                                       \
+    do {                                                                     \
+        CUptiResult RETVAL = x;                                              \
+        if (RETVAL != CUPTI_SUCCESS)                                         \
+        {                                                                    \
+            const char* description = NULL;                                  \
+            if (cuptiGetResultString(RETVAL, &description) == CUPTI_SUCCESS) \
+            {                                                                \
+                fprintf(stderr, "[CUDA %d:%d] %s(): %s = %d (%s)\n",         \
+                        getpid(), monitor_get_thread_num(),                  \
+                        __func__, #x, RETVAL, description);                  \
+            }                                                                \
+            else                                                             \
+            {                                                                \
+                fprintf(stderr, "[CUDA %d:%d] %s(): %s = %d\n",              \
+                        getpid(), monitor_get_thread_num(),                  \
+                        __func__, #x, RETVAL);                               \
+            }                                                                \
+            fflush(stderr);                                                  \
+            abort();                                                         \
+        }                                                                    \
     } while (0)
