@@ -130,7 +130,7 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
     for (i = 0, j = 0; i < kMaxAddressesPerBlob; ++i)
     {
         // Is this the terminating null of an existing stack trace?
-        if(dm_data->stack_traces.stack_traces_val[i] = 0)
+        if (dm_data->stack_traces.stack_traces_val[i] == 0)
         {
             // Terminate the search if a complete match has been found
             // between this stack trace and the existing stack trace.
