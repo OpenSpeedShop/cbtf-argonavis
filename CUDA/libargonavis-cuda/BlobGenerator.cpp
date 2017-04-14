@@ -19,6 +19,7 @@
 /** @file Definition of the BlobGenerator class. */
 
 #include <boost/assert.hpp>
+#include <boost/bind.hpp>
 #include <cstring>
 #include <stddef.h>
 #include <stdlib.h>
@@ -380,18 +381,28 @@ void BlobGenerator::updateHeader(const Time& time)
 //------------------------------------------------------------------------------
 void BlobGenerator::initialize()
 {
-    dm_header.reset(new CBTF_DataHeader());
+    using namespace KrellInstitute::Messages::Impl;
+    
+    dm_header.reset(
+        new CBTF_DataHeader(),
+        boost::bind(&xdr_deleter<CBTF_DataHeader>, _1, 
+                    reinterpret_cast<xdrproc_t>(xdr_CBTF_DataHeader))
+        );
 
     *dm_header = dm_thread; // Set fields from ThreadName
     dm_header->experiment = 0;
     dm_header->collector = 1;
-    dm_header->id = const_cast<char*>(kCollectorUniqueID);
+    dm_header->id = const_cast<char*>(strdup(kCollectorUniqueID));
     dm_header->time_begin = ~0;
     dm_header->time_end = 0;
     dm_header->addr_begin = ~0;
     dm_header->addr_end = 0;
 
-    dm_data.reset(new CBTF_cuda_data());
+    dm_data.reset(
+        new CBTF_cuda_data(),
+        boost::bind(&xdr_deleter<CBTF_cuda_data>, _1, 
+                    reinterpret_cast<xdrproc_t>(xdr_CBTF_cuda_data))
+        );
     
     dm_data->messages.messages_len = 0;
     dm_data->messages.messages_val =
@@ -449,14 +460,15 @@ void BlobGenerator::generate()
         
         CUDA_PeriodicSamples* message =
             &raw_message->CBTF_cuda_message_u.periodic_samples;
-        
-        memcpy(message, &dm_periodic_samples, sizeof(CUDA_PeriodicSamples));
+
+        message->deltas.deltas_len = dm_periodic_samples.deltas.deltas_len;
+        message->deltas.deltas_val = dm_periodic_samples.deltas.deltas_val;
 
         // When generating a blob containing periodic samples, if the header's
         // address range is undefined, replace it with a range that covers ALL
         // addresses. Without this special case Open|SpeedShop tosses out data
         // blobs produced by the CUTPI metrics and events sampling thread.
-
+        
         if ((dm_header->addr_begin == ~0) && (dm_header->addr_end == 0))
         {
             dm_header->addr_begin = 0;
