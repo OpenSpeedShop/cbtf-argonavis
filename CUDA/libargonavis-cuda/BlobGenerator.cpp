@@ -417,7 +417,7 @@ void BlobGenerator::initialize()
             ));
 
     memset(dm_data->stack_traces.stack_traces_val, 0,
-	   kMaxAddressesPerBlob * sizeof(CBTF_Protocol_Address));
+           kMaxAddressesPerBlob * sizeof(CBTF_Protocol_Address));
 
     dm_periodic_samples.deltas.deltas_len = 0;
     dm_periodic_samples.deltas.deltas_val =
