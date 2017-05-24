@@ -16,12 +16,7 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Implementation of the CBTF/MRNEt CUDA replay collector. */
-
-#include <monitor.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+/** @file Implementation of the CBTF/MRNet CUDA replay collector. */
 
 #include <KrellInstitute/Services/Collector.h>
 
@@ -37,17 +32,6 @@ const char* const cbtf_collector_unique_id = "cuda";
  */
 void cbtf_collector_start(const CBTF_DataHeader* const header)
 {
-    if (getenv("CBTF_MRNET_REPLAY_PLAYBACK") == NULL)
-    {
-        fprintf(stderr, "[CUDA %d:%d] cbtf_collector_start(): "
-                "The CBTF/MRNet CUDA replay collector is being used without "
-                "the CBTF_MRNET_REPLAY_PLAYBACK environment variable having "
-                "been set. This Open|SpeedShop data collection run is going "
-                "to hang...\n",
-                getpid(), monitor_get_thread_num());
-
-        fflush(stderr);
-    }
 }
 
 
