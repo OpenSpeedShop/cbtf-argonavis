@@ -19,25 +19,28 @@
 add_subdirectory(libargonavis-cuda)
 add_subdirectory(messages)
 
-if(CUDA_FOUND AND CUPTI_FOUND AND MRNET_FOUND)
+if(MRNET_FOUND AND PLATFORM_BUILD_COLLECTOR)
 
-    if (PLATFORM_BUILD_COLLECTOR)
+    if(BUILD_CUDA_REPLAY_COLLECTOR)
+        message(STATUS "Building the CBTF/MRNet CUDA replay collector")
+        add_subdirectory(replay)
+    else()
         add_subdirectory(collector)
     endif()
-  
+
     add_subdirectory(components)
-
-    if (${CUPTI_API_VERSION} GREATER 3)
-        add_subdirectory(cupti_avail)
-    endif()
-
+  
     configure_file(cuda.xml.in cuda.xml)
-
+        
     install(
         FILES
             ${PROJECT_BINARY_DIR}/CUDA/cuda.xml
         DESTINATION
             share/KrellInstitute/xml
         )
+  
+endif()
 
+if(CUDA_FOUND AND CUPTI_FOUND AND (${CUPTI_API_VERSION} GREATER 3))
+    add_subdirectory(cupti_avail)
 endif()
