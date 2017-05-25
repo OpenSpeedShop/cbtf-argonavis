@@ -42,6 +42,8 @@ if(MRNET_FOUND AND PLATFORM_BUILD_COLLECTOR)
 
 endif()
 
-if(CUDA_FOUND AND CUPTI_FOUND AND (${CUPTI_API_VERSION} GREATER 3))
-    add_subdirectory(cupti_avail)
+if(CUDA_FOUND AND CUPTI_FOUND)
+    if(${CUPTI_API_VERSION} GREATER 3)
+        add_subdirectory(cupti_avail)
+    endif()
 endif()
