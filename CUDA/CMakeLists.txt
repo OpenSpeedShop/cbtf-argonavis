@@ -21,24 +21,25 @@ add_subdirectory(messages)
 
 if(MRNET_FOUND AND PLATFORM_BUILD_COLLECTOR)
 
-    if(BUILD_CUDA_REPLAY_COLLECTOR)
-        message(STATUS "Building the CBTF/MRNet CUDA replay collector")
-        add_subdirectory(replay)
-    else()
+    if(CUDA_FOUND AND CUPTI_FOUND)
         add_subdirectory(collector)
+    elseif(ENABLE_CBTF_MRNET_PLAYBACK)
+        add_subdirectory(playback)
     endif()
 
-    add_subdirectory(components)
-  
-    configure_file(cuda.xml.in cuda.xml)
+    if((CUDA_FOUND AND CUPTI_FOUND) OR ENABLE_CBTF_MRNET_PLAYBACK)
+        add_subdirectory(components)
+
+        configure_file(cuda.xml.in cuda.xml)
         
-    install(
-        FILES
-            ${PROJECT_BINARY_DIR}/CUDA/cuda.xml
-        DESTINATION
-            share/KrellInstitute/xml
-        )
-  
+        install(
+            FILES
+                ${PROJECT_BINARY_DIR}/CUDA/cuda.xml
+            DESTINATION
+                share/KrellInstitute/xml
+            )
+    endif()
+
 endif()
 
 if(CUDA_FOUND AND CUPTI_FOUND AND (${CUPTI_API_VERSION} GREATER 3))

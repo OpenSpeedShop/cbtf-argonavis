@@ -16,7 +16,7 @@
 ** Place, Suite 330, Boston, MA  02111-1307  USA
 *******************************************************************************/
 
-/** @file Implementation of the CBTF/MRNet CUDA replay collector. */
+/** @file Implementation of the CBTF/MRNet CUDA playback collector. */
 
 #include <KrellInstitute/Services/Collector.h>
 
