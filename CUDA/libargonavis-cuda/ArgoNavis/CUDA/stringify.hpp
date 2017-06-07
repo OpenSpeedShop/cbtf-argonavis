@@ -214,20 +214,21 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         static std::string impl(const Fields& value)
         {
             std::stringstream stream;
-            
-            int n = 0;
+
+            std::string::size_type n = 0;
             
             for (Fields::const_iterator 
                      i = value.begin(); i != value.end(); ++i)
             {
-                n = std::max<int>(n, i->get<0>().size());
+                n = std::max<std::string::size_type>(n, i->get<0>().size());
             }
             
             for (Fields::const_iterator
                      i = value.begin(); i != value.end(); ++i)
             {
                 stream << "    ";
-                for (int j = 0; j < (n - i->get<0>().size()); ++j)
+                for (std::string::size_type
+                         j = 0; j < (n - i->get<0>().size()); ++j)
                 {
                     stream << " ";
                 }
