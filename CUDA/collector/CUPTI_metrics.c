@@ -541,7 +541,7 @@ void CUPTI_metrics_start(CUcontext context)
     {
         static char* kClasses[4] = { "Tesla", "Quadro", "GeForce", "Tegra" };
         
-        if (Metrics.values[i].class > CUPTI_DEVICE_ATTR_DEVICE_CLASS_TEGRA)
+        if (Metrics.values[i].class > 3 /* Tegra */)
         {
             printf("[CUDA %d:%d] found Unknown-class device for context %p\n",
                    getpid(), monitor_get_thread_num(), context);

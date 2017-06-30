@@ -16,7 +16,11 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.8)
+
+if(COMMAND cmake_policy)
+    cmake_policy(SET CMP0003 NEW)
+endif()
 
 project(CBTF-ArgoNavis)
 
