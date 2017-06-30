@@ -273,12 +273,14 @@ void ClusteringManager::handleThreadTable(
     {
 
 
+        
         // TODO: Apply an algorithm to determine which State contain
         //       interesting results. Use this information to request
         //       performance data for the representative threads and,
         //       once all the data is received, send the whole ball
         //       of wax to Open|SpeedShop.
 
+        
 
     }
 }

@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -714,4 +714,21 @@ void State::join(const std::set<size_t>& rows,
     dm_radii.swap(radii);
     dm_sizes.swap(sizes);
     dm_clusters.swap(clusters);
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+ThreadUIDGroup State::threads(size_t row) const
+{
+    if (row >= dm_clusters.size())
+    {
+        raise<std::invalid_argument>(
+            "The given row index (%1%) is not in the valid range [0, %2%).",
+            row, dm_clusters.size()
+            );
+    }
+    
+    return dm_clusters[row];
 }

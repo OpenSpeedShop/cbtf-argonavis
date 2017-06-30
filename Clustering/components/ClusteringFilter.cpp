@@ -230,8 +230,10 @@ void ClusteringFilter::handleThreadTable(
         emitOutput<AddressBuffer>("AddressBuffer", dm_addresses);
         
 
+        
         // TODO: Apply a cluster analysis algorithm to each State
 
+        
 
         // Emit the table of all (new) cluster analysis state
         for (std::map<std::string, State>::const_iterator

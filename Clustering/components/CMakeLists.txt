@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,7 @@ add_library(Clustering SHARED
     State.hpp State.cpp
     ThreadTable.hpp ThreadTable.cpp
     ThreadUID.hpp
+    ThreadUIDGroup.hpp
     XDR.cpp
     )
 

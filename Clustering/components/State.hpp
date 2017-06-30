@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -36,6 +36,7 @@
 #include "Messages.h"
 #include "ThreadTable.hpp"
 #include "ThreadUID.hpp"
+#include "ThreadUIDGroup.hpp"
 
 namespace ArgoNavis { namespace Clustering { namespace Impl {
 
@@ -123,7 +124,7 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
             return dm_radii;
         }
 
-        /** Get the sizes (in threads) of all cluster. */
+        /** Get the sizes (in threads) of all clusters. */
         const Vector& sizes() const
         {
             return dm_sizes;
@@ -146,6 +147,17 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
                   const Vector& centroid,
                   float radius);
         
+        /**
+         * Get the threads in a single cluster.
+         *
+         * @param row    Row index of the cluster.
+         * @return       Threads in that cluster.
+         *
+         * @throw std::invalid_argument    The given row index is not in the
+         *                                 valid range.
+         */
+        ThreadUIDGroup threads(size_t row) const;
+
     private:
 
         /**
@@ -157,9 +169,6 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
             boost::bimaps::set_of<size_t>
             > FeatureNameMap;
 
-        /** Type of container storing an arbitrary group of ThreadUID. */
-        typedef std::set<ThreadUID> ThreadUIDGroup;
-        
         /**
          * Type of associative container used to find the row number within
          * "dm_clusters", "dm_centroids", and "dm_radii", corresponding to a
