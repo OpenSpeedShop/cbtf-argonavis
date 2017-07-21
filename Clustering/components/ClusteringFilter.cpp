@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@
 
 #include <KrellInstitute/Core/AddressBuffer.hpp>
 
+#include "Algorithms.hpp"
 #include "Messages.h"
 #include "State.hpp"
 #include "ThreadTable.hpp"
@@ -228,12 +229,13 @@ void ClusteringFilter::handleThreadTable(
     {
         // Emit the address buffer containing all observed addresses
         emitOutput<AddressBuffer>("AddressBuffer", dm_addresses);
-        
 
-        
-        // TODO: Apply a cluster analysis algorithm to each State
-
-        
+        // Apply the default clustering algorithm to each cluster analysis state
+        for (std::map<std::string, State>::iterator
+                 i = dm_states.begin(); i != dm_states.end(); ++i)
+        {
+            defaultClusteringAlgorithm(i->second);
+        }
 
         // Emit the table of all (new) cluster analysis state
         for (std::map<std::string, State>::const_iterator

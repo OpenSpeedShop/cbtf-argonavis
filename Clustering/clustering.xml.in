@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
-Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -77,6 +77,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
   <Output>
     <Name>attached_to_threads_xdr_output</Name>
     <From><Output>OutgoingAttachedToThreads</Output></From>
+  </Output>
+
+  <Output>
+    <Name>clustering_criterion</Name>
+    <From><Output>OutgoingClusteringCriterion</Output></From>
   </Output>
   
   <Output>
@@ -206,6 +211,11 @@ Place, Suite 330, Boston, MA  02111-1307  USA
         <From><Name>Manager</Name><Output>AttachedToThreads</Output></From>
       </Output>
 
+      <Output>
+        <Name>OutgoingClusteringCriterion</Name>
+        <From><Name>Manager</Name><Output>ClusteringCriterion</Output></From>
+      </Output>
+      
       <Output>
         <Name>OutgoingEmitPerformanceData</Name>
         <From><Name>Manager</Name><Output>EmitPerformanceData</Output></From>

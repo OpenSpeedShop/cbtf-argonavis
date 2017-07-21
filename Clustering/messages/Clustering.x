@@ -1,5 +1,5 @@
 /*******************************************************************************
-** Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+** Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -22,10 +22,21 @@
 
 
 
-/**
- * ...
- */
+/** Representation of a data cluster */
+struct Cluster
+{
+    /** Representative thread for this cluster. */
+    CBTF_Protocol_ThreadName representative;
+
+    /** All threads in this cluster. */
+    CBTF_Protocol_ThreadName threads<>;
+};
+
+
+
+/** Representation of a data clustering criterion. */
 struct Clustering_Criterion
 {
-    int dummy; /**< Temporary dummy value. */
+    string name<>;      /**< Name of this criterion. */
+    Cluster clusters<>; /**< Clusters for this criterion. */
 };

@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -87,6 +87,32 @@ ThreadTable::operator ANCI_ThreadTable() const
     {
         message.uids.uids_val[n] = i->left;
         message.names.names_val[n] = i->right;
+    }
+    
+    return message;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+ThreadTable::operator CBTF_Protocol_AttachedToThreads() const
+{
+    CBTF_Protocol_AttachedToThreads message;
+    memset(&message, 0, sizeof(message));
+
+    message.threads.names.names_len = dm_threads.size();
+    
+    message.threads.names.names_val =
+        allocateXDRCountedArray<CBTF_Protocol_ThreadName>(
+            message.threads.names.names_len
+            );
+    
+    u_int n = 0;
+    for (boost::bimap<ThreadUID, ThreadName>::const_iterator
+             i = dm_threads.begin(); i != dm_threads.end(); ++i, ++n)
+    {
+        message.threads.names.names_val[n] = i->right;
     }
     
     return message;

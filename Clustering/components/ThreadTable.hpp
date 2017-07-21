@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -21,6 +21,8 @@
 #pragma once
 
 #include <boost/bimap.hpp>
+
+#include <KrellInstitute/Messages/ThreadEvents.h>
 
 #include <ArgoNavis/Base/ThreadName.hpp>
 
@@ -48,6 +50,9 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
 
         /** Type conversion to an ANCI_ThreadTable. */
         operator ANCI_ThreadTable() const;
+
+        /** Type conversion to a CBTF_Protocol_AttachedToThreads. */
+        operator CBTF_Protocol_AttachedToThreads() const;
         
         /**
          * Add another thread table to this thread table.
