@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <boost/numeric/ublas/triangular.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/matrix_proxy.hpp>
 #include <boost/numeric/ublas/vector.hpp>
@@ -27,12 +28,23 @@
 
 namespace ArgoNavis { namespace Clustering { namespace Impl {
 
-    /** Type of Boost uBLAS matrices used for the cluster analysis. */
+    /** Type of Boost uBLAS distance matrices used for the cluster analysis. */
+    typedef boost::numeric::ublas::triangular_matrix<
+        float, boost::numeric::ublas::strict_upper
+        > DistanceMatrix;
+    
+    /** Type of Boost uBLAS (general) matrices used for the cluster analysis. */
     typedef boost::numeric::ublas::matrix<float> Matrix;
 
-    /** Type of Boost uBLAS vectors used for the cluster analysis. */
+    /** Type of Boost uBLAS (general) vectors used for the cluster analysis. */
     typedef boost::numeric::ublas::vector<float> Vector;
+    
+    /** Compute the Manhattan distance matrix for pairwise rows of a matrix. */
+    DistanceMatrix manhattan(const Matrix& A);
 
+    /** Compute the Euclidean distance matrix for pairwise rows of a matrix. */
+    DistanceMatrix euclidean(const Matrix& A);
+    
     /** Concatenate two matrices horizontally. */
     Matrix horzcat(const Matrix& A, const Matrix& B);
 

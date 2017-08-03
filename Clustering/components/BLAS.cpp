@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2016-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -28,6 +28,64 @@ using namespace ArgoNavis::Base;
 using namespace ArgoNavis::Clustering;
 using namespace ArgoNavis::Clustering::Impl;
 
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+DistanceMatrix Impl::manhattan(const Matrix& A)
+{
+    using namespace boost::numeric::ublas;
+
+    if (A.size1() != A.size2())
+    {
+        raise<std::invalid_argument>(
+            "The number of rows (%1%) and columns (%2%) in "
+            "matrix A are not the same.", A.size1(), A.size2()
+            );
+    }
+
+    DistanceMatrix B(A.size1(), A.size1());
+        
+    for (size_t ri = 0; ri < A.size1(); ++ri)
+    {
+        for (size_t rj = ri + 1; rj < A.size1(); ++rj)
+        {
+            B(ri, rj) = norm_1(row(A, ri) - row(A, rj));
+        }
+    }
+    
+    return B;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+DistanceMatrix Impl::euclidean(const Matrix& A)
+{
+    using namespace boost::numeric::ublas;
+
+    if (A.size1() != A.size2())
+    {
+        raise<std::invalid_argument>(
+            "The number of rows (%1%) and columns (%2%) in "
+            "matrix A are not the same.", A.size1(), A.size2()
+            );
+    }
+
+    DistanceMatrix B(A.size1(), A.size1());
+        
+    for (size_t ri = 0; ri < A.size1(); ++ri)
+    {
+        for (size_t rj = ri + 1; rj < A.size1(); ++rj)
+        {
+            B(ri, rj) = norm_2(row(A, ri) - row(A, rj));
+        }
+    }
+    
+    return B;
+}
+        
 
 
 //------------------------------------------------------------------------------
