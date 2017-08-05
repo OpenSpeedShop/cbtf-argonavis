@@ -49,7 +49,7 @@ extern void CBTF_MRNet_Send(const int, const xdrproc_t, const void*);
 
 
 /** Flag indicating if CUDA kernel execution is to be serialized. */
-bool CUPTI_metrics_do_kernel_serialization = FALSE;
+bool CUPTI_metrics_do_kernel_serialization = false;
 
 /**
  * Boolean flag used by CUPTI_metrics_finalize() to request the exit of the
@@ -82,6 +82,9 @@ static struct {
         /** Identifiers for the metrics. */
         CUpti_MetricID ids[MAX_EVENTS];
 
+        /** Kinds for the metrics. */
+        CUpti_MetricValueKind kinds[MAX_EVENTS];
+        
         /** Map metric indicies to periodic count indicies. */
         int to_periodic[MAX_EVENTS];
 
@@ -90,6 +93,9 @@ static struct {
 
         /** Is the continuous event sampling mode used for this context? */
         bool is_continuous;
+
+        /** Are metrics currently being collected for this context? */
+        bool is_collecting;
         
         /**
          * Each time a CUPTI event is read via cuptiEventGroupReadAllEvents()
@@ -115,6 +121,217 @@ static struct {
  * and used by CUPTI_metrics_finalize() to wait for the thread to exit.
  */
 static pthread_t SamplingThreadID;
+
+
+
+/**
+ * Start metrics data collection for the specified CUDA context.
+ *
+ * @param i    Index of the CUDA context's entry in the Metrics table.
+ *
+ * @note    This function does <em>not</em> acquire the Metrics
+ *          mutex itself. The caller must have already done this.
+ */
+static void start_collection(int i)
+{
+    /* Create the event groups to collect these metrics for this context */
+    CUPTI_CHECK(cuptiMetricCreateEventGroupSets(
+                    Metrics.values[i].context,
+                    Metrics.values[i].count * sizeof(CUpti_MetricID),
+                    Metrics.values[i].ids,
+                    &Metrics.values[i].sets
+                    ));
+    
+    /*
+     * Enable the proper event collection mode, depending on the number
+     * of passes required to collect the these metrics, and the class of
+     * device associated with this context,
+     */
+    if (Metrics.values[i].sets->numSets > 1)
+    {
+        CUPTI_metrics_do_kernel_serialization = true;
+        Metrics.values[i].is_continuous = false;
+        
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_metrics_start(): "
+                "The specified GPU events cannot be collected in a "
+                "single pass. Thus CUDA kernel replay mode has been "
+                "enabled. GPU events will be sampled at CUDA kernel "
+                "entry and exit only (not periodically). This also "
+                "implies CUDA kernel execution will be serialized, "
+                "possibly exhibiting different temporal behavior, "
+                "and longer execution times, than when executed "
+                "without performance monitoring.\n",
+                getpid(), monitor_get_thread_num());
+        fflush(stderr);
+        
+        /*
+         * Enable kernel replay mode for this context. This also implies,
+         * and is only available with, kernel event sampling mode.
+         */
+        CUPTI_CHECK(cuptiEnableKernelReplayMode(Metrics.values[i].context));
+    }
+    else if (Metrics.values[i].class != CUPTI_DEVICE_ATTR_DEVICE_CLASS_TESLA)
+    {
+        CUPTI_metrics_do_kernel_serialization = true;
+        Metrics.values[i].is_continuous = false;
+        
+        fprintf(stderr, "[CUDA %d:%d] CUPTI_metrics_start(): "
+                "The selected CUDA device doesn't support continuous "
+                "GPU event sampling. GPU events will be sampled at CUDA "
+                "kernel entry and exit only (not peridiocally). This "
+                "also implies CUDA kernel execution will be serialized, "
+                "possibly exhibiting different temporal behavior than "
+                "when executed without performance monitoring.\n",
+                getpid(), monitor_get_thread_num());
+        fflush(stderr);
+        
+        /* Enable kernel event sampling mode for this context */
+        CUPTI_CHECK(cuptiSetEventCollectionMode(
+                        Metrics.values[i].context,
+                        CUPTI_EVENT_COLLECTION_MODE_KERNEL
+                        ));
+    }
+    else
+    {
+        Metrics.values[i].is_continuous = true;
+        
+        /* Enable continuous event sampling mode for this context */
+        CUPTI_CHECK(cuptiSetEventCollectionMode(
+                        Metrics.values[i].context,
+                        CUPTI_EVENT_COLLECTION_MODE_CONTINUOUS
+                        ));
+    }
+    
+    /* Enable collection of the event group sets */
+    uint32_t j;
+    for (j = 0; j < Metrics.values[i].sets->numSets; ++j)
+    {
+        CUPTI_CHECK(cuptiEventGroupSetEnable(&Metrics.values[i].sets->sets[j]));
+    }
+    
+    /* Access our thread-local storage */
+    TLS* tls = TLS_get();
+    
+    /* Initialize the performance data header and blob for this context */
+    memset(&Metrics.values[i].tls, 0, sizeof(TLS));
+    memcpy(&Metrics.values[i].tls.data_header, &tls->data_header,
+           sizeof(CBTF_DataHeader));
+    Metrics.values[i].tls.data_header.posix_tid =
+        (int64_t)(Metrics.values[i].context);
+    Metrics.values[i].tls.data_header.omp_tid = -1;
+    
+    TLS_initialize_data(&Metrics.values[i].tls);
+    
+    /* Append event sampling configuration to our performance data blob */
+    
+    CBTF_cuda_message* raw_message = TLS_add_message(&Metrics.values[i].tls);
+    Assert(raw_message != NULL);
+    raw_message->type = SamplingConfig;
+    
+    CUDA_SamplingConfig* message =
+        &raw_message->CBTF_cuda_message_u.sampling_config;
+    
+    memcpy(message, &TheSamplingConfig, sizeof(CUDA_SamplingConfig));
+    
+    /* Ensure upstream processes know about this "thread" */
+    
+    CBTF_Protocol_ThreadName name;
+    name.experiment = Metrics.values[i].tls.data_header.experiment;
+    name.host = Metrics.values[i].tls.data_header.host;
+    name.pid = Metrics.values[i].tls.data_header.pid;
+    name.has_posix_tid = true;
+    name.posix_tid = Metrics.values[i].tls.data_header.posix_tid;
+    name.rank = Metrics.values[i].tls.data_header.rank;
+    name.omp_tid = Metrics.values[i].tls.data_header.omp_tid;
+    
+    CBTF_Protocol_AttachedToThreads attached;
+    attached.threads.names.names_len = 1;
+    attached.threads.names.names_val = &name;
+    
+    CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS,
+                    (xdrproc_t)xdr_CBTF_Protocol_AttachedToThreads,
+                    &attached);
+    
+    static char* kPath = "/bin/ps";
+    
+    CBTF_Protocol_LinkedObject object;
+    object.linked_object.path = kPath;
+    object.linked_object.checksum = 0;
+    object.range.begin = 0xFFFF0BADC0DABEEF;
+    object.range.end = object.range.begin + 1;
+    CUPTI_CHECK(cuptiGetTimestamp(&object.time_begin));
+    object.time_end = -1;
+    object.is_executable = false;
+    
+    CBTF_Protocol_LinkedObjectGroup group;
+    memcpy(&group.thread, &name, sizeof(CBTF_Protocol_ThreadName));
+    group.linkedobjects.linkedobjects_len = 1;
+    group.linkedobjects.linkedobjects_val = &object;
+    
+    CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP,
+                    (xdrproc_t)xdr_CBTF_Protocol_LinkedObjectGroup,
+                    &group);
+
+    /* Metrics are currently being collected for this context */
+    Metrics.values[i].is_collecting = true;
+}
+
+
+
+/**
+ * Stop CUPTI metrics data collection for the specified CUDA context.
+ *
+ * @param i    Index of the CUDA context's entry in the Metrics table.
+ *
+ * @note    This function does <em>not</em> acquire the Metrics
+ *          mutex itself. The caller must have already done this.
+ */
+static void stop_collection(int i)
+{
+    /* Disable kernel replay mode (if previously enabled) */
+    if (Metrics.values[i].sets->numSets > 1)
+    {
+        CUPTI_CHECK(cuptiDisableKernelReplayMode(Metrics.values[i].context));
+    }
+    
+    /* Disable collection of the event group sets */
+    uint32_t j;
+    for (j = 0; j < Metrics.values[i].sets->numSets; ++j)
+    {
+        CUPTI_CHECK(cuptiEventGroupSetDisable(
+                        &Metrics.values[i].sets->sets[j]
+                        ));
+    }
+    
+    /* Destroy all of the event group sets. */
+    CUPTI_CHECK(cuptiEventGroupSetsDestroy(Metrics.values[i].sets));
+
+    /* Send any remaining performance data for this context */
+    TLS_send_data(&Metrics.values[i].tls);
+
+    /* Ensure upstream processes know about this "thread"'s termination */
+    
+    CBTF_Protocol_ThreadName name;
+    name.experiment = Metrics.values[i].tls.data_header.experiment;
+    name.host = Metrics.values[i].tls.data_header.host;
+    name.pid = Metrics.values[i].tls.data_header.pid;
+    name.has_posix_tid = true;
+    name.posix_tid = Metrics.values[i].tls.data_header.posix_tid;
+    name.rank = Metrics.values[i].tls.data_header.rank;
+    name.omp_tid = Metrics.values[i].tls.data_header.omp_tid;
+    
+    CBTF_Protocol_ThreadsStateChanged terminated;
+    terminated.threads.names.names_len = 1;
+    terminated.threads.names.names_val = &name;
+    terminated.state = Terminated;
+    
+    CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED,
+                    (xdrproc_t)xdr_CBTF_Protocol_ThreadsStateChanged,
+                    &terminated);
+    
+    /* Metrics are not currently being collected for this context */
+    Metrics.values[i].is_collecting = false;
+}
 
 
 
@@ -165,7 +382,7 @@ static void take_sample(int i)
         }
     }
     
-    /** Compute the duration over which events were collected */
+    /* Compute the duration over which events were collected */
     uint64_t dt = sample.time - Metrics.values[i].origins.time;
     
     /* Compute each of the metrics for this context */
@@ -182,11 +399,41 @@ static void take_sample(int i)
                         dt,
                         &metric
                         ));
+
+        uint64_t value = 0;
+
+        switch (Metrics.values[i].kinds[m])
+        {
+
+        case CUPTI_METRIC_VALUE_KIND_DOUBLE:
+            value = (uint64_t)(100.0 * metric.metricValueDouble);
+            break;
+
+        case CUPTI_METRIC_VALUE_KIND_UINT64:
+            value = metric.metricValueUint64;
+            break;
+
+        case CUPTI_METRIC_VALUE_KIND_PERCENT:
+            value = (uint64_t)(metric.metricValuePercent);
+            break;
+            
+        case CUPTI_METRIC_VALUE_KIND_THROUGHPUT:
+            value = metric.metricValueThroughput;
+            break;
+            
+        case CUPTI_METRIC_VALUE_KIND_INT64:
+            value = (uint64_t)metric.metricValueInt64;
+            break;
+            
+        case CUPTI_METRIC_VALUE_KIND_UTILIZATION_LEVEL:
+            value = 10 * (uint64_t)(metric.metricValueUtilizationLevel);
+            break;
+            
+        }
         
         int e = Metrics.values[i].to_periodic[m];
         
-        sample.count[e] = Metrics.values[i].origins.count[e] + 
-            metric.metricValueUint64;
+        sample.count[e] = Metrics.values[i].origins.count[e] + value;
     }
     
     /* Add this sample to the performance data blob for this context */
@@ -239,7 +486,7 @@ void CUPTI_metrics_start(CUcontext context)
 #endif
 
     PTHREAD_CHECK(pthread_rwlock_wrlock(&Metrics.mutex));
-
+    
     /* Find an empty entry in the table for this context */
 
     int i;
@@ -294,7 +541,7 @@ void CUPTI_metrics_start(CUcontext context)
     {
         static char* kClasses[4] = { "Tesla", "Quadro", "GeForce", "Tegra" };
         
-        if (Metrics.values[i].class > CUPTI_DEVICE_ATTR_DEVICE_CLASS_TEGRA)
+        if (Metrics.values[i].class > 3 /* Tegra */)
         {
             printf("[CUDA %d:%d] found Unknown-class device for context %p\n",
                    getpid(), monitor_get_thread_num(), context);
@@ -313,13 +560,14 @@ void CUPTI_metrics_start(CUcontext context)
     for (e = 0; e < TheSamplingConfig.events.events_len; ++e)
     {
         CUDA_EventDescription* event = &TheSamplingConfig.events.events_val[e];
-        
+
         /*
-         * Look up the metric id for this event. Note that an unidentified
-         * event is NOT treated as fatal since it may simply be an event
-         * that will be handled elsewhere. Just continue to the next event.
+         * Look up the metric id and kind for this event. Note that an
+         * unidentified event is NOT treated as fatal since it may simply
+         * be an event that will be handled by PAPI. Just continue to the
+         * next event.
          */
-        
+
         CUpti_MetricID id;
         
         if (cuptiMetricGetIdFromName(
@@ -329,11 +577,6 @@ void CUPTI_metrics_start(CUcontext context)
             continue;
         }
         
-        /*
-         * Only support uint64_t metrics for now. If a non-uint64_t metric
-         * is specified, warn the user and continue to the next event.
-         */
-
         CUpti_MetricValueKind kind;
         size_t size = sizeof(kind);
 
@@ -341,19 +584,30 @@ void CUPTI_metrics_start(CUcontext context)
                         id, CUPTI_METRIC_ATTR_VALUE_KIND, &size, &kind
                         ));
 
-        if (kind != CUPTI_METRIC_VALUE_KIND_UINT64)
+        /* Translate the metric kind into the proper event kind */
+        switch (kind)
         {
-            fprintf(stderr, "[CUDA %d:%d] CUPTI_metrics_start(): "
-                    "Valid GPU event \"%s\" is of an unsupported value kind "
-                    "(%d). Ignoring this event.\n", 
-                    getpid(), monitor_get_thread_num(), event->name, kind);
-            fflush(stderr);
             
-            continue;
-        }
+        case CUPTI_METRIC_VALUE_KIND_UINT64:
+        case CUPTI_METRIC_VALUE_KIND_INT64:
+            event->kind = Count;
+            break;
 
+        case CUPTI_METRIC_VALUE_KIND_DOUBLE:
+        case CUPTI_METRIC_VALUE_KIND_PERCENT:
+        case CUPTI_METRIC_VALUE_KIND_UTILIZATION_LEVEL:
+            event->kind = Percentage;
+            break;
+
+        case CUPTI_METRIC_VALUE_KIND_THROUGHPUT:
+            event->kind = Rate;
+            break;
+            
+        }
+        
         /* Add this metric */
         Metrics.values[i].ids[Metrics.values[i].count] = id;
+        Metrics.values[i].kinds[Metrics.values[i].count] = kind;
         Metrics.values[i].to_periodic[Metrics.values[i].count] = e;
 
         /* Increment the number of metrics */
@@ -371,143 +625,8 @@ void CUPTI_metrics_start(CUcontext context)
     /* Are there any metrics to collect? */
     if (Metrics.values[i].count > 0)
     {
-        /* Create the event groups to collect these metrics for this context */
-        CUPTI_CHECK(cuptiMetricCreateEventGroupSets(
-                        context,
-                        Metrics.values[i].count * sizeof(CUpti_MetricID),
-                        Metrics.values[i].ids,
-                        &Metrics.values[i].sets
-                        ));
-
-        /*
-         * Enable the proper event collection mode, depending on the number
-         * of passes required to collect the these metrics, and the class of
-         * device associated with this context,
-         */
-        if (Metrics.values[i].sets->numSets > 1)
-        {
-            CUPTI_metrics_do_kernel_serialization = TRUE;
-            Metrics.values[i].is_continuous = FALSE;
-
-            fprintf(stderr, "[CUDA %d:%d] CUPTI_metrics_start(): "
-                    "The specified GPU events cannot be collected in a "
-                    "single pass. Thus CUDA kernel replay mode has been "
-                    "enabled. GPU events will be sampled at CUDA kernel "
-                    "entry and exit only (not periodically). This also "
-                    "implies CUDA kernel execution will be serialized, "
-                    "possibly exhibiting different temporal behavior, "
-                    "and longer execution times, than when executed "
-                    "without performance monitoring.\n",
-                    getpid(), monitor_get_thread_num());
-            fflush(stderr);
-
-            /*
-             * Enable kernel replay mode for this context. This also implies,
-             * and is only available with, kernel event sampling mode.
-             */
-            CUPTI_CHECK(cuptiEnableKernelReplayMode(context));
-        }
-        else if (Metrics.values[i].class != 
-                 CUPTI_DEVICE_ATTR_DEVICE_CLASS_TESLA)
-        {
-            CUPTI_metrics_do_kernel_serialization = TRUE;
-            Metrics.values[i].is_continuous = FALSE;
-
-            fprintf(stderr, "[CUDA %d:%d] CUPTI_metrics_start(): "
-                    "The selected CUDA device doesn't support continuous "
-                    "GPU event sampling. GPU events will be sampled at CUDA "
-                    "kernel entry and exit only (not peridiocally). This "
-                    "also implies CUDA kernel execution will be serialized, "
-                    "possibly exhibiting different temporal behavior than "
-                    "when executed without performance monitoring.\n",
-                    getpid(), monitor_get_thread_num());
-            fflush(stderr);
-            
-            /* Enable kernel event sampling mode for this context */
-            CUPTI_CHECK(cuptiSetEventCollectionMode(
-                            context, CUPTI_EVENT_COLLECTION_MODE_KERNEL
-                            ));
-        }
-        else
-        {
-            Metrics.values[i].is_continuous = TRUE;
-
-            /* Enable continuous event sampling mode for this context */
-            CUPTI_CHECK(cuptiSetEventCollectionMode(
-                            context, CUPTI_EVENT_COLLECTION_MODE_KERNEL
-                            ));
-        }
-
-        /* Enable collection of the event group sets */
-        uint32_t j;
-        for (j = 0; j < Metrics.values[i].sets->numSets; ++j)
-        {
-            CUPTI_CHECK(cuptiEventGroupSetEnable(
-                            &Metrics.values[i].sets->sets[j]
-                            ));
-        }
-
-        /* Access our thread-local storage */
-        TLS* tls = TLS_get();
-        
-        /* Initialize the performance data header and blob for this context */
-        memset(&Metrics.values[i].tls, 0, sizeof(TLS));
-        memcpy(&Metrics.values[i].tls.data_header, &tls->data_header,
-               sizeof(CBTF_DataHeader));
-        Metrics.values[i].tls.data_header.posix_tid = (int64_t)(context);
-        Metrics.values[i].tls.data_header.omp_tid = -1;
-        TLS_initialize_data(&Metrics.values[i].tls);
-
-        /* Append event sampling configuration to our performance data blob */
-
-        CBTF_cuda_message* raw_message = 
-            TLS_add_message(&Metrics.values[i].tls);
-        Assert(raw_message != NULL);
-        raw_message->type = SamplingConfig;
-        
-        CUDA_SamplingConfig* message = 
-            &raw_message->CBTF_cuda_message_u.sampling_config;
-        
-        memcpy(message, &TheSamplingConfig, sizeof(CUDA_SamplingConfig));
-        
-        /** Ensure upstream processes know about this "thread" */
-        
-        CBTF_Protocol_ThreadName name;
-        name.experiment = Metrics.values[i].tls.data_header.experiment;
-        name.host = Metrics.values[i].tls.data_header.host;
-        name.pid = Metrics.values[i].tls.data_header.pid;
-        name.has_posix_tid = TRUE;
-        name.posix_tid = Metrics.values[i].tls.data_header.posix_tid;
-        name.rank = Metrics.values[i].tls.data_header.rank;
-        name.omp_tid = Metrics.values[i].tls.data_header.omp_tid;
-        
-        CBTF_Protocol_AttachedToThreads attached;
-        attached.threads.names.names_len = 1;
-        attached.threads.names.names_val = &name;
-
-        CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_ATTACHED_TO_THREADS,
-                        (xdrproc_t)xdr_CBTF_Protocol_AttachedToThreads,
-                        &attached);
-
-        static char* kPath = "/bin/ps";
-        
-        CBTF_Protocol_LinkedObject object;
-        object.linked_object.path = kPath;
-        object.linked_object.checksum = 0;
-        object.range.begin = 0xFFFF0BADC0DABEEF;
-        object.range.end = object.range.begin + 1;
-        CUPTI_CHECK(cuptiGetTimestamp(&object.time_begin));
-        object.time_end = -1;
-        object.is_executable = false;
-        
-        CBTF_Protocol_LinkedObjectGroup group;
-        memcpy(&group.thread, &name, sizeof(CBTF_Protocol_ThreadName));
-        group.linkedobjects.linkedobjects_len = 1;
-        group.linkedobjects.linkedobjects_val = &object;
-        
-        CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_LINKED_OBJECT_GROUP,
-                        (xdrproc_t)xdr_CBTF_Protocol_LinkedObjectGroup,
-                        &group);
+        /* Start CUTPI metrics data collection for this context */
+        start_collection(i);
     }
     
     /* Restore (if necessary) the previous value of the current context */
@@ -516,7 +635,7 @@ void CUPTI_metrics_start(CUcontext context)
         CUDA_CHECK(cuCtxPopCurrent(&context));
         CUDA_CHECK(cuCtxPushCurrent(current));
     }
-
+    
     PTHREAD_CHECK(pthread_rwlock_unlock(&Metrics.mutex));
 }
 
@@ -537,8 +656,7 @@ void CUPTI_metrics_sample(CUcontext context)
     {
         /* Should this context be sampled? */
         if ((Metrics.values[i].context == context) &&
-            (Metrics.values[i].count > 0) &&
-            !Metrics.values[i].is_continuous)
+            Metrics.values[i].is_collecting && !Metrics.values[i].is_continuous)
         {
             take_sample(i);
         }
@@ -582,7 +700,7 @@ void* CUPTI_metrics_sampling_thread(void* arg)
              ++i)
         {
             /* Should this context be sampled? */
-            if ((Metrics.values[i].count > 0) &&
+            if (Metrics.values[i].is_collecting &&
                 Metrics.values[i].is_continuous)
             {
                 take_sample(i);
@@ -637,52 +755,11 @@ void CUPTI_metrics_stop(CUcontext context)
         abort();
     }
 
-    /* Are any metrics being collected? */
-    if (Metrics.values[i].count > 0)
+    /* Are metrics currently being collected for this context? */
+    if (Metrics.values[i].is_collecting)
     {
-        /* Disable kernel replay mode (if previously enabled) */
-        if (Metrics.values[i].sets->numSets > 1)
-        {
-            CUPTI_CHECK(cuptiDisableKernelReplayMode(context));
-        }
-
-        /* Disable collection of the event group sets */
-        uint32_t j;
-        for (j = 0; j < Metrics.values[i].sets->numSets; ++j)
-        {
-            CUPTI_CHECK(cuptiEventGroupSetDisable(
-                            &Metrics.values[i].sets->sets[j]
-                            ));
-        }
-        
-        /* Destroy all of the event group sets. */
-        CUPTI_CHECK(cuptiEventGroupSetsDestroy(Metrics.values[i].sets));
-
-        /* Insure CUPTI_metrics_sample doesn't do anything */
-        Metrics.values[i].count = 0;
-
-        /* Send any remaining performance data for this context */
-        TLS_send_data(&Metrics.values[i].tls);
-
-        /** Ensure upstream processes know about this "thread"'s termination */
-        
-        CBTF_Protocol_ThreadName name;
-        name.experiment = Metrics.values[i].tls.data_header.experiment;
-        name.host = Metrics.values[i].tls.data_header.host;
-        name.pid = Metrics.values[i].tls.data_header.pid;
-        name.has_posix_tid = TRUE;
-        name.posix_tid = Metrics.values[i].tls.data_header.posix_tid;
-        name.rank = Metrics.values[i].tls.data_header.rank;
-        name.omp_tid = Metrics.values[i].tls.data_header.omp_tid;
-        
-        CBTF_Protocol_ThreadsStateChanged terminated;
-        terminated.threads.names.names_len = 1;
-        terminated.threads.names.names_val = &name;
-        terminated.state = Terminated;
-
-        CBTF_MRNet_Send(CBTF_PROTOCOL_TAG_THREADS_STATE_CHANGED,
-                        (xdrproc_t)xdr_CBTF_Protocol_ThreadsStateChanged,
-                        &terminated);
+        /* Stop CUPTI metrics data collection for this context */
+        stop_collection(i);
     }
     
     PTHREAD_CHECK(pthread_rwlock_unlock(&Metrics.mutex));
@@ -702,6 +779,22 @@ void CUPTI_metrics_finalize()
                getpid(), monitor_get_thread_num());
     }
 #endif
+
+    PTHREAD_CHECK(pthread_rwlock_wrlock(&Metrics.mutex));
+
+    /* Iterate over each context in the table */
+    int i;
+    for (i = 0; (i < MAX_CONTEXTS) && (Metrics.values[i].context != NULL); ++i)
+    {
+        /* Are metrics currently being collected for this context? */
+        if (Metrics.values[i].is_collecting)
+        {
+            /* Stop CUPTI metrics data collection for this context */
+            stop_collection(i);
+        }
+    }
+    
+    PTHREAD_CHECK(pthread_rwlock_unlock(&Metrics.mutex));
 
     /* Stop the sampling thread */
     ExitSamplingThread = true;

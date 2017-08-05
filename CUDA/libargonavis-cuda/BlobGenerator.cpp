@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015,2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2015-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -19,8 +19,10 @@
 /** @file Definition of the BlobGenerator class. */
 
 #include <boost/assert.hpp>
+#include <boost/bind.hpp>
 #include <cstring>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include <KrellInstitute/Messages/Blob.h>
 #include <KrellInstitute/Messages/PerformanceData.hpp>
@@ -81,12 +83,9 @@ BlobGenerator::BlobGenerator(const Base::ThreadName& thread,
     dm_visitor(visitor),
     dm_empty(true),
     dm_terminate(false),
-    dm_header(new CBTF_DataHeader()),
-    dm_data(new CBTF_cuda_data()),
-    dm_messages(kMaxMessagesPerBlob),
-    dm_stack_traces(kMaxAddressesPerBlob),
+    dm_header(),
+    dm_data(),    
     dm_periodic_samples(),
-    dm_periodic_samples_deltas(kMaxDeltaBytesPerBlob),
     dm_periodic_samples_previous()
 {
     initialize();
@@ -121,7 +120,7 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
     // Generate a blob for the current header and data if there isn't enough
     // room to hold another message. See the note in this method's header.
 
-    if (dm_data->messages.messages_len == kMaxMessagesPerBlob)
+    if (full())
     {
         generate();
     }
@@ -131,7 +130,7 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
     for (i = 0, j = 0; i < kMaxAddressesPerBlob; ++i)
     {
         // Is this the terminating null of an existing stack trace?
-        if (dm_stack_traces[i] == 0)
+        if (dm_data->stack_traces.stack_traces_val[i] == 0)
         {
             // Terminate the search if a complete match has been found
             // between this stack trace and the existing stack trace.
@@ -148,7 +147,7 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
             
             else if ((i == 0) || 
                      (i == (kMaxAddressesPerBlob - 1)) ||
-                     (dm_stack_traces[i - 1] == 0))
+                     (dm_data->stack_traces.stack_traces_val[i - 1] == 0))
             {
                 // Generate a blob for the current header and data if there
                 // isn't enough room in the existing stack traces to add this
@@ -164,10 +163,10 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
                 // Add this stack trace to the existing stack traces
                 for (j = 0; j < site.size(); ++j, ++i)
                 {
-                    dm_stack_traces[i] = site[j];
+                    dm_data->stack_traces.stack_traces_val[i] = site[j];
                     updateHeader(site[j]);
                 }
-                dm_stack_traces[i] = 0;
+                dm_data->stack_traces.stack_traces_val[i] = 0;
                 dm_data->stack_traces.stack_traces_len = i + 1;
                 
                 break;
@@ -186,7 +185,9 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
             // within the existing stack traces. Otherwise reset the pointer
             // to zero.
 
-            j = (site[j] == Address(dm_stack_traces[i])) ? (j + 1) : 0;
+            j = (site[j] ==
+                    Address(dm_data->stack_traces.stack_traces_val[i])) ?
+                (j + 1) : 0;
         }
     }
 
@@ -204,11 +205,11 @@ CBTF_cuda_message* BlobGenerator::addMessage()
 {
     dm_empty = false;
 
-    if (dm_data->messages.messages_len == kMaxMessagesPerBlob)
+    if (full())
     {
         generate();
     }
-
+    
     return &dm_data->messages.messages_val[dm_data->messages.messages_len++];
 }
 
@@ -375,41 +376,74 @@ void BlobGenerator::updateHeader(const Time& time)
 
 
 //------------------------------------------------------------------------------
-// This method is almost identical to TLS_initialize_data() found in
+// This method is roughly equivalent to TLS_initialize_data() found in
 // "cbtf-argonavis/CUDA/collector/TLS.c".
 //------------------------------------------------------------------------------
 void BlobGenerator::initialize()
 {
+    using namespace KrellInstitute::Messages::Impl;
+    
+    dm_header.reset(
+        new CBTF_DataHeader(),
+        boost::bind(&xdr_deleter<CBTF_DataHeader>, _1, 
+                    reinterpret_cast<xdrproc_t>(xdr_CBTF_DataHeader))
+        );
+
     *dm_header = dm_thread; // Set fields from ThreadName
     dm_header->experiment = 0;
     dm_header->collector = 1;
-    dm_header->id = const_cast<char*>(kCollectorUniqueID);
+    dm_header->id = const_cast<char*>(strdup(kCollectorUniqueID));
     dm_header->time_begin = ~0;
     dm_header->time_end = 0;
     dm_header->addr_begin = ~0;
     dm_header->addr_end = 0;
+
+    dm_data.reset(
+        new CBTF_cuda_data(),
+        boost::bind(&xdr_deleter<CBTF_cuda_data>, _1, 
+                    reinterpret_cast<xdrproc_t>(xdr_CBTF_cuda_data))
+        );
     
     dm_data->messages.messages_len = 0;
-    dm_data->messages.messages_val = &dm_messages[0];
-
-    // It is very important that the following assign of dm_stack_traces, and
-    // that of dm_periodic_samples_deltas just below, occur BEFORE the address
-    // of their respective zero'th element is calculated. The assign() method
-    // is documented in the standard as invalidating all element pointers. And
-    // it does so in some implementations - even if the total element count is
-    // not changing.
-    
-    dm_stack_traces.assign(kMaxAddressesPerBlob, 0);
+    dm_data->messages.messages_val =
+        reinterpret_cast<CBTF_cuda_message*>(malloc(
+            kMaxMessagesPerBlob * sizeof(CBTF_cuda_message)
+            ));
     
     dm_data->stack_traces.stack_traces_len = 0;
-    dm_data->stack_traces.stack_traces_val = &dm_stack_traces[0];
+    dm_data->stack_traces.stack_traces_val =
+        reinterpret_cast<CBTF_Protocol_Address*>(malloc(
+            kMaxAddressesPerBlob * sizeof(CBTF_Protocol_Address)
+            ));
 
-    dm_periodic_samples_deltas.assign(kMaxDeltaBytesPerBlob, 0);
+    memset(dm_data->stack_traces.stack_traces_val, 0,
+           kMaxAddressesPerBlob * sizeof(CBTF_Protocol_Address));
 
     dm_periodic_samples.deltas.deltas_len = 0;
-    dm_periodic_samples.deltas.deltas_val = &dm_periodic_samples_deltas[0];
+    dm_periodic_samples.deltas.deltas_val =
+        reinterpret_cast<boost::uint8_t*>(malloc(
+            kMaxDeltaBytesPerBlob * sizeof(boost::uint8_t)
+            ));
     
     dm_periodic_samples_previous.clear();
+}
+
+
+
+//------------------------------------------------------------------------------
+// This method is roughly equivalent to is_full() found in
+// "cbtf-argonavis/CUDA/collector/TLS.c".
+//------------------------------------------------------------------------------
+bool BlobGenerator::full() const
+{
+    std::size_t max_messages_per_blob = kMaxMessagesPerBlob;
+
+    if (dm_periodic_samples.deltas.deltas_len > 0)
+    {
+        --max_messages_per_blob;
+    }
+    
+    return dm_data->messages.messages_len == max_messages_per_blob;
 }
 
 
@@ -428,14 +462,15 @@ void BlobGenerator::generate()
         
         CUDA_PeriodicSamples* message =
             &raw_message->CBTF_cuda_message_u.periodic_samples;
-        
-        memcpy(message, &dm_periodic_samples, sizeof(CUDA_PeriodicSamples));
+
+        message->deltas.deltas_len = dm_periodic_samples.deltas.deltas_len;
+        message->deltas.deltas_val = dm_periodic_samples.deltas.deltas_val;
 
         // When generating a blob containing periodic samples, if the header's
         // address range is undefined, replace it with a range that covers ALL
         // addresses. Without this special case Open|SpeedShop tosses out data
         // blobs produced by the CUTPI metrics and events sampling thread.
-
+        
         if ((dm_header->addr_begin == ~0) && (dm_header->addr_end == 0))
         {
             dm_header->addr_begin = 0;

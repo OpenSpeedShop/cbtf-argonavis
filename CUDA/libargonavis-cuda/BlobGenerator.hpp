@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2015,2016 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2015-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -97,6 +97,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Initialize the current header and data. */
         void initialize();
 
+        /** Is the current blob already full? */
+        bool full() const;
+        
         /** Generate a blob for the current header and data. */
         void generate();
 
@@ -117,18 +120,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Data for the current blob. */
         boost::shared_ptr<CBTF_cuda_data> dm_data;
-
-        /** Individual messages pointed to by the data above. */
-        std::vector<CBTF_cuda_message> dm_messages;
-
-        /** Unique, null-terminated, stack traces referenced by the messages. */
-        std::vector<CBTF_Protocol_Address> dm_stack_traces;
-
+        
         /** Message containing the periodic samples. */
         CUDA_PeriodicSamples dm_periodic_samples;
-        
-        /** Time and event count deltas. Pointed to by the above message. */
-        std::vector<boost::uint8_t> dm_periodic_samples_deltas;
         
         /** Previously taken periodic event sample (including its time). */
         std::vector<boost::uint64_t> dm_periodic_samples_previous;
