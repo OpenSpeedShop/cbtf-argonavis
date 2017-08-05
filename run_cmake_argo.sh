@@ -9,9 +9,9 @@ export CXX=`which g++`
 
 export KRELL_ROOT=/opt/DEVEL/krellroot_v2.2.3
 export DYNINST_ROOT=/opt/DEVEL/krellroot_v2.2.3
-export CBTF_ROOT=/opt/DEVEL3/cbtf_v2.3.1
-export CBTF_KRELL_ROOT=/opt/DEVEL3/cbtf_v2.3.1
-export CBTF_ARGO_PREFIX=/opt/DEVEL3/cbtf_v2.3.1
+export CBTF_ROOT=/opt/DEVEL4/cbtf_v2.3.1
+export CBTF_KRELL_ROOT=/opt/DEVEL4/cbtf_v2.3.1
+export CBTF_ARGO_PREFIX=/opt/DEVEL4/cbtf_v2.3.1
 export MY_CUDA_ROOT=/usr/local/cuda
 export BOOST_ROOT=/usr
 export LIBMONITOR_DIR=/opt/DEVEL/krellroot_v2.2.3
