@@ -46,30 +46,14 @@ namespace {
      */
     const char* const kCollectorUniqueID = "cuda";
 
-    /**
-     * Maximum number of stack trace addresses contained within each blob.
-     *
-     * @note    Currently the only basis for this selection is that it matches
-     *          MAX_ADDRESSES_PER_BLOB in "cbtf-argonavis/CUDA/collector/TLS.h".
-     */
-    const std::size_t kMaxAddressesPerBlob = 1024;
+    /** Maximum number of stack trace addresses contained within each blob. */
+    const std::size_t kMaxAddressesPerBlob = 16 * 1024;
 
-    /**
-     * Maximum number of periodic sample delta bytes within each blob.
-     *
-     * @note    Currently the only basis for this selection
-     *          is that it matches MAX_DELTAS_BYTES_PER_BLOB
-     *          in "cbtf-argonavis/CUDA/collector/TLS.h".
-     */
-    const std::size_t kMaxDeltaBytesPerBlob = 32 * 1024 /* 32 KB */;
+    /** Maximum number of periodic sample delta bytes within each blob. */
+    const std::size_t kMaxDeltaBytesPerBlob = 256 * 1024 /* 256 KB */;
     
-    /**
-     * Maximum number of individual messages contained within each blob.
-     *
-     * @note    Currently the only basis for this selection is that it matches
-     *          MAX_MESSAGES_PER_BLOB in "cbtf-argonavis/CUDA/collector/TLS.h".
-     */
-    const std::size_t kMaxMessagesPerBlob = 128;
+    /** Maximum number of individual messages contained within each blob. */
+    const std::size_t kMaxMessagesPerBlob = 16 * 1024;
     
 } // namespace <anonymous>
 
@@ -448,6 +432,10 @@ bool BlobGenerator::full() const
 
 
 
+// WDH TESTING
+#include <iostream>
+// WDH TESTING
+
 //------------------------------------------------------------------------------
 // This method is roughly equivalent to TLS_send_data() found in
 // "cbtf-argonavis/CUDA/collector/TLS.c".
@@ -483,7 +471,19 @@ void BlobGenerator::generate()
             std::make_pair(dm_header, dm_data),
             reinterpret_cast<xdrproc_t>(&xdr_CBTF_cuda_data)
             );
-    
+
+    // WDH TESTING
+    if (true)
+    {
+        std::cout << "[WDH] generate(): "
+                  << blob->data.data_len << " bytes ("
+                  << dm_data->messages.messages_len << " messages, "
+                  << dm_periodic_samples.deltas.deltas_len << " deltas, "
+                  << dm_data->stack_traces.stack_traces_len << " addresses)"
+                  << std::endl;        
+    }
+    // WDH TESTING
+            
     dm_terminate |= !dm_visitor(blob);
     
     initialize();
