@@ -41,6 +41,12 @@ using namespace ArgoNavis::CUDA::Impl;
 /** Anonymous namespace hiding implementation details. */
 namespace {
 
+    /** Convert a char* into a string. */
+    std::string convert(char* value)
+    {
+        return (value == NULL) ? std::string() : std::string(value);
+    }
+
     /** Convert a CUDA_CachePreference into a CachePreference. */
     CachePreference convert(const CUDA_CachePreference& value)
     {
@@ -108,7 +114,7 @@ namespace {
     {
         CounterDescription description;
 
-        description.name = message.name;
+        description.name = convert(message.name);
         description.kind = convert(message.kind);
         description.threshold = message.threshold;
 
@@ -129,7 +135,7 @@ namespace {
         // event.time = <Not Present>
         event.time_begin = message.time_begin;
         event.time_end = message.time_end;
-        event.function = message.function;
+        event.function = convert(message.function);
         event.grid = Vector3u(message.grid[0],
                               message.grid[1],
                               message.grid[2]);
@@ -173,7 +179,7 @@ namespace {
     {
         ArgoNavis::CUDA::Device device;
 
-        device.name = message.name;
+        device.name = convert(message.name);
         device.compute_capability = Vector2u(message.compute_capability[0],
                                              message.compute_capability[1]);
         device.max_grid = Vector3u(message.max_grid[0],
@@ -266,7 +272,7 @@ namespace {
         // event.time = <Not Present>
         // event.time_begin = <Not Present>
         // event.time_end = <Not Present>
-        event.function = message.function;
+        event.function = convert(message.function);
         event.grid = Vector3u(message.grid[0],
                               message.grid[1],
                               message.grid[2]);
