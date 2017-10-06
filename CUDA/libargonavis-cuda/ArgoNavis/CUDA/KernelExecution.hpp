@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -35,6 +35,9 @@ namespace ArgoNavis { namespace CUDA {
     /** Information about a CUDA kernel execution. */
     struct KernelExecution
     {
+        /** Unique ID of the kernel execution class. */
+        boost::uint32_t clas;
+    
         /** Index of the device on which the kernel execution occurred. */
         size_t device;
 

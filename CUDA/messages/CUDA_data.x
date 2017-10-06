@@ -91,7 +91,11 @@ enum CUDA_MessageTypes
     EnqueueXfer = 5,
     OverflowSamples = 6,
     PeriodicSamples = 7,
-    SamplingConfig = 8
+    SamplingConfig = 8,
+    ExecClass = 9,
+    ExecInstance = 10,
+    XferClass = 11,
+    XferInstance = 12
 };
 
 
@@ -487,6 +491,137 @@ struct CUDA_SamplingConfig
 
 
 /**
+ * Message describing a class of kernel executions.
+ */
+struct CUDA_ExecClass
+{
+    /** Unique ID of the kernel execution class. */
+    uint32_t clas;
+
+    /** CUDA context for which the kernel execution was enqueued. */
+    CBTF_Protocol_Address context;
+
+    /** CUDA stream for which the kernel execution was enqueued. */
+    CBTF_Protocol_Address stream;
+
+    /**
+     * Call site of the kernel execution. This is an index into the
+     * stack_traces array of the CBTF_cuda_data containing this message.
+     */
+    uint32_t call_site;
+
+    /** Name of the kernel function being executed. */
+    string function<>;
+
+    /** Dimensions of the grid. */
+    int32_t grid[3];
+    
+    /** Dimensions of each block. */
+    int32_t block[3];
+
+    /** Cache preference used. */
+    CUDA_CachePreference cache_preference;
+
+    /** Registers required for each thread. */
+    uint16_t registers_per_thread;
+
+    /** Total amount (in bytes) of static shared memory reserved. */
+    int32_t static_shared_memory;
+
+    /** Total amount (in bytes) of dynamic shared memory reserved. */
+    int32_t dynamic_shared_memory;
+
+    /** Total amount (in bytes) of local memory reserved. */
+    int32_t local_memory;
+};
+
+
+
+/**
+ * Message describing one instance of a kernel execution class.
+ */
+struct CUDA_ExecInstance
+{
+    /** Unique ID of the kernel execution class being instanced. */
+    uint32_t clas;
+
+    /** Correlation ID of the kernel execution. */
+    uint32_t id;
+
+    /** Time at which the kernel execution was enqueued. */
+    CBTF_Protocol_Time time;
+
+    /** Time at which the kernel execution began. */
+    CBTF_Protocol_Time time_begin;
+
+    /** Time at which the kernel execution ended. */
+    CBTF_Protocol_Time time_end;    
+};
+
+
+
+/**
+ * Message describing a class of data transfers.
+ */
+struct CUDA_XferClass
+{
+    /** Unique ID of the data transfer class. */
+    uint32_t clas;
+
+    /** CUDA context for which the data transfer was enqueued. */
+    CBTF_Protocol_Address context;
+
+    /** CUDA stream for which the data transfer was enqueued. */
+    CBTF_Protocol_Address stream;
+    
+    /**
+     * Call site of the data transfer. This is an index into the
+     * stack_traces array of the CBTF_cuda_data containing this message.
+     */
+    uint32_t call_site;
+
+    /** Number of bytes being transferred. */
+    uint64_t size;
+
+    /** Kind of data transfer performed. */
+    CUDA_CopyKind kind;
+
+    /** Kind of memory from which the data transfer was performed. */
+    CUDA_MemoryKind source_kind;
+
+    /** Kind of memory to which the data transfer was performed. */
+    CUDA_MemoryKind destination_kind;
+
+    /** Was the data transfer asynchronous? */
+    bool asynchronous;
+};
+
+
+
+/**
+ * Message describing one instance of a data transfer class.
+ */
+struct CUDA_XferInstance
+{
+    /** Unique ID of the data transfer class being instanced. */
+    uint32_t clas;
+
+    /** Correlation ID of the data transfer. */
+    uint32_t id;
+
+    /** Time at which the data transfer was enqueued. */
+    CBTF_Protocol_Time time;
+
+    /** Time at which the data transfer began. */
+    CBTF_Protocol_Time time_begin;
+    
+    /** Time at which the data transfer ended. */
+    CBTF_Protocol_Time time_end;
+};
+
+
+
+/**
  * Union of the different types of messages that are encapsulated within this
  * collector's blobs. See the note on CBTF_cuda_data for more information.
  */
@@ -501,6 +636,10 @@ union CBTF_cuda_message switch (unsigned type)
     case OverflowSamples: CUDA_OverflowSamples overflow_samples;
     case PeriodicSamples: CUDA_PeriodicSamples periodic_samples;
     case  SamplingConfig:  CUDA_SamplingConfig sampling_config;
+    case       ExecClass:       CUDA_ExecClass exec_class;
+    case    ExecInstance:    CUDA_ExecInstance exec_instance;
+    case       XferClass:       CUDA_XferClass xfer_class;
+    case    XferInstance:    CUDA_XferInstance xfer_instance;
 
     default: void;
 };

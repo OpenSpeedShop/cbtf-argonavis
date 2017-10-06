@@ -120,7 +120,13 @@ namespace {
     {    
         KernelExecution event;
 
+        // event.clas = <Not Present>
+        // event.device = <Not Present>
+        // event.call_site = <Not Present>
         event.id = message.id;
+        // event.context = <Not Present>
+        // event.stream = <Not Present>
+        // event.time = <Not Present>
         event.time_begin = message.time_begin;
         event.time_end = message.time_end;
         event.function = message.function;
@@ -144,7 +150,13 @@ namespace {
     {
         DataTransfer event;
 
+        // event.clas = <Not Present>
+        // event.device = <Not Present>
+        // event.call_site = <Not Present>
         event.id = message.id;
+        // event.context = <Not Present>
+        // event.stream = <Not Present>
+        // event.time = <Not Present>
         event.time_begin = message.time_begin;
         event.time_end = message.time_end;
         event.size = message.size;
@@ -195,10 +207,25 @@ namespace {
     KernelExecution convert(const CUDA_EnqueueExec& message)
     {    
         KernelExecution event;
+
+        // event.clas = <Not Present>
+        // event.device = <Not Present>
+        // event.call_site = <Present But Must Be Translated By Caller>
         event.id = message.id;
         event.context = message.context;
         event.stream = message.stream;
         event.time = message.time;
+        // event.time_begin = <Not Present>
+        // event.time_end = <Not Present>
+        // event.function = <Not Present>
+        // event.grid = <Not Present>
+        // event.block = <Not Present>
+        // event.cache_preference = <Not Present>
+        // event.registers_per_thread = <Not Present>
+        // event.static_shared_memory = <Not Present>
+        // event.dynamic_shared_memory = <Not Present>
+        // event.local_memory = <Not Present>
+
         return event;
     }
 
@@ -206,11 +233,104 @@ namespace {
     DataTransfer convert(const CUDA_EnqueueXfer& message)
     {
         DataTransfer event;
+
+        // event.clas = <Not Present>
+        // event.device = <Not Present>
+        // event.call_site = <Present But Must Be Translated By Caller>
         event.id = message.id;
         event.context = message.context;
         event.stream = message.stream;
         event.time = message.time;
+        // event.time_begin = <Not Present>
+        // event.time_end = <Not Present>
+        // event.size = <Not Present>
+        // event.kind = <Not Present>
+        // event.source_kind = <Not Present>
+        // event.destination_kind = <Not Present>
+        // event.asynchronous = <Not Present>
+
         return event;
+    }
+
+    /** Convert a CUDA_ExecClass into a (partial) KernelExecution. */
+    KernelExecution convert(const CUDA_ExecClass& message)
+    {
+        KernelExecution event;
+
+        event.clas = message.clas;
+        // event.device = <Not Present>
+        // event.call_site = <Present But Must Be Translated By Caller>
+        // event.id = <Not Present>
+        event.context = message.context;
+        event.stream = message.stream;
+        // event.time = <Not Present>
+        // event.time_begin = <Not Present>
+        // event.time_end = <Not Present>
+        event.function = message.function;
+        event.grid = Vector3u(message.grid[0],
+                              message.grid[1],
+                              message.grid[2]);
+        event.block = Vector3u(message.block[0],
+                               message.block[1],
+                               message.block[2]);
+        event.cache_preference = convert(message.cache_preference);
+        event.registers_per_thread = message.registers_per_thread;
+        event.static_shared_memory = message.static_shared_memory;
+        event.dynamic_shared_memory = message.dynamic_shared_memory;
+        event.local_memory = message.local_memory;
+
+        return event;
+    }
+
+    /** Convert a CUDA_ExecInstance into a EventInstance. */
+    EventInstance convert(const CUDA_ExecInstance& message)
+    {
+        EventInstance instance;
+
+        instance.clas = message.clas;
+        instance.id = message.id;
+        instance.time = message.time;
+        instance.time_begin = message.time_begin;
+        instance.time_end = message.time_end;
+
+        return instance;
+    }
+
+    /** Convert a CUDA_XferInstance into a (partial) DataTransfer. */
+    DataTransfer convert(const CUDA_XferClass& message)
+    {
+        DataTransfer event;
+
+        event.clas = message.clas;
+        // event.device = <Not Present>
+        // event.call_site = <Present But Must Be Translated By Caller>
+        // event.id = <Not Present>
+        event.context = message.context;
+        event.stream = message.stream;        
+        // event.time = <Not Present>
+        // event.time_begin = <Not Present>
+        // event.time_end = <Not Present>
+        event.size = message.size;
+        event.kind = convert(message.kind);
+        event.source_kind = convert(message.source_kind);
+        event.destination_kind = convert(message.destination_kind);
+        event.asynchronous = message.asynchronous;
+
+        return event;
+    }
+
+    /** Convert a CUDA_XferInstance into a EventInstance. */
+    EventInstance convert(const CUDA_XferInstance& message)
+    {
+        EventInstance instance;
+
+        instance.clas = message.clas;
+        instance.id = message.id;
+        instance.time = message.time;
+        instance.time_begin = message.time_begin;
+        instance.time_end = message.time_end;
+
+        return instance;
     }
 
     /** Convert a CachePreference into a CUDA_CachePreference. */
@@ -291,8 +411,8 @@ namespace {
     CUDA_DeviceInfo convert(const ArgoNavis::CUDA::Device& device)
     {
         CUDA_DeviceInfo message;
-        
-        message.device = 0; // Caller must provide this
+
+        // message.device = <Caller Must Provide This>
         message.name = strdup(device.name.c_str());
         message.compute_capability[0] = device.compute_capability.get<0>();
         message.compute_capability[1] = device.compute_capability.get<1>();
@@ -322,70 +442,65 @@ namespace {
         
         return message;
     }
-
-    /**
-     * Convert a DataTransfer into a CUDA_EnqueueXfer and CUDA_CompletedXfer.
-     */
-    std::pair<CUDA_EnqueueXfer, CUDA_CompletedXfer> convert(
-        const DataTransfer& event
-        )
-    {
-        CUDA_EnqueueXfer enqueue;
-        CUDA_CompletedXfer completed;
-
-        enqueue.id = event.id;
-        enqueue.context = event.context;
-        enqueue.stream = event.stream;
-        enqueue.time = event.time;
-        enqueue.call_site = 0; // Caller must provide this
-        
-        completed.id = event.id;
-        completed.time_begin = event.time_begin;
-        completed.time_end = event.time_end;
-        completed.size = event.size;
-        completed.kind = convert(event.kind);
-        completed.source_kind = convert(event.source_kind);
-        completed.destination_kind = convert(event.destination_kind);
-        completed.asynchronous = event.asynchronous ? TRUE : FALSE;
-
-        return std::make_pair(enqueue, completed);
-    }
-
-    /**
-     * Convert a KernelExecution into a CUDA_EnqueueExec and CUDA_CompletedExec.
-     */
-    std::pair<CUDA_EnqueueExec, CUDA_CompletedExec> convert(
-        const KernelExecution& event
-        )
-    {
-        CUDA_EnqueueExec enqueue;
-        CUDA_CompletedExec completed;
-
-        enqueue.id = event.id;
-        enqueue.context = event.context;
-        enqueue.stream = event.stream;
-        enqueue.time = event.time;
-        enqueue.call_site = 0; // Caller must provide this
-
-        completed.id = event.id;
-        completed.time_begin = event.time_begin;
-        completed.time_end = event.time_end;
-        completed.function = strdup(event.function.c_str());
-        completed.grid[0] = event.grid.get<0>();
-        completed.grid[1] = event.grid.get<1>();
-        completed.grid[2] = event.grid.get<2>();
-        completed.block[0] = event.block.get<0>();
-        completed.block[1] = event.block.get<1>();
-        completed.block[2] = event.block.get<2>();
-        completed.cache_preference = convert(event.cache_preference);
-        completed.registers_per_thread = event.registers_per_thread;
-        completed.static_shared_memory = event.static_shared_memory;
-        completed.dynamic_shared_memory = event.dynamic_shared_memory;
-        completed.local_memory = event.local_memory;
-
-        return std::make_pair(enqueue, completed);
-    }
     
+    /** Convert a DataTransfer into a CUDA_XferClass. */
+    CUDA_XferClass convert(const DataTransfer& event)
+    {
+        CUDA_XferClass message;
+
+        message.clas = event.clas;
+        message.context = event.context;
+        message.stream = event.stream;
+        // message.call_site = <Caller Must Provide This>
+        message.size = event.size;
+        message.kind = convert(event.kind);
+        message.source_kind = convert(event.source_kind);
+        message.destination_kind = convert(event.destination_kind);
+        message.asynchronous = event.asynchronous ? TRUE : FALSE;
+        
+        return message;        
+    }
+
+    /** Convert a KernelExecution into a CUDA_ExecClass. */
+    CUDA_ExecClass convert(const KernelExecution& event)
+    {
+        CUDA_ExecClass message;
+
+        message.clas = event.clas;
+        message.context = event.context;
+        message.stream = event.stream;
+        // message.call_site = <Caller Must Provide This>
+        message.function = strdup(event.function.c_str());
+        message.grid[0] = event.grid.get<0>();
+        message.grid[1] = event.grid.get<1>();
+        message.grid[2] = event.grid.get<2>();
+        message.block[0] = event.block.get<0>();
+        message.block[1] = event.block.get<1>();
+        message.block[2] = event.block.get<2>();
+        message.cache_preference = convert(event.cache_preference);
+        message.registers_per_thread = event.registers_per_thread;
+        message.static_shared_memory = event.static_shared_memory;
+        message.dynamic_shared_memory = event.dynamic_shared_memory;
+        message.local_memory = event.local_memory;
+
+        return message;
+    }
+
+    /** Convert a KernelInstance into a CUDA_[Exec|Xfer]Instance. */
+    template <typename T>
+    T convert(const EventInstance& instance)
+    {
+        T message;
+
+        message.clas = instance.clas;
+        message.id = instance.id;
+        message.time = instance.time;
+        message.time_begin = instance.time_begin;
+        message.time_end = instance.time_end;
+
+        return message;    
+    }
+
 } // namespace <anonymous>
 
 
@@ -531,7 +646,25 @@ void DataTable::process(const Base::ThreadName& thread,
         case SamplingConfig:
             process(raw.CBTF_cuda_message_u.sampling_config, per_thread);
             break;
-            
+
+        case ExecClass:
+            process(raw.CBTF_cuda_message_u.exec_class, message, per_process,
+                    per_thread);
+            break;
+
+        case ExecInstance:
+            process(raw.CBTF_cuda_message_u.exec_instance, per_thread);
+            break;
+
+        case XferClass:
+            process(raw.CBTF_cuda_message_u.xfer_class, message, per_process,
+                    per_thread);
+            break;
+
+        case XferInstance:
+            process(raw.CBTF_cuda_message_u.xfer_instance, per_thread);
+            break;
+
         }
     }
 }
@@ -596,41 +729,57 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     
     BlobGenerator generator(thread, visitor);
 
-    // Visit all of the data transfer events, adding them to the generator
+    // Generate the context/device information and sampling config messages
 
-    per_thread.dm_data_transfers.visit(
-        TimeInterval(Time::TheBeginning(), Time::TheEnd()),
-        boost::bind(
-            static_cast<
-                bool (DataTable::*)(const DataTransfer&, BlobGenerator&) const
-                >(&DataTable::generate),
-            this, _1, boost::ref(generator)
-            )
-        );
+    if (!generator.empty())
+    {    
+        generate(per_process, per_thread, generator);
+    }
+    
+    // Add all of the data transfer classes to the generator
+
+    per_thread.dm_data_transfers.visitClasses(boost::bind(
+        &DataTable::generateXferClass, this, _1, boost::ref(generator)
+        ));
 
     if (generator.terminate())
     {
         return; // Terminate the iteration
     }
 
-    // Visit all of the kernel execution events, adding them to the generator
+    // Add all of the kernel execution classes to the generator
 
-    per_thread.dm_kernel_executions.visit(
-        TimeInterval(Time::TheBeginning(), Time::TheEnd()),
-        boost::bind(
-            static_cast<
-                bool (DataTable::*)(const KernelExecution&, 
-                                    BlobGenerator&) const
-            >(&DataTable::generate),
-            this, _1, boost::ref(generator)
-            )
-        );
+    per_thread.dm_kernel_executions.visitClasses(boost::bind(
+        &DataTable::generateExecClass, this, _1, boost::ref(generator)
+        ));
 
     if (generator.terminate())
     {
         return; // Terminate the iteration
     }
     
+    // Add all of the data transfer instances to the generator
+
+    per_thread.dm_data_transfers.visitInstances(boost::bind(
+        &DataTable::generateXferInstance, this, _1, boost::ref(generator)
+        ));
+
+    if (generator.terminate())
+    {
+        return; // Terminate the iteration
+    }
+
+    // Add all of the kernel execution instances to the generator
+
+    per_thread.dm_kernel_executions.visitInstances(boost::bind(
+        &DataTable::generateExecInstance, this, _1, boost::ref(generator)
+        ));
+
+    if (generator.terminate())
+    {
+        return; // Terminate the iteration
+    }
+        
     // Add the periodic samples to the generator
     
     for (PeriodicSamples::const_iterator
@@ -644,13 +793,6 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     if (generator.terminate())
     {
         return; // Terminate the iteration
-    }
-    
-    // Generate the context/device information and sampling config messages
-
-    if (!generator.empty())
-    {    
-        generate(per_process, per_thread, generator);
     }
 }
 
@@ -902,58 +1044,39 @@ bool DataTable::generate(const PerProcessData& per_process,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-bool DataTable::generate(const DataTransfer& event,
-                         BlobGenerator& generator) const
+bool DataTable::generateExecClass(const KernelExecution& clas,
+                                  BlobGenerator& generator) const
 {
-    // Convert the event into the corresponding enqueue and completed messages
-    std::pair<CUDA_EnqueueXfer, CUDA_CompletedXfer> messages = convert(event);
-    CUDA_EnqueueXfer& enqueue = messages.first;
-    CUDA_CompletedXfer& completed = messages.second;
-
-    // Add this event's call site to the blob generator
+    // Convert the event class into the corresponding message
+    CUDA_ExecClass class_message = convert(clas);
+    
+    // Add this event class' call site to the blob generator
     //
     // Do NOT attempt to move the addSite() call after the addMessage() call.
-    // The former also insures that at leasat one message can be added to the
+    // The former also insures that at least one message can be added to the
     // blob; insuring that the call site and its referencing message are not
     // split between two blobs, which would be disastrous.
 
-    enqueue.call_site = generator.addSite(dm_sites[event.call_site]);
-    
-    if (generator.terminate())
-    {
-        return false; // Terminate the iteration
-    }
-    
-    // Add this event's enqueue message to the blob generator
-
-    CBTF_cuda_message* enqueue_message = generator.addMessage();
+    class_message.call_site = generator.addSite(dm_sites[clas.call_site]);
     
     if (generator.terminate())
     {
         return false; // Terminate the iteration
     }
 
-    enqueue_message->type = EnqueueXfer;
-    memcpy(&enqueue_message->CBTF_cuda_message_u.enqueue_xfer,
-           &enqueue, sizeof(CUDA_EnqueueXfer));
+    // Add this event class' message to the blob generator
 
-    generator.updateHeader(event.time);
-    
-    // Add this event's completed message to the blob generator
-    
-    CBTF_cuda_message* completed_message = generator.addMessage();
+    CBTF_cuda_message* message = generator.addMessage();
     
     if (generator.terminate())
     {
         return false; // Terminate the iteration
     }
 
-    completed_message->type = CompletedXfer;
-    memcpy(&completed_message->CBTF_cuda_message_u.completed_xfer,
-           &completed, sizeof(CUDA_CompletedXfer));
+    message->type = ExecClass;
 
-    generator.updateHeader(event.time_begin);
-    generator.updateHeader(event.time_end);
+    memcpy(&message->CBTF_cuda_message_u.exec_class,
+           &class_message, sizeof(CUDA_ExecClass));
 
     // Continue the iteration
     return true;
@@ -963,61 +1086,104 @@ bool DataTable::generate(const DataTransfer& event,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-bool DataTable::generate(const KernelExecution& event,
-                         BlobGenerator& generator) const
+bool DataTable::generateExecInstance(const EventInstance& instance,
+                                     BlobGenerator& generator) const
 {
-    // Convert the event into the corresponding enqueue and completed messages
-    std::pair<CUDA_EnqueueExec, CUDA_CompletedExec> messages = convert(event);
-    CUDA_EnqueueExec& enqueue = messages.first;
-    CUDA_CompletedExec& completed = messages.second;
+    // Add this event instance's message to the blob generator
 
-    // Add this event's call site to the blob generator
+    CBTF_cuda_message* message = generator.addMessage();
+
+    if (generator.terminate())
+    {
+        return false; // Terminate the iteration
+    }
+
+    message->type = ExecInstance;
+
+    CUDA_ExecInstance& exec_instance = 
+        message->CBTF_cuda_message_u.exec_instance;
+
+    exec_instance = convert<CUDA_ExecInstance>(instance);
+
+    generator.updateHeader(instance.time);
+    generator.updateHeader(instance.time_begin);
+    generator.updateHeader(instance.time_end);
+
+    // Continue the iteration
+    return true;    
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool DataTable::generateXferClass(const DataTransfer& clas,
+                                  BlobGenerator& generator) const
+{
+    // Convert the event class into the corresponding message
+    CUDA_XferClass class_message = convert(clas);
+
+    // Add this event class' call site to the blob generator
     //
     // Do NOT attempt to move the addSite() call after the addMessage() call.
-    // The former also insures that at leasat one message can be added to the
+    // The former also insures that at least one message can be added to the
     // blob; insuring that the call site and its referencing message are not
     // split between two blobs, which would be disastrous.
 
-    enqueue.call_site = generator.addSite(dm_sites[event.call_site]);
-
-    if (generator.terminate())
-    {
-        return false; // Terminate the iteration
-    }
-
-    // Add this event's enqueue message to the blob generator
-
-    CBTF_cuda_message* enqueue_message = generator.addMessage();
+    class_message.call_site = generator.addSite(dm_sites[clas.call_site]);
     
     if (generator.terminate())
     {
         return false; // Terminate the iteration
     }
 
-    enqueue_message->type = EnqueueExec;
-    memcpy(&enqueue_message->CBTF_cuda_message_u.enqueue_exec,
-           &enqueue, sizeof(CUDA_EnqueueExec));
+    // Add this event class' message to the blob generator
 
-    generator.updateHeader(event.time);
-
-    // Add this event's completed message to the blob generator
-    
-    CBTF_cuda_message* completed_message = generator.addMessage();
+    CBTF_cuda_message* message = generator.addMessage();
     
     if (generator.terminate())
     {
         return false; // Terminate the iteration
     }
 
-    completed_message->type = CompletedExec;
-    memcpy(&completed_message->CBTF_cuda_message_u.completed_exec,
-           &completed, sizeof(CUDA_CompletedExec));
+    message->type = XferClass;
 
-    generator.updateHeader(event.time_begin);
-    generator.updateHeader(event.time_end);
+    memcpy(&message->CBTF_cuda_message_u.xfer_class,
+           &class_message, sizeof(CUDA_XferClass));
 
     // Continue the iteration
     return true;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool DataTable::generateXferInstance(const EventInstance& instance,
+                                     BlobGenerator& generator) const
+{
+    // Add this event instance's message to the blob generator
+
+    CBTF_cuda_message* message = generator.addMessage();
+
+    if (generator.terminate())
+    {
+        return false; // Terminate the iteration
+    }
+
+    message->type = XferInstance;
+
+    CUDA_XferInstance& xfer_instance = 
+        message->CBTF_cuda_message_u.xfer_instance;
+
+    xfer_instance = convert<CUDA_XferInstance>(instance);
+
+    generator.updateHeader(instance.time);
+    generator.updateHeader(instance.time_begin);
+    generator.updateHeader(instance.time_end);
+
+    // Continue the iteration
+    return true;    
 }
 
 
@@ -1197,6 +1363,70 @@ void DataTable::process(const CUDA_SamplingConfig& message,
     }
     
     per_thread.dm_unprocessed_periodic_samples.clear();
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const CUDA_ExecClass& message,
+                        const CBTF_cuda_data& data,
+                        const PerProcessData& per_process,
+                        PerThreadData& per_thread)
+{
+    KernelExecution event = convert(message);
+
+    event.device = per_process.dm_partial_kernel_executions.index(
+        per_process.dm_partial_kernel_executions.device(message.context)
+        );
+
+    event.call_site = findSite(message.call_site, data);
+
+    per_thread.dm_kernel_executions.addClass(event);
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const CUDA_ExecInstance& message,
+                        PerThreadData& per_thread)    
+{
+    EventInstance instance = convert(message);
+
+    per_thread.dm_kernel_executions.addInstance(instance);
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const CUDA_XferClass& message,
+                        const CBTF_cuda_data& data,
+                        const PerProcessData& per_process,
+                        PerThreadData& per_thread)
+{
+    DataTransfer event = convert(message);
+    
+    event.device = per_process.dm_partial_data_transfers.index(
+        per_process.dm_partial_data_transfers.device(message.context)
+        );
+    
+    event.call_site = findSite(message.call_site, data);
+    
+    per_thread.dm_data_transfers.addClass(event);
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void DataTable::process(const CUDA_XferInstance& message,
+                        PerThreadData& per_thread)
+{
+    EventInstance instance = convert(message);
+    
+    per_thread.dm_kernel_executions.addInstance(instance);
 }
 
 

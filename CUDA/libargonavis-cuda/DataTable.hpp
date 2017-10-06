@@ -44,6 +44,7 @@
 #include <ArgoNavis/CUDA/KernelExecution.hpp>
 
 #include "BlobGenerator.hpp"
+#include "EventInstance.hpp"
 #include "EventTable.hpp"
 #include "PartialEventTable.hpp"
 
@@ -181,14 +182,22 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         bool generate(const PerProcessData& per_process,
                       const PerThreadData& per_thread,
                       BlobGenerator& generator) const;
-        
-        /** Generate the messages for a DataTransfer event. */
-        bool generate(const DataTransfer& event,
-                      BlobGenerator& generator) const;
-        
-        /** Generate the messages for a KernelExecution event. */
-        bool generate(const KernelExecution& event,
-                      BlobGenerator& generator) const;
+                      
+        /** Generate the message for a kernel execution event class. */
+        bool generateExecClass(const KernelExecution& clas,
+                               BlobGenerator& generator) const;
+
+        /** Generate the message for a kernel execution event instance. */
+        bool generateExecInstance(const EventInstance& instance,
+                                  BlobGenerator& generator) const;
+         
+        /** Generate the message for a data transfer event class. */
+        bool generateXferClass(const DataTransfer& clas,
+                               BlobGenerator& generator) const;
+
+        /** Generate the message for an data transfer event instance. */
+        bool generateXferInstance(const EventInstance& instance,
+                                  BlobGenerator& generator) const;
         
         /** Process a CUDA_CompletedExec message. */
         void process(const CUDA_CompletedExec& message,
@@ -231,6 +240,26 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         void process(const CUDA_SamplingConfig& message,
                      PerThreadData& per_thread);
 
+        /** Process a CUDA_ExecClass message. */
+        void process(const CUDA_ExecClass& message,
+                     const CBTF_cuda_data& data,
+                     const PerProcessData& per_process,
+                     PerThreadData& per_thread);
+                     
+        /** Process a CUDA_ExecInstance message. */
+        void process(const CUDA_ExecInstance& message,
+                     PerThreadData& per_thread);
+        
+        /** Process a CUDA_XferClass message. */
+        void process(const CUDA_XferClass& message,
+                     const CBTF_cuda_data& data,
+                     const PerProcessData& per_process,
+                     PerThreadData& per_thread);
+                     
+        /** Process a CUDA_XferInstance message. */
+        void process(const CUDA_XferInstance& message,
+                     PerThreadData& per_thread);
+            
         /** Process a DataTransfer event completions. */
         void process(
             const PartialEventTable<DataTransfer>::Completions& completions
