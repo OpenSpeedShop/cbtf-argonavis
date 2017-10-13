@@ -432,10 +432,6 @@ bool BlobGenerator::full() const
 
 
 
-// WDH TESTING
-#include <iostream>
-// WDH TESTING
-
 //------------------------------------------------------------------------------
 // This method is roughly equivalent to TLS_send_data() found in
 // "cbtf-argonavis/CUDA/collector/TLS.c".
@@ -472,18 +468,6 @@ void BlobGenerator::generate()
             reinterpret_cast<xdrproc_t>(&xdr_CBTF_cuda_data)
             );
 
-    // WDH TESTING
-    if (true)
-    {
-        std::cout << "[WDH] generate(): "
-                  << blob->data.data_len << " bytes ("
-                  << dm_data->messages.messages_len << " messages, "
-                  << dm_periodic_samples.deltas.deltas_len << " deltas, "
-                  << dm_data->stack_traces.stack_traces_len << " addresses)"
-                  << std::endl;        
-    }
-    // WDH TESTING
-            
     dm_terminate |= !dm_visitor(blob);
     
     initialize();
