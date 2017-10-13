@@ -451,6 +451,10 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             case OverflowSamples: return "OverflowSamples";
             case PeriodicSamples: return "PeriodicSamples";
             case SamplingConfig: return "SamplingConfig";
+            case ExecClass : return "ExecClass";
+            case ExecInstance : return "ExecInstance";
+            case XferClass : return "XferClass";
+            case XferInstance : return "XferInstance";
             }
             return "?";
         }
