@@ -179,7 +179,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** 
          * Generate the context/device information and sampling config messages.
          */
-        bool generate(const PerProcessData& per_process,
+        void generate(const PerProcessData& per_process,
                       const PerThreadData& per_thread,
                       BlobGenerator& generator) const;
                       

@@ -736,7 +736,10 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     BlobGenerator generator(thread, visitor);
 
     // Generate the context/device information and sampling config messages
-    if (!generate(per_process, per_thread, generator))
+
+    generate(per_process, per_thread, generator);
+
+    if (generator.terminate())
     {
         return; // Terminate the iteration
     }
@@ -906,7 +909,7 @@ size_t DataTable::findSite(boost::uint32_t site, const CBTF_cuda_data& data)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-bool DataTable::generate(const PerProcessData& per_process,
+void DataTable::generate(const PerProcessData& per_process,
                          const PerThreadData& per_thread,
                          BlobGenerator& generator) const
 {
@@ -982,7 +985,7 @@ bool DataTable::generate(const PerProcessData& per_process,
         
         if (generator.terminate())
         {
-            return false; // Terminate the iteration
+            return; // Terminate the iteration
         }
 
         message->type = ContextInfo;
@@ -1001,7 +1004,7 @@ bool DataTable::generate(const PerProcessData& per_process,
         
         if (generator.terminate())
         {
-            return false; // Terminate the iteration
+            return; // Terminate the iteration
         }
 
         message->type = DeviceInfo;
@@ -1017,7 +1020,7 @@ bool DataTable::generate(const PerProcessData& per_process,
         
     if (generator.terminate())
     {
-        return false; // Terminate the iteration
+        return; // Terminate the iteration
     }
         
     message->type = SamplingConfig;
@@ -1040,9 +1043,6 @@ bool DataTable::generate(const PerProcessData& per_process,
     {
         config.events.events_val[*i] = convert(dm_counters[*i]);
     }
-    
-    // Continue the iteration
-    return true;    
 }
 
 
@@ -1109,10 +1109,6 @@ bool DataTable::generateExecInstance(const EventInstance& instance,
         message->CBTF_cuda_message_u.exec_instance;
 
     exec_instance = convert<CUDA_ExecInstance>(instance);
-
-    generator.updateHeader(instance.time);
-    generator.updateHeader(instance.time_begin);
-    generator.updateHeader(instance.time_end);
 
     // Continue the iteration
     return true;    
@@ -1182,10 +1178,6 @@ bool DataTable::generateXferInstance(const EventInstance& instance,
         message->CBTF_cuda_message_u.xfer_instance;
 
     xfer_instance = convert<CUDA_XferInstance>(instance);
-
-    generator.updateHeader(instance.time);
-    generator.updateHeader(instance.time_begin);
-    generator.updateHeader(instance.time_end);
 
     // Continue the iteration
     return true;    
@@ -1402,6 +1394,10 @@ void DataTable::process(const CUDA_ExecInstance& message,
     EventInstance instance = convert(message);
 
     per_thread.dm_kernel_executions.addInstance(instance);
+
+    dm_interval |= instance.time;
+    dm_interval |= instance.time_begin;
+    dm_interval |= instance.time_end;
 }
 
 
@@ -1434,6 +1430,10 @@ void DataTable::process(const CUDA_XferInstance& message,
     EventInstance instance = convert(message);
     
     per_thread.dm_data_transfers.addInstance(instance);
+
+    dm_interval |= instance.time;
+    dm_interval |= instance.time_begin;
+    dm_interval |= instance.time_end;
 }
 
 
