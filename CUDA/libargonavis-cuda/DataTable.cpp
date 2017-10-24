@@ -736,10 +736,9 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     BlobGenerator generator(thread, visitor);
 
     // Generate the context/device information and sampling config messages
-
-    if (!generator.empty())
-    {    
-        generate(per_process, per_thread, generator);
+    if (!generate(per_process, per_thread, generator))
+    {
+        return; // Terminate the iteration
     }
     
     // Add all of the data transfer classes to the generator
@@ -1268,6 +1267,7 @@ void DataTable::process(const struct CUDA_EnqueueExec& message,
                         PerProcessData& per_process)
 {
     KernelExecution event = convert(message);
+
     event.call_site = findSite(message.call_site, data);
     
     process(per_process.dm_partial_kernel_executions.addEnqueued(
@@ -1285,6 +1285,7 @@ void DataTable::process(const struct CUDA_EnqueueXfer& message,
                         PerProcessData& per_process)
 {
     DataTransfer event = convert(message);
+
     event.call_site = findSite(message.call_site, data);
 
     process(per_process.dm_partial_data_transfers.addEnqueued(
@@ -1432,7 +1433,7 @@ void DataTable::process(const CUDA_XferInstance& message,
 {
     EventInstance instance = convert(message);
     
-    per_thread.dm_kernel_executions.addInstance(instance);
+    per_thread.dm_data_transfers.addInstance(instance);
 }
 
 

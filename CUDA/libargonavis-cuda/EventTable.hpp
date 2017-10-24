@@ -68,12 +68,12 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
             if (i == dm_classes.right.end())
             {
+                T copy(event);
+                copy.clas = static_cast<boost::uint32_t>(dm_classes.size());
+
                 i = dm_classes.right.insert(
-                        std::make_pair(
-                            event,
-                            static_cast<boost::uint32_t>(dm_classes.size())
-                            )
-                        ).first;
+                    std::make_pair(copy, copy.clas)
+                    ).first;
             }
 
             EventInstance instance;
@@ -93,24 +93,25 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         }
 
         /** Add an existing event class to this table. */
-        void addClass(const T& event)
+        void addClass(T& event)
         {
             dm_contexts.insert(event.context);
 
+            boost::uint32_t original = event.clas;
+            
             typename Classes::right_const_iterator i = 
                 dm_classes.right.find(event);
 
             if (i == dm_classes.right.end())
             {
+                event.clas = static_cast<boost::uint32_t>(dm_classes.size());
+                
                 i = dm_classes.right.insert(
-                        std::make_pair(
-                            event,
-                            static_cast<boost::uint32_t>(dm_classes.size())
-                            )
-                        ).first;
+                    std::make_pair(event, event.clas)
+                    ).first;
             }
 
-            dm_actual.insert(std::make_pair(event.clas, i->second));
+            dm_actual.insert(std::make_pair(original, event.clas));
         }
 
         /** Add an existing event instance to this table. */

@@ -892,7 +892,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 const CBTF_cuda_message& msg = value.messages.messages_val[i];
                     
                 stream << std::endl
-                       << (boost::format("[%1$3d] %2%") % i % 
+                       << (boost::format("[%1$4d] %2%") % i % 
                            stringify(static_cast<CUDA_MessageTypes>(msg.type)))
                        << std::endl << std::endl << stringify(msg);
             }

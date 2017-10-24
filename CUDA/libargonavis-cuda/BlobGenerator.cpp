@@ -47,13 +47,13 @@ namespace {
     const char* const kCollectorUniqueID = "cuda";
 
     /** Maximum number of stack trace addresses contained within each blob. */
-    const std::size_t kMaxAddressesPerBlob = 16 * 1024;
+    const std::size_t kMaxAddressesPerBlob = 8 * 1024;
 
     /** Maximum number of periodic sample delta bytes within each blob. */
     const std::size_t kMaxDeltaBytesPerBlob = 256 * 1024 /* 256 KB */;
     
     /** Maximum number of individual messages contained within each blob. */
-    const std::size_t kMaxMessagesPerBlob = 16 * 1024;
+    const std::size_t kMaxMessagesPerBlob = 8 * 1024;
     
 } // namespace <anonymous>
 

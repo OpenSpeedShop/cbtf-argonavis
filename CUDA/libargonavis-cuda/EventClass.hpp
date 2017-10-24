@@ -20,8 +20,28 @@
 
 #pragma once
 
+#include <boost/tuple/tuple_comparison.hpp>
+
 #include <ArgoNavis/CUDA/DataTransfer.hpp>
 #include <ArgoNavis/CUDA/KernelExecution.hpp>
+
+/** Convenience macro for compactly generating EventClass tests. */
+#define COMPARE_NEXT_FIELD(x)      \
+    do                          \
+    {                           \
+        if (lhs.x < rhs.x)      \
+        {                       \
+            return true;        \
+        }                       \
+        else if (lhs.x > rhs.x) \
+        {                       \
+            return false;       \
+        }                       \
+    } while (false)
+
+/** Convenience macro for compactly generating EventClass tests. */
+#define COMPARE_LAST_FIELD(x) \
+    return lhs.x < rhs.x
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
     
@@ -43,15 +63,15 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         bool operator()(const DataTransfer& lhs,
                         const DataTransfer& rhs) const
         {
-            return (lhs.device == rhs.device) &&
-                   (lhs.call_site == rhs.call_site) &&
-                   (lhs.context == rhs.context) &&
-                   (lhs.stream == rhs.stream) &&
-                   (lhs.size == rhs.size) &&
-                   (lhs.kind == rhs.kind) &&
-                   (lhs.source_kind == rhs.source_kind) &&
-                   (lhs.destination_kind == rhs.destination_kind) &&
-                   (lhs.asynchronous == rhs.asynchronous);
+            COMPARE_NEXT_FIELD(device);
+            COMPARE_NEXT_FIELD(call_site);
+            COMPARE_NEXT_FIELD(context);
+            COMPARE_NEXT_FIELD(stream);
+            COMPARE_NEXT_FIELD(size);
+            COMPARE_NEXT_FIELD(kind);
+            COMPARE_NEXT_FIELD(source_kind);
+            COMPARE_NEXT_FIELD(destination_kind);
+            COMPARE_LAST_FIELD(asynchronous);
         }
     };
 
@@ -62,23 +82,22 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         bool operator()(const KernelExecution& lhs,
                         const KernelExecution& rhs) const
         {
-            return (lhs.device == rhs.device) &&
-                   (lhs.call_site == rhs.call_site) &&
-                   (lhs.context == rhs.context) &&
-                   (lhs.stream == rhs.stream) &&
-                   (lhs.function == rhs.function) &&
-                   (lhs.grid.get<0>() == rhs.grid.get<0>()) &&
-                   (lhs.grid.get<1>() == rhs.grid.get<1>()) &&
-                   (lhs.grid.get<2>() == rhs.grid.get<2>()) &&
-                   (lhs.block.get<0>() == rhs.block.get<0>()) &&
-                   (lhs.block.get<1>() == rhs.block.get<1>()) &&
-                   (lhs.block.get<2>() == rhs.block.get<2>()) &&
-                   (lhs.cache_preference == rhs.cache_preference) &&
-                   (lhs.registers_per_thread == rhs.registers_per_thread) &&
-                   (lhs.static_shared_memory == rhs.static_shared_memory) &&
-                   (lhs.dynamic_shared_memory == rhs.dynamic_shared_memory) &&
-                   (lhs.local_memory == rhs.local_memory);
+            COMPARE_NEXT_FIELD(device);
+            COMPARE_NEXT_FIELD(call_site);
+            COMPARE_NEXT_FIELD(context);
+            COMPARE_NEXT_FIELD(stream);
+            COMPARE_NEXT_FIELD(function);
+            COMPARE_NEXT_FIELD(grid);
+            COMPARE_NEXT_FIELD(block);
+            COMPARE_NEXT_FIELD(cache_preference);
+            COMPARE_NEXT_FIELD(registers_per_thread);
+            COMPARE_NEXT_FIELD(static_shared_memory);
+            COMPARE_NEXT_FIELD(dynamic_shared_memory);
+            COMPARE_LAST_FIELD(local_memory);
         }
     };
 
 } } } // namespace ArgoNavis::CUDA::Impl
+
+#undef COMPARE_NEXT_FIELD
+#undef COMPARE_LAST_FIELD
