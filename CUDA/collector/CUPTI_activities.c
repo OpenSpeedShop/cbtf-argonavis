@@ -37,20 +37,10 @@
 
 
 
-/** Size (in bytes) of each allocated CUPTI activity buffer. */
-#define BUFFER_SIZE (256 * 1024 /* 256 KB */)
-
-
-
 #if (CUPTI_API_VERSION >= 4)
-/** Activity buffers for CUPTI API versions 4 and above. */
-static uint8_t* BufferA = NULL;
-static uint8_t* BufferB = NULL;
-#endif
+/** Current number of allocated activity buffers. */
+uint32_t CUPTIActivityBufferCount = 0;
 
-
-
-#if (CUPTI_API_VERSION >= 4)
 /**
  * Fake (actually process-wide) thread-local storage. Used to store and send
  * activities for CUPTI API versions 4 and above.
@@ -435,23 +425,34 @@ static void add(TLS* tls, CUcontext context, uint32_t stream_id,
  */
 static void allocate(uint8_t** buffer, size_t* allocated, size_t* max_records)
 {
-    /* Either use an already-allocated buffer or allocate a new one */
-    if (BufferA != NULL)
-    {    
-        *buffer = BufferA;
-        BufferA = NULL;
-    }
-    else if (BufferB != NULL)
+    /*
+     * The VASP GPU port, executed on the GaAsBi-64 dataset, was exhibiting
+     * extremely high (100's of GB) memory usage on ComputeFaster's Power8
+     * system. This appeared to be due to its very high rate of CUDA event
+     * generation. CUPTI ends up logging events faster than it can deliver
+     * them to callback() below. Consequently it attempts to allocate more
+     * and more activity buffers to hold the ever-growing backlog of events
+     * that it hasn't been able to deliver. In order to prevent this from
+     * happening, a limit is imposed on the number of concurrently allocated
+     * activity buffers. Simply refuse to allocate any more buffers once
+     * that limit is reached. Less than ideal because activity records are
+     * then dropped and fail to be recorded. But until a better solution can
+     * be devised...
+     * 
+     * WDH 2017-OCT-26
+     */
+    if (CUPTIActivityBufferCount == CUPTI_MAX_ACTIVITY_BUFFER_COUNT)
     {
-        *buffer = BufferB;
-        BufferB = NULL;
+        *allocated = 0;
+        *buffer = NULL;
     }
     else
     {
-        *buffer = memalign(ACTIVITY_RECORD_ALIGNMENT, BUFFER_SIZE);        
+        *allocated = CUPTI_ACTIVITY_BUFFER_SIZE;
+        *buffer = memalign(ACTIVITY_RECORD_ALIGNMENT, *allocated);
+        CUPTIActivityBufferCount++;
     }
 
-    *allocated = BUFFER_SIZE;
     *max_records = 0; /* Fill with as many records as possible */
 }
 #endif
@@ -475,19 +476,9 @@ static void callback(CUcontext context, uint32_t stream_id,
     /* Actually add these activities */
     add(&FakeTLS, context, stream_id, buffer, size);
 
-    /* Squirrel away the buffer for later reuse or free it */
-    if (BufferA == NULL)
-    {
-        BufferA = buffer;    
-    }
-    else if (BufferB == NULL)
-    {
-        BufferB = buffer;
-    }
-    else
-    {
-        free(buffer);
-    }
+    /** Release the activity buffer */
+    free(buffer);
+    CUPTIActivityBufferCount--;
 }
 #endif
 
@@ -509,10 +500,10 @@ void CUPTI_activities_start()
 #if (CUPTI_API_VERSION < 4)
     /* Enqueue a buffer for CUPTI global activities */
     CUPTI_CHECK(cuptiActivityEnqueueBuffer(
-                    NULL, 0,
-                    memalign(ACTIVITY_RECORD_ALIGNMENT, BUFFER_SIZE),
-                    BUFFER_SIZE
-                    ));
+        NULL, 0,
+        memalign(ACTIVITY_RECORD_ALIGNMENT, CUPTI_ACTIVITY_BUFFER_SIZE),
+        CUPTI_ACTIVITY_BUFFER_SIZE
+        ));
 #else
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
@@ -585,7 +576,7 @@ void CUPTI_activities_add(TLS* tls, CUcontext context, CUstream stream)
     
     /* Re-enqueue this buffer of activities */
     CUPTI_CHECK(cuptiActivityEnqueueBuffer(
-                    context, stream_id, buffer, BUFFER_SIZE
+                    context, stream_id, buffer, CUPTI_ACTIVITY_BUFFER_SIZE
                     ));
 #endif
 }
