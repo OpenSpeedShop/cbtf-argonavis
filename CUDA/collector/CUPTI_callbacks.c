@@ -173,18 +173,6 @@ static void callback(void* userdata,
         }
     }
 
-    /*
-     * If the number of concurrently allocated activity buffers has reached
-     * the limit, ask CUPTI to flush them. Unfortunately it doesn't seem to
-     * be real good at figuring out when it needs to do this on its own. It
-     * can't be done from inside allocate() of "CUPTI_activities.c" because
-     * it would cause a deadlock. So this seems a reasonable place to do so.
-     */
-    if (CUPTIActivityBufferCount == CUPTI_MAX_ACTIVITY_BUFFER_COUNT)
-    {
-        CUPTI_activities_flush();
-    }
-
     /* Access our thread-local storage */
     TLS* tls = TLS_get();
 

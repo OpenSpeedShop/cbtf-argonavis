@@ -27,13 +27,6 @@
 /** Size (in bytes) of each allocated CUPTI activity buffer. */
 #define CUPTI_ACTIVITY_BUFFER_SIZE (256 * 1024 /* 256 KB */)
 
-/** Maximum allowed number of allocated activity buffers. */
-#define CUPTI_MAX_ACTIVITY_BUFFER_COUNT \
-    ((16 * 1024 * 1024 /* 16 MB */) / CUPTI_ACTIVITY_BUFFER_SIZE)
-
-/** Current number of allocated activity buffers. */
-extern uint32_t CUPTIActivityBufferCount;
-
 /* Start CUPTI activity data collection for this process. */
 void CUPTI_activities_start();
 

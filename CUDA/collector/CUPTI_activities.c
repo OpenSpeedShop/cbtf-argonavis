@@ -38,8 +38,12 @@
 
 
 #if (CUPTI_API_VERSION >= 4)
+/** Maximum allowed number of allocated activity buffers. */
+#define MAX_ACTIVITY_BUFFER_COUNT \
+    ((4 * 1024 * 1024 /* 4 MB */) / CUPTI_ACTIVITY_BUFFER_SIZE)
+
 /** Current number of allocated activity buffers. */
-uint32_t CUPTIActivityBufferCount = 0;
+static uint32_t ActivityBufferCount = 0;
 
 /**
  * Fake (actually process-wide) thread-local storage. Used to store and send
@@ -438,10 +442,14 @@ static void allocate(uint8_t** buffer, size_t* allocated, size_t* max_records)
      * that limit is reached. Less than ideal because activity records are
      * then dropped and fail to be recorded. But until a better solution can
      * be devised...
-     * 
+     *
+     * Additionally, if the limit on the total amount of memory allocated
+     * for activity buffers exceeds about 4 MB, the limit seems completely
+     * ineffective (!?) in preventing the runaway memory usage.
+     *  
      * WDH 2017-OCT-26
      */
-    if (CUPTIActivityBufferCount == CUPTI_MAX_ACTIVITY_BUFFER_COUNT)
+    if (ActivityBufferCount == MAX_ACTIVITY_BUFFER_COUNT)
     {
         *allocated = 0;
         *buffer = NULL;
@@ -450,7 +458,7 @@ static void allocate(uint8_t** buffer, size_t* allocated, size_t* max_records)
     {
         *allocated = CUPTI_ACTIVITY_BUFFER_SIZE;
         *buffer = memalign(ACTIVITY_RECORD_ALIGNMENT, *allocated);
-        CUPTIActivityBufferCount++;
+        ActivityBufferCount++;
     }
 
     *max_records = 0; /* Fill with as many records as possible */
@@ -478,7 +486,7 @@ static void callback(CUcontext context, uint32_t stream_id,
 
     /** Release the activity buffer */
     free(buffer);
-    CUPTIActivityBufferCount--;
+    ActivityBufferCount--;
 }
 #endif
 
