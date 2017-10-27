@@ -37,13 +37,16 @@
 
 
 
-/**
- * Size (in bytes) of each allocated CUPTI activity buffer.
- *
- * @note    Currently the only basis for the selection of this value is that the
- *          CUPTI "activity_trace_async.cpp" example uses buffers of 32 KB each.
- */
-#define BUFFER_SIZE (32 * 1024 /* 32 KB */)
+/** Size (in bytes) of each allocated CUPTI activity buffer. */
+#define BUFFER_SIZE (256 * 1024 /* 256 KB */)
+
+
+
+#if (CUPTI_API_VERSION >= 4)
+/** Activity buffers for CUPTI API versions 4 and above. */
+static uint8_t* BufferA = NULL;
+static uint8_t* BufferB = NULL;
+#endif
 
 
 
@@ -432,7 +435,22 @@ static void add(TLS* tls, CUcontext context, uint32_t stream_id,
  */
 static void allocate(uint8_t** buffer, size_t* allocated, size_t* max_records)
 {
-    *buffer = memalign(ACTIVITY_RECORD_ALIGNMENT, BUFFER_SIZE);
+    /* Either use an already-allocated buffer or allocate a new one */
+    if (BufferA != NULL)
+    {    
+        *buffer = BufferA;
+        BufferA = NULL;
+    }
+    else if (BufferB != NULL)
+    {
+        *buffer = BufferB;
+        BufferB = NULL;
+    }
+    else
+    {
+        *buffer = memalign(ACTIVITY_RECORD_ALIGNMENT, BUFFER_SIZE);        
+    }
+
     *allocated = BUFFER_SIZE;
     *max_records = 0; /* Fill with as many records as possible */
 }
@@ -456,6 +474,20 @@ static void callback(CUcontext context, uint32_t stream_id,
 {
     /* Actually add these activities */
     add(&FakeTLS, context, stream_id, buffer, size);
+
+    /* Squirrel away the buffer for later reuse or free it */
+    if (BufferA == NULL)
+    {
+        BufferA = buffer;    
+    }
+    else if (BufferB == NULL)
+    {
+        BufferB = buffer;
+    }
+    else
+    {
+        free(buffer);
+    }
 }
 #endif
 
