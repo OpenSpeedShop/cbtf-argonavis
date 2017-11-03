@@ -709,8 +709,11 @@ void* CUPTI_metrics_sampling_thread(void* arg)
         
         PTHREAD_CHECK(pthread_rwlock_unlock(&Metrics.mutex));
         
-        /* Sleep for the configuration-specified period  */
-        usleep(TheSamplingConfig.interval / 1000 /* uS/nS */);
+        /* Sleep for the configuration-specified period */
+        struct timespec t;
+        t.tv_sec = 0;
+        t.tv_nsec = TheSamplingConfig.interval;
+        while (nanosleep(&t, &t));
     }
     
     return NULL;
