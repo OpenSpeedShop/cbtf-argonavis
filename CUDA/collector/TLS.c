@@ -18,6 +18,7 @@
 
 /** @file Definition of the TLS support functions. */
 
+
 #include <malloc.h>
 #include <monitor.h>
 #include <stdio.h>
@@ -92,7 +93,7 @@ void TLS_initialize()
 #if defined(USE_EXPLICIT_TLS)
     TLS* tls = malloc(sizeof(TLS));
     Assert(tls != NULL);
-    OpenSS_SetTLS(Key, tls);
+    CBTF_SetTLS(Key, tls);
 #else
     TLS* tls = &Implicit;
 #endif
@@ -111,7 +112,7 @@ void TLS_destroy()
     TLS* tls = CBTF_GetTLS(Key);
     Assert(tls != NULL);
     free(tls);
-    OpenSS_SetTLS(Key, NULL);
+    CBTF_SetTLS(Key, NULL);
 #endif
 }
 
@@ -404,6 +405,7 @@ uint32_t TLS_add_current_call_site(TLS* tls)
                  * room in the existing stack traces to add this stack trace.
                  * Doing so frees up enough space for this stack trace.
                  */
+
                 if ((i + frame_count) >= MAX_ADDRESSES_PER_BLOB)
                 {
                     TLS_send_data(tls);

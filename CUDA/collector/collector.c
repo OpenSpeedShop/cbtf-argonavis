@@ -340,6 +340,17 @@ void cbtf_collector_pause()
     TLS* tls = TLS_get();
 
     /* Pause data collection for this thread */
+
+    // BLOCK profiling signals.
+    // We need to do more than ignore samples (defer_sampling).
+    // It is best to block the profiling signal. Currently that
+    // is SIGPROF. When we add a posix based timer that handles
+    // thread samples correctly we will be blocking one of the
+    // real time signals (SIGRTMIN or SIGRTMIN+N) as well and
+    // likely default to the posix based timer.
+    // fixes issues seen with omnipath based mpi connects.
+    CBTF_BlockTimerSignal();
+
     tls->paused = TRUE;
 }
 
@@ -362,6 +373,17 @@ void cbtf_collector_resume()
     TLS* tls = TLS_get();
 
     /* Resume data collection for this thread */
+
+    // UNBLOCK profiling signals.
+    // We need to do more than ignore samples (defer_sampling).
+    // It is best to block the profiling signal. Currently that
+    // is SIGPROF. When we add a posix based timer that handles
+    // thread samples correctly we will be blocking one of the
+    // real time signals (SIGRTMIN or SIGRTMIN+N) as well and
+    // likely default to the posix based timer.
+    // fixes issues seen with omnipath based mpi connects.
+    CBTF_UnBlockTimerSignal();
+
     tls->paused = FALSE;
 }
 

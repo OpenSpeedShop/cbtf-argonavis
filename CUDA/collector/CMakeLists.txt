@@ -126,7 +126,7 @@ if(PAPI_FOUND)
         cuda-collector-monitor-fileio
         cuda-collector-monitor-mrnet
         cuda-collector-monitor-mrnet-mpi
-        PROPERTIES COMPILE_DEFINITIONS PAPI_FOUND
+        PROPERTIES COMPILE_DEFINITIONS "PAPI_FOUND;${TLS_DEFINES}"
         )
 
     target_include_directories(cuda-collector-monitor-fileio PUBLIC
