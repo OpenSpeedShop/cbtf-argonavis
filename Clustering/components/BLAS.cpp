@@ -111,7 +111,7 @@ Vector Impl::cat(const Vector& A, const Vector& B)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-MatrixCoordinates Impl::min(const DistanceMatrix& A)
+MatrixCoordinates Impl::min_element(const DistanceMatrix& A)
 {
     MatrixCoordinates coordinates(0, 0);
     float value = A(0, 0);
@@ -135,7 +135,7 @@ MatrixCoordinates Impl::min(const DistanceMatrix& A)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-MatrixCoordinates Impl::max(const DistanceMatrix& A)
+MatrixCoordinates Impl::max_element(const DistanceMatrix& A)
 {
     MatrixCoordinates coordinates(0, 0);
     float value = A(0, 0);

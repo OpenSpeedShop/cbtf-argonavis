@@ -58,10 +58,10 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
     Vector cat(const Vector& A, const Vector& B);
     
     /** Find the coordinates of the minimum element in a distance matrix. */
-    MatrixCoordinates min(const DistanceMatrix& A);
+    MatrixCoordinates min_element(const DistanceMatrix& A);
 
     /** Find the coordinates of the maximum element in a distance matrix. */
-    MatrixCoordinates max(const DistanceMatrix& A);
+    MatrixCoordinates max_element(const DistanceMatrix& A);
 
     /** Compute the Manhattan distance matrix for pairwise rows of a matrix. */
     DistanceMatrix manhattan(const Matrix& A);
