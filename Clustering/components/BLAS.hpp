@@ -25,6 +25,7 @@
 #include <boost/numeric/ublas/matrix_proxy.hpp>
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/vector_proxy.hpp>
+#include <boost/tuple/tuple.hpp>
 
 namespace ArgoNavis { namespace Clustering { namespace Impl {
 
@@ -38,13 +39,15 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
 
     /** Type of Boost uBLAS (general) vectors used for the cluster analysis. */
     typedef boost::numeric::ublas::vector<float> Vector;
-    
-    /** Compute the Manhattan distance matrix for pairwise rows of a matrix. */
-    DistanceMatrix manhattan(const Matrix& A);
 
-    /** Compute the Euclidean distance matrix for pairwise rows of a matrix. */
-    DistanceMatrix euclidean(const Matrix& A);
-    
+    /** Type representing coordinates in a Boost uBLAS matrix. */
+    typedef boost::tuple<
+        size_t /* Row */, size_t /* Column */
+        > MatrixCoordinates;
+
+    /** Type representing a multi-dimensional sphere's centroid and radius. */
+    typedef boost::tuple<Vector /* Centroid */, float /* Radius */> Sphere;
+
     /** Concatenate two matrices horizontally. */
     Matrix horzcat(const Matrix& A, const Matrix& B);
 
@@ -53,5 +56,38 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
 
     /** Concatenate two vectors. */
     Vector cat(const Vector& A, const Vector& B);
+    
+    /** Find the coordinates of the minimum element in a distance matrix. */
+    MatrixCoordinates min(const DistanceMatrix& A);
+
+    /** Find the coordinates of the maximum element in a distance matrix. */
+    MatrixCoordinates max(const DistanceMatrix& A);
+
+    /** Compute the Manhattan distance matrix for pairwise rows of a matrix. */
+    DistanceMatrix manhattan(const Matrix& A);
+
+    /** Compute the Euclidean distance matrix for pairwise rows of a matrix. */
+    DistanceMatrix euclidean(const Matrix& A);
+
+    /**
+     * Compute the complete linkage distance (maximum distance between any two
+     * elements) matrix for the specified distance matrix and cluster radii.
+     *
+     * @sa http://en.wikipedia.org/wiki/Complete-linkage_clustering
+     */
+    DistanceMatrix complete_linkage(const DistanceMatrix& distance,
+                                    const Vector& radii);
+
+    /**
+     * Compute the single linkage distance (minimum distance between any two
+     * elements) matrix for the specified distance matrix and cluster radii.
+     * 
+     * @sa http://en.wikipedia.org/wiki/Single-linkage_clustering
+     */
+    DistanceMatrix single_linkage(const DistanceMatrix& distance,
+                                  const Vector& radii);
+
+    /** Compute the minimum bounding sphere of the two specified spheres. */
+    Sphere enclosing(const Sphere& A, const Sphere& B);
 
 } } } // namespace ArgoNavis::Clustering::Impl

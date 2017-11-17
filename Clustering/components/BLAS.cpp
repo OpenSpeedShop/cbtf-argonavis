@@ -32,48 +32,6 @@ using namespace ArgoNavis::Clustering::Impl;
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-DistanceMatrix Impl::manhattan(const Matrix& A)
-{
-    using namespace boost::numeric::ublas;
-
-    DistanceMatrix B(A.size1(), A.size1());
-        
-    for (size_t ri = 0; ri < A.size1(); ++ri)
-    {
-        for (size_t rj = ri + 1; rj < A.size1(); ++rj)
-        {
-            B(ri, rj) = norm_1(row(A, ri) - row(A, rj));
-        }
-    }
-    
-    return B;
-}
-
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-DistanceMatrix Impl::euclidean(const Matrix& A)
-{
-    using namespace boost::numeric::ublas;
-
-    DistanceMatrix B(A.size1(), A.size1());
-        
-    for (size_t ri = 0; ri < A.size1(); ++ri)
-    {
-        for (size_t rj = ri + 1; rj < A.size1(); ++rj)
-        {
-            B(ri, rj) = norm_2(row(A, ri) - row(A, rj));
-        }
-    }
-    
-    return B;
-}
-        
-
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
 Matrix Impl::horzcat(const Matrix& A, const Matrix& B)
 {
     using namespace boost::numeric::ublas;
@@ -146,5 +104,172 @@ Vector Impl::cat(const Vector& A, const Vector& B)
 
     subrange(C, A.size(), A.size() + B.size()) = B;
     
+    return C;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+MatrixCoordinates Impl::min(const DistanceMatrix& A)
+{
+    MatrixCoordinates coordinates(0, 0);
+    float value = A(0, 0);
+
+    for (size_t r = 0; r < A.size1(); ++r)
+    {
+        for (size_t c = r + 1; c < A.size2(); ++c)
+        {
+            if (A(r, c) < value)
+            {
+                coordinates = boost::make_tuple(r, c);
+                value = A(r, c);
+            }
+        }
+    }
+    
+    return coordinates;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+MatrixCoordinates Impl::max(const DistanceMatrix& A)
+{
+    MatrixCoordinates coordinates(0, 0);
+    float value = A(0, 0);
+
+    for (size_t r = 0; r < A.size1(); ++r)
+    {
+        for (size_t c = r + 1; c < A.size2(); ++c)
+        {
+            if (A(r, c) > value)
+            {
+                coordinates = boost::make_tuple(r, c);
+                value = A(r, c);
+            }
+        }
+    }
+    
+    return coordinates;    
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+DistanceMatrix Impl::manhattan(const Matrix& A)
+{
+    using namespace boost::numeric::ublas;
+
+    DistanceMatrix B(A.size1(), A.size1());
+        
+    for (size_t ri = 0; ri < A.size1(); ++ri)
+    {
+        for (size_t rj = ri + 1; rj < A.size1(); ++rj)
+        {
+            B(ri, rj) = norm_1(row(A, ri) - row(A, rj));
+        }
+    }
+    
+    return B;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+DistanceMatrix Impl::euclidean(const Matrix& A)
+{
+    using namespace boost::numeric::ublas;
+
+    DistanceMatrix B(A.size1(), A.size1());
+        
+    for (size_t ri = 0; ri < A.size1(); ++ri)
+    {
+        for (size_t rj = ri + 1; rj < A.size1(); ++rj)
+        {
+            B(ri, rj) = norm_2(row(A, ri) - row(A, rj));
+        }
+    }
+    
+    return B;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+DistanceMatrix Impl::complete_linkage(const DistanceMatrix& distance,
+                                      const Vector& radii)
+{
+    if (distance.size1() != radii.size())
+    {            
+        raise<std::invalid_argument>(
+            "The order of the distance matrix (%1%) and the radii vector "
+            "(%2%) are not the same.", distance.size1(), radii.size()
+            );
+    }
+
+    DistanceMatrix A = distance;
+
+    for (size_t ri = 0; ri < radii.size(); ++ri)
+    {
+        for (size_t rj = ri + 1; rj < radii.size(); ++rj)
+        {
+            A(ri, rj) += radii(ri) + radii(rj);
+        }
+    }
+
+    return A;    
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+DistanceMatrix Impl::single_linkage(const DistanceMatrix& distance,
+                                    const Vector& radii)
+{
+    if (distance.size1() != radii.size())
+    {            
+        raise<std::invalid_argument>(
+            "The order of the distance matrix (%1%) and the radii vector "
+            "(%2%) are not the same.", distance.size1(), radii.size()
+            );
+    }
+
+    DistanceMatrix A = distance;
+
+    for (size_t ri = 0; ri < radii.size(); ++ri)
+    {
+        for (size_t rj = ri + 1; rj < radii.size(); ++rj)
+        {
+            A(ri, rj) -= radii(ri) + radii(rj);
+        }
+    }
+
+    return A;    
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+Sphere Impl::enclosing(const Sphere& A, const Sphere& B)
+{
+    if (boost::get<0>(A).size() != boost::get<0>(B).size())
+    {
+        raise<std::invalid_argument>(
+            "The number of dimensions in sphere A (%1%) and B (%2%) are not "
+            "the same.", boost::get<0>(A).size(), boost::get<0>(B).size()
+            );
+    }
+
+    Sphere C;
+    
+    // ...    
+
     return C;
 }
