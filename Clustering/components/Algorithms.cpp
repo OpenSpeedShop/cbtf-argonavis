@@ -19,22 +19,15 @@
 /** @file Definition of the cluster analysis algorithms. */
 
 #include <boost/numeric/ublas/vector_expression.hpp>
+#include <boost/tuple/tuple.hpp>
 
 #include <KrellInstitute/CBTF/Impl/MRNet.hpp>
 
 #include "Algorithms.hpp"
+#include "BLAS.hpp"
 
 using namespace ArgoNavis::Clustering;
 using namespace ArgoNavis::Clustering::Impl;
-
-
-
-/** Anonymous namespace hiding implementation details. */
-namespace {
-
-    // ...
-    
-} // namespace <anonymous>
 
 
 
@@ -134,12 +127,68 @@ void Impl::defaultClusteringAlgorithm(State& state)
     }
     
     //
-    // ...
+    // Iteratively search for cluster pairs to be joined, exiting once
+    // no more cluster pairs meeting the joining criteria are found.
     //
 
     for (bool finished = false; !finished;)
     {
-        // ...
+        const Matrix& centroids = state.centroids();
+        const Vector& radii = state.radii();
+        const Vector& sizes = state.sizes();      
+        
+        const size_t N = state.sizes().size();
+
+        //
+        // Compute the Euclidean distance between all pairwise combinations
+        // cluster centroids. Then compute the minimum and maximum possible
+        // distances between all pairwise combinations of clusters. Finally
+        // locate the cluster pair ("a" and "b") with the minimum possible
+        // distance between them.
+        //
+
+        DistanceMatrix distance = euclidean(centroids);
+
+        DistanceMatrix minimum = single_linkage(distance, radii);
+        DistanceMatrix maximum = complete_linkage(distance, radii);
+
+        boost::tuple<size_t, size_t> coordinates = min_element(minimum);
+        size_t a = boost::get<0>(coordinates), b = boost::get<1>(coordinates);
+
+        //
+        // Join this cluster pair if one of these conditions is true:
+        //
+        // 1) Both clusters contain a single thread.
+        //
+        // 2) The minimum possible distance between them is negative, which
+        //    means that the two clusters are overlapping.
+        //
+        // 3) The maximum possible distance between them is less than twice
+        //    the minimum possible distance between them, which implies that
+        //    they are close together (but non-overlapping).
+        //
+
+        bool join = false;
+
+        join |= (sizes(a) == 1) && (sizes(b) == 1);
+        join |= (minimum(a, b) < 0.0f);
+        join |= (maximum(a, b) < (2.0f * minimum(a, b)));
+
+        if (join)
+        {
+            std::set<size_t> joinable;
+            joinable.insert(a);
+            joinable.insert(b);
+
+            Sphere sphere = enclosing(
+                boost::make_tuple(row(centroids, a), radii(a)),
+                boost::make_tuple(row(centroids, b), radii(b))
+                );
+
+            state.join(joinable, boost::get<0>(sphere), boost::get<1>(sphere));
+        }
+
+        finished = !join;
     }
 }
 
