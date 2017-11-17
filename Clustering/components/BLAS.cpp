@@ -36,14 +36,6 @@ DistanceMatrix Impl::manhattan(const Matrix& A)
 {
     using namespace boost::numeric::ublas;
 
-    if (A.size1() != A.size2())
-    {
-        raise<std::invalid_argument>(
-            "The number of rows (%1%) and columns (%2%) in "
-            "matrix A are not the same.", A.size1(), A.size2()
-            );
-    }
-
     DistanceMatrix B(A.size1(), A.size1());
         
     for (size_t ri = 0; ri < A.size1(); ++ri)
@@ -64,14 +56,6 @@ DistanceMatrix Impl::manhattan(const Matrix& A)
 DistanceMatrix Impl::euclidean(const Matrix& A)
 {
     using namespace boost::numeric::ublas;
-
-    if (A.size1() != A.size2())
-    {
-        raise<std::invalid_argument>(
-            "The number of rows (%1%) and columns (%2%) in "
-            "matrix A are not the same.", A.size1(), A.size2()
-            );
-    }
 
     DistanceMatrix B(A.size1(), A.size1());
         
