@@ -62,9 +62,11 @@ namespace {
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 BlobGenerator::BlobGenerator(const Base::ThreadName& thread,
-                             const BlobVisitor& visitor) :
+                             const BlobVisitor& visitor,
+                             const TimeInterval& interval) :
     dm_thread(thread),
     dm_visitor(visitor),
+    dm_interval(interval),
     dm_terminate(false),
     dm_header(),
     dm_data(),    
@@ -330,8 +332,8 @@ void BlobGenerator::initialize()
     dm_header->experiment = 0;
     dm_header->collector = 1;
     dm_header->id = const_cast<char*>(strdup(kCollectorUniqueID));
-    dm_header->time_begin = 0;
-    dm_header->time_end = ~0;
+    dm_header->time_begin = dm_interval.begin();
+    dm_header->time_end = dm_interval.end();
     dm_header->addr_begin = 0;
     dm_header->addr_end = ~0;
 

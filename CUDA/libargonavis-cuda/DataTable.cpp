@@ -733,7 +733,7 @@ void DataTable::visitBlobs(const Base::ThreadName& thread,
     const PerProcessData& per_process = i_process->second;
     const PerThreadData& per_thread = i_thread->second;
     
-    BlobGenerator generator(thread, visitor);
+    BlobGenerator generator(thread, visitor, dm_interval);
 
     // Generate the context/device information and sampling config messages
 

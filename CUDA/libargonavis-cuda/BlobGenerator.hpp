@@ -35,6 +35,7 @@
 #include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/Time.hpp>
+#include <ArgoNavis/Base/TimeInterval.hpp>
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
 
@@ -50,7 +51,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Construct an empty blob generator. */
         BlobGenerator(const Base::ThreadName& thread,
-                      const Base::BlobVisitor& visitor);
+                      const Base::BlobVisitor& visitor,
+                      const Base::TimeInterval& interval);
 
         /** Destroy this blob generator. */
         ~BlobGenerator();
@@ -96,6 +98,9 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Visitor invoked for each generated blob. */
         const Base::BlobVisitor& dm_visitor;
+
+        /** Time interval to be applied to each generated blob. */
+        const Base::TimeInterval dm_interval;
 
         /** Flag indicating whether blob generation should be terminated. */
         bool dm_terminate;
