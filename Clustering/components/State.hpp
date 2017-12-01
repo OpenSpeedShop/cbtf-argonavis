@@ -136,6 +136,7 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
          * @param rows        Row indicies of the clusters to be joined.
          * @param centroid    Centroid of the joined cluster.
          * @param radius      Radius of the joined cluster.
+         * @return            Row index of the joined cluster.
          *
          * @throw std::invalid_argument    Cannot join less than 2 rows.
          *
@@ -143,9 +144,9 @@ namespace ArgoNavis { namespace Clustering { namespace Impl {
          *                                 size than the centroids already in
          *                                 this state.
          */
-        void join(const std::set<size_t>& rows,
-                  const Vector& centroid,
-                  float radius);
+        size_t join(const std::set<size_t>& rows,
+                    const Vector& centroid,
+                    float radius);
         
         /**
          * Get the threads in a single cluster.

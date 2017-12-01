@@ -619,9 +619,8 @@ void State::add(const FeatureVector& vector, const ThreadTable& threads)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void State::join(const std::set<size_t>& rows,
-                 const Vector& centroid,
-                 float radius)
+size_t State::join(const std::set<size_t>& rows,
+                   const Vector& centroid, float radius)
 {
     using namespace boost::numeric::ublas;
 
@@ -714,6 +713,8 @@ void State::join(const std::set<size_t>& rows,
     dm_radii.swap(radii);
     dm_sizes.swap(sizes);
     dm_clusters.swap(clusters);
+
+    return r;
 }
 
 
