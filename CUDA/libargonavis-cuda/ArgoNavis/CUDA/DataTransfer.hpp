@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2014,2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2014-2017 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
 // the terms of the GNU Lesser General Public License as published by the Free
@@ -34,6 +34,9 @@ namespace ArgoNavis { namespace CUDA {
     /** Information about a CUDA data transfer. */
     struct DataTransfer
     {
+        /** Unique ID of the data transfer class. */
+        boost::uint32_t clas;
+                    
         /** Index of the device on which the data transfer occurred. */
         size_t device;
         

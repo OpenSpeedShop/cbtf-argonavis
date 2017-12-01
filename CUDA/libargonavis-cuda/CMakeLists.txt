@@ -32,6 +32,8 @@ add_library(argonavis-cuda SHARED
     ArgoNavis/CUDA/Vector.hpp
     BlobGenerator.hpp BlobGenerator.cpp
     DataTable.hpp DataTable.cpp
+    EventClass.hpp
+    EventInstance.hpp
     EventTable.hpp
     PartialEventTable.hpp
     )

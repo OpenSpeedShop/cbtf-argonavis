@@ -41,18 +41,6 @@
 
 
 
-#if (CUPTI_API_VERSION < 4)
-/**
- * Size (in bytes) of each allocated CUPTI activity buffer.
- *
- * @note    Currently the only basis for the selection of this value is that the
- *          CUPTI "activity_trace_async.cpp" example uses buffers of 32 KB each.
- */
-#define CUPTI_ACTIVITY_BUFFER_SIZE (32 * 1024 /* 32 KB */)
-#endif
-
-
-
 /** CUPTI subscriber handle for this collector. */
 static CUpti_SubscriberHandle Handle;
 

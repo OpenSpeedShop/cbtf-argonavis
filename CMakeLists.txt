@@ -16,7 +16,11 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.8)
+
+if(COMMAND cmake_policy)
+    cmake_policy(SET CMP0003 NEW)
+endif()
 
 project(CBTF-ArgoNavis)
 
@@ -59,6 +63,31 @@ if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
     set(CUPTI_LIBRARIES ${CUPTI_LIBRARY_DIR})
     set(CUPTI_INCLUDE_DIRS ${CUDA_INCLUDE_DIRS} ${CUPTI_INCLUDE_DIR})
 endif()
+
+
+set(TLS_MODEL "implicit" CACHE STRING "cbtf-krell tls model: [implicit,explicit]")
+#
+#--------------------------------------------------------------------------------
+# Handle the TLS options for building the runtimes
+#    - explicit means the tool allocates and manages the thread local storage
+#    - implicit means the tool uses the systems thread local storage
+#--------------------------------------------------------------------------------
+#
+if (TLS_MODEL MATCHES "explicit")
+    # Builder requsted explicit tls to be used in the runtimes and collectors
+    set(TLS_DEFINES "USE_EXPLICIT_TLS" )
+    message(STATUS "Build runtimes using explicit TLS model.")
+elseif (TLS_MODEL MATCHES "implicit")
+    # Builder requsted implicit tls to be used in the runtimes and collectors
+    set(TLS_DEFINES "USE_IMPLICIT_TLS" )
+    message(STATUS "Build runtimes using implicit TLS model.")
+else()
+    # Default to implicit tls in the runtimes and collectors
+    set(TLS_DEFINES "USE_IMPLICIT_TLS" )
+    message(STATUS "Build runtimes using implicit TLS model.")
+endif()
+
+
 
 add_subdirectory(libargonavis-base)
 add_subdirectory(Clustering)

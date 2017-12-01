@@ -541,7 +541,7 @@ void CUPTI_metrics_start(CUcontext context)
     {
         static char* kClasses[4] = { "Tesla", "Quadro", "GeForce", "Tegra" };
         
-        if (Metrics.values[i].class > CUPTI_DEVICE_ATTR_DEVICE_CLASS_TEGRA)
+        if (Metrics.values[i].class > 3 /* Tegra */)
         {
             printf("[CUDA %d:%d] found Unknown-class device for context %p\n",
                    getpid(), monitor_get_thread_num(), context);
@@ -709,8 +709,11 @@ void* CUPTI_metrics_sampling_thread(void* arg)
         
         PTHREAD_CHECK(pthread_rwlock_unlock(&Metrics.mutex));
         
-        /* Sleep for the configuration-specified period  */
-        usleep(TheSamplingConfig.interval / 1000 /* uS/nS */);
+        /* Sleep for the configuration-specified period */
+        struct timespec t;
+        t.tv_sec = 0;
+        t.tv_nsec = TheSamplingConfig.interval;
+        while (nanosleep(&t, &t));
     }
     
     return NULL;

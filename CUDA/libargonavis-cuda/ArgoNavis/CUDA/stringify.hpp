@@ -451,6 +451,10 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             case OverflowSamples: return "OverflowSamples";
             case PeriodicSamples: return "PeriodicSamples";
             case SamplingConfig: return "SamplingConfig";
+            case ExecClass : return "ExecClass";
+            case ExecInstance : return "ExecInstance";
+            case XferClass : return "XferClass";
+            case XferInstance : return "XferInstance";
             }
             return "?";
         }
@@ -747,6 +751,95 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             return stringify(fields);
         }
     };
+
+    template <>
+    struct Stringify<CUDA_ExecClass>
+    {
+        static std::string impl(const CUDA_ExecClass& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("clas", stringify(value.clas))
+                ("context", stringify(value.context))
+                ("stream", stringify(value.stream))
+                ("call_site", stringify(value.call_site))
+                ("function", stringify<FunctionName>(value.function))
+                ("grid", 
+                 stringify<std::vector<boost::int32_t> >(
+                     boost::assign::list_of
+                     (value.grid[0])
+                     (value.grid[1])
+                     (value.grid[2])
+                     ))
+                ("block",
+                 stringify<std::vector<boost::int32_t> >(
+                     boost::assign::list_of
+                     (value.block[0])
+                     (value.block[1])
+                     (value.block[2])
+                     ))
+                ("cache_preference", stringify(value.cache_preference))
+                ("registers_per_thread", stringify(value.registers_per_thread))
+                ("static_shared_memory", 
+                 stringify<ByteCount>(value.static_shared_memory))
+                ("dynamic_shared_memory",
+                 stringify<ByteCount>(value.dynamic_shared_memory))
+                ("local_memory", stringify<ByteCount>(value.local_memory))
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_ExecInstance>
+    {
+        static std::string impl(const CUDA_ExecInstance& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("clas", stringify(value.clas))
+                ("id", stringify(value.id))
+                ("time", stringify(value.time))
+                ("time_begin", stringify(value.time_begin))
+                ("time_end", stringify(value.time_end))
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_XferClass>
+    {
+        static std::string impl(const CUDA_XferClass& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("clas", stringify(value.clas))
+                ("context", stringify(value.context))
+                ("stream", stringify(value.stream))
+                ("call_site", stringify(value.call_site))
+                ("size", stringify<ByteCount>(value.size))
+                ("kind", stringify(value.kind))
+                ("source_kind", stringify(value.source_kind))
+                ("destination_kind", stringify(value.destination_kind))
+                ("asynchronous", stringify<bool>(value.asynchronous))
+                );
+        }
+    };
+    
+    template <>
+    struct Stringify<CUDA_XferInstance>
+    {
+        static std::string impl(const CUDA_XferInstance& value)
+        {
+            return stringify<Fields>(
+                boost::assign::tuple_list_of
+                ("clas", stringify(value.clas))
+                ("id", stringify(value.id))
+                ("time", stringify(value.time))
+                ("time_begin", stringify(value.time_begin))
+                ("time_end", stringify(value.time_end))
+                );
+        }
+    };
     
     template <>
     struct Stringify<CBTF_cuda_message>
@@ -773,6 +866,14 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 return stringify(value.CBTF_cuda_message_u.periodic_samples);
             case SamplingConfig:
                 return stringify(value.CBTF_cuda_message_u.sampling_config);
+            case ExecClass:
+                return stringify(value.CBTF_cuda_message_u.exec_class);
+            case ExecInstance:
+                return stringify(value.CBTF_cuda_message_u.exec_instance);
+            case XferClass:
+                return stringify(value.CBTF_cuda_message_u.xfer_class);
+            case XferInstance:
+                return stringify(value.CBTF_cuda_message_u.xfer_instance);
             }
             
             return std::string();
@@ -791,7 +892,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
                 const CBTF_cuda_message& msg = value.messages.messages_val[i];
                     
                 stream << std::endl
-                       << (boost::format("[%1$3d] %2%") % i % 
+                       << (boost::format("[%1$4d] %2%") % i % 
                            stringify(static_cast<CUDA_MessageTypes>(msg.type)))
                        << std::endl << std::endl << stringify(msg);
             }

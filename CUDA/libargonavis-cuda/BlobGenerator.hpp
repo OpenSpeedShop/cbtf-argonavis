@@ -35,6 +35,7 @@
 #include <ArgoNavis/Base/StackTrace.hpp>
 #include <ArgoNavis/Base/ThreadName.hpp>
 #include <ArgoNavis/Base/Time.hpp>
+#include <ArgoNavis/Base/TimeInterval.hpp>
 
 namespace ArgoNavis { namespace CUDA { namespace Impl {
 
@@ -50,16 +51,11 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
 
         /** Construct an empty blob generator. */
         BlobGenerator(const Base::ThreadName& thread,
-                      const Base::BlobVisitor& visitor);
+                      const Base::BlobVisitor& visitor,
+                      const Base::TimeInterval& interval);
 
         /** Destroy this blob generator. */
         ~BlobGenerator();
-
-        /** Flag indicating whether anything has been added. */
-        bool empty() const
-        {
-            return dm_empty;
-        }
 
         /** Flag indicating whether blob generation should be terminated. */
         bool terminate() const
@@ -85,12 +81,6 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Add the specified periodic sample to the current blob. */
         void addPeriodicSample(boost::uint64_t time,
                                const std::vector<boost::uint64_t>& counts);
-
-        /** Update the current blob's header with the specified address. */
-        void updateHeader(const Base::Address& address);
-
-        /** Update the current blob's header with the specified time. */
-        void updateHeader(const Base::Time& time);
         
     private:
         
@@ -109,8 +99,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Visitor invoked for each generated blob. */
         const Base::BlobVisitor& dm_visitor;
 
-        /** Flag indicating whether anything has been added. */
-        bool dm_empty;
+        /** Time interval to be applied to each generated blob. */
+        const Base::TimeInterval dm_interval;
 
         /** Flag indicating whether blob generation should be terminated. */
         bool dm_terminate;

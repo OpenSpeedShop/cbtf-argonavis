@@ -612,7 +612,8 @@ int main(int argc, char* argv[])
            << "information about the CUPTI" << std::endl << "events and "
            << "metrics supported by each device. It can also determine how "
            << "many" << std::endl << "data collection passes are required to "
-           << "gather a given set of CUPTI metrics." << std::endl;
+           << "gather a given set of CUPTI metrics." << std::endl
+           << std::endl;
 
     std::string kExtraHelp = stream.str();
 

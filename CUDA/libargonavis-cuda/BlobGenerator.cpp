@@ -46,30 +46,14 @@ namespace {
      */
     const char* const kCollectorUniqueID = "cuda";
 
-    /**
-     * Maximum number of stack trace addresses contained within each blob.
-     *
-     * @note    Currently the only basis for this selection is that it matches
-     *          MAX_ADDRESSES_PER_BLOB in "cbtf-argonavis/CUDA/collector/TLS.h".
-     */
-    const std::size_t kMaxAddressesPerBlob = 1024;
+    /** Maximum number of stack trace addresses contained within each blob. */
+    const std::size_t kMaxAddressesPerBlob = 8 * 1024;
 
-    /**
-     * Maximum number of periodic sample delta bytes within each blob.
-     *
-     * @note    Currently the only basis for this selection
-     *          is that it matches MAX_DELTAS_BYTES_PER_BLOB
-     *          in "cbtf-argonavis/CUDA/collector/TLS.h".
-     */
-    const std::size_t kMaxDeltaBytesPerBlob = 32 * 1024 /* 32 KB */;
+    /** Maximum number of periodic sample delta bytes within each blob. */
+    const std::size_t kMaxDeltaBytesPerBlob = 256 * 1024 /* 256 KB */;
     
-    /**
-     * Maximum number of individual messages contained within each blob.
-     *
-     * @note    Currently the only basis for this selection is that it matches
-     *          MAX_MESSAGES_PER_BLOB in "cbtf-argonavis/CUDA/collector/TLS.h".
-     */
-    const std::size_t kMaxMessagesPerBlob = 128;
+    /** Maximum number of individual messages contained within each blob. */
+    const std::size_t kMaxMessagesPerBlob = 8 * 1024;
     
 } // namespace <anonymous>
 
@@ -78,10 +62,11 @@ namespace {
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 BlobGenerator::BlobGenerator(const Base::ThreadName& thread,
-                             const BlobVisitor& visitor) :
+                             const BlobVisitor& visitor,
+                             const TimeInterval& interval) :
     dm_thread(thread),
     dm_visitor(visitor),
-    dm_empty(true),
+    dm_interval(interval),
     dm_terminate(false),
     dm_header(),
     dm_data(),    
@@ -115,8 +100,6 @@ BlobGenerator::~BlobGenerator()
 //------------------------------------------------------------------------------
 boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
 {
-    dm_empty = false;
-
     // Generate a blob for the current header and data if there isn't enough
     // room to hold another message. See the note in this method's header.
 
@@ -164,7 +147,6 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
                 for (j = 0; j < site.size(); ++j, ++i)
                 {
                     dm_data->stack_traces.stack_traces_val[i] = site[j];
-                    updateHeader(site[j]);
                 }
                 dm_data->stack_traces.stack_traces_val[i] = 0;
                 dm_data->stack_traces.stack_traces_len = i + 1;
@@ -203,8 +185,6 @@ boost::uint32_t BlobGenerator::addSite(const StackTrace& site)
 //------------------------------------------------------------------------------
 CBTF_cuda_message* BlobGenerator::addMessage()
 {
-    dm_empty = false;
-
     if (full())
     {
         generate();
@@ -224,8 +204,6 @@ void BlobGenerator::addPeriodicSample(
     const std::vector<boost::uint64_t>& counts
     )
 {
-    dm_empty = false;
-
     std::vector<boost::uint64_t> sample;
     sample.push_back(time);
     sample.insert(sample.end(), counts.begin(), counts.end());
@@ -330,51 +308,12 @@ void BlobGenerator::addPeriodicSample(
     // Update the length of the periodic samples deltas array
     dm_periodic_samples.deltas.deltas_len = index;
     
-    // Update the header with this sample time
-    updateHeader(Time(time));
-    
     // Replace the previous event sample with the new event sample
     dm_periodic_samples_previous.swap(sample);
 }
 
 
         
-//------------------------------------------------------------------------------
-// This method is almost identical to TLS_update_header_with_address() found in
-// "cbtf-argonavis/CUDA/collector/TLS.c".
-//------------------------------------------------------------------------------
-void BlobGenerator::updateHeader(const Address& address)
-{
-    if (address < Address(dm_header->addr_begin))
-    {
-        dm_header->addr_begin = address;
-    }
-    if (address >= Address(dm_header->addr_end))
-    {
-        dm_header->addr_end = address + 1;
-    }
-}
-
-
-
-//------------------------------------------------------------------------------
-// This method is almost identical to TLS_update_header_with_time() found in
-// "cbtf-argonavis/CUDA/collector/TLS.c".
-//------------------------------------------------------------------------------
-void BlobGenerator::updateHeader(const Time& time)
-{
-    if (time < Time(dm_header->time_begin))
-    {
-        dm_header->time_begin = time;
-    }
-    if (time >= Time(dm_header->time_end))
-    {
-        dm_header->time_end = time + 1;
-    }
-}
-
-
-
 //------------------------------------------------------------------------------
 // This method is roughly equivalent to TLS_initialize_data() found in
 // "cbtf-argonavis/CUDA/collector/TLS.c".
@@ -393,10 +332,10 @@ void BlobGenerator::initialize()
     dm_header->experiment = 0;
     dm_header->collector = 1;
     dm_header->id = const_cast<char*>(strdup(kCollectorUniqueID));
-    dm_header->time_begin = ~0;
-    dm_header->time_end = 0;
-    dm_header->addr_begin = ~0;
-    dm_header->addr_end = 0;
+    dm_header->time_begin = dm_interval.begin();
+    dm_header->time_end = dm_interval.end();
+    dm_header->addr_begin = 0;
+    dm_header->addr_end = ~0;
 
     dm_data.reset(
         new CBTF_cuda_data(),
@@ -465,25 +404,14 @@ void BlobGenerator::generate()
 
         message->deltas.deltas_len = dm_periodic_samples.deltas.deltas_len;
         message->deltas.deltas_val = dm_periodic_samples.deltas.deltas_val;
-
-        // When generating a blob containing periodic samples, if the header's
-        // address range is undefined, replace it with a range that covers ALL
-        // addresses. Without this special case Open|SpeedShop tosses out data
-        // blobs produced by the CUTPI metrics and events sampling thread.
-        
-        if ((dm_header->addr_begin == ~0) && (dm_header->addr_end == 0))
-        {
-            dm_header->addr_begin = 0;
-            dm_header->addr_end	= ~0;
-        }
     }
-    
+
     boost::shared_ptr<CBTF_Protocol_Blob> blob =
         KrellInstitute::Messages::pack<CBTF_cuda_data>(
             std::make_pair(dm_header, dm_data),
             reinterpret_cast<xdrproc_t>(&xdr_CBTF_cuda_data)
             );
-    
+
     dm_terminate |= !dm_visitor(blob);
     
     initialize();

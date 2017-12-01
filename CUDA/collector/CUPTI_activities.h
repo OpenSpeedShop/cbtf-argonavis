@@ -24,6 +24,9 @@
 
 #include "TLS.h"
 
+/** Size (in bytes) of each allocated CUPTI activity buffer. */
+#define CUPTI_ACTIVITY_BUFFER_SIZE (256 * 1024 /* 256 KB */)
+
 /* Start CUPTI activity data collection for this process. */
 void CUPTI_activities_start();
 
