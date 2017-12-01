@@ -267,10 +267,12 @@ Sphere Impl::enclosing(const Sphere& A, const Sphere& B)
             );
     }
 
+    //
     // Compute the vector AB from the centroid of sphere A to the centroid
     // of sphere B and normalize AB. Then use AB to construct a point C on
     // sphere A, and a point D on sphere B, that both lie on the line that
     // connects the centroids of the two spheres.
+    //
 
     Vector AB = boost::get<0>(B) - boost::get<0>(A);
 
@@ -279,9 +281,11 @@ Sphere Impl::enclosing(const Sphere& A, const Sphere& B)
     Vector C = boost::get<0>(A) - (AB * boost::get<1>(A));
     Vector D = boost::get<0>(B) + (AB * boost::get<1>(B));
 
+    //
     // The centroid of the minimum bounding sphere of spheres A and B is
     // the mid-point between C and D. And its radius is equal to half the
     // length of the vector between C and D.
+    //
     
     Vector centroid = 0.5 * (C + D);
     
