@@ -25,14 +25,16 @@
 namespace ArgoNavis { namespace Clustering { namespace Impl {
 
     /**
-     * Default clustering algorithm. ...
+     * Default clustering algorithm.
      *
      * @param state    State to which clustering algorithm is to be applied.
+     * 
+     * @sa http://en.wikipedia.org/wiki/Hierarchical_clustering
      */
     void defaultClusteringAlgorithm(State& state);
 
     /**
-     * Default fitness algorithm. ...
+     * Default fitness algorithm.
      *
      * @param state    State to which the fitness algorithm is to be applied.
      * @return         Boolean "true" if this State is considered to have

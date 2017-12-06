@@ -240,7 +240,12 @@ void Impl::defaultClusteringAlgorithm(State& state)
 
 bool Impl::defaultFitnessAlgorithm(const State& state)
 {
-    // ...
+    //
+    // Use a really simple fitness function for now. Consider a clustering to
+    // be interesting if it contains more than 1, and less than 10, clusters.
+    //
 
-    return false;
+    size_t n = state.sizes().size();
+
+    return (n > 1) && (n < 10);
 }
