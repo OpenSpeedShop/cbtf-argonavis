@@ -17,7 +17,7 @@
 # Place, Suite 330, Boston, MA  02111-1307  USA
 ################################################################################
 
-add_library(argonavis-base SHARED
+set(SOURCES
     ArgoNavis/Base/Address.hpp
     ArgoNavis/Base/AddressVisitor.hpp
     ArgoNavis/Base/AddressBitmap.hpp AddressBitmap.cpp
@@ -54,6 +54,14 @@ add_library(argonavis-base SHARED
     SymbolTable.hpp SymbolTable.cpp
     )
 
+if(Dyninst_FOUND)
+    set(SOURCES ${SOURCES}
+        ArgoNavis/Base/DyninstResolver.hpp DyninstResolver.cpp
+        )
+endif()
+
+add_library(argonavis-base SHARED ${SOURCES})
+
 target_include_directories(argonavis-base PUBLIC
     ${Boost_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
@@ -65,6 +73,11 @@ target_link_libraries(argonavis-base
     ${Boost_SYSTEM_LIBRARY}
     ${CBTF_KRELL_MESSAGES_LIBRARIES}
     )
+
+if(Dyninst_FOUND)
+    target_include_directories(argonavis-base PUBLIC ${Dyninst_INCLUDE_DIRS})
+    target_link_libraries(argonavis-base ${Dyninst_LIBRARIES})
+endif()
 
 add_executable(test-base test.cpp)
 

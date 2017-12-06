@@ -1,6 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2013,2014 Krell Institute. All Rights Reserved.
-// Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
+// Copyright (c) 2017 Krell Institute. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -17,58 +16,30 @@
 // Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
-/** @file Declaration of the Resolver class. */
+/** @file Declaration of the DyninstResolver class. */
 
 #pragma once
 
-#include <boost/noncopyable.hpp>
-#include <map>
-
 #include <ArgoNavis/Base/AddressSet.hpp>
 #include <ArgoNavis/Base/AddressSpaces.hpp>
-#include <ArgoNavis/Base/FileName.hpp>
 #include <ArgoNavis/Base/LinkedObject.hpp>
-#include <ArgoNavis/Base/ThreadName.hpp>
-#include <ArgoNavis/Base/TimeInterval.hpp>
+#include <ArgoNavis/Base/Resolver.hpp>
 
 namespace ArgoNavis { namespace Base {
 
     /**
-     * Abstract base class for a symbol table resolver that accepts addresses
-     * and adds the corresponding source code constructs (functions, etc.) to
-     * the appropriate linked object.
+     * Concrete implementation of Resolver using Dyninst to resolve symbols.
+     *
+     * @sa http://www.dyninst.org
      */
-    class Resolver :
-        private boost::noncopyable
+    class DyninstResolver :
+        public Resolver
     {
 
     public:
-        
-        /** Destructor. */
-        virtual ~Resolver();
-        
-        /**
-         * Resolve all addresses in the given linked object.
-         *
-         * @param linked_object    Linked object to be resolved.
-         */
-        void operator()(const LinkedObject& linked_object);
-        
-        /**
-         * Resolve specific addresses in the given thread and time interval.
-         *
-         * @param addresses    Addresses to be resolved.
-         * @param thread       Name of the thread containing those addresses.
-         * @param interval     Time interval over which to resolve addresses.
-         */
-        void operator()(const AddressSet& addresses,
-                        const ThreadName& thread,
-                        const TimeInterval& interval);
-        
-    protected:
 
         /**
-         * Construct a resolver for the given address spaces.
+         * Construct a Dyninst resolver for the given address spaces.
          *
          * @param spaces    Address spaces for which to resolve addresses.
          *
@@ -76,7 +47,12 @@ namespace ArgoNavis { namespace Base {
          *          handle) to the address spaces, the caller must insure
          *          the resolver is released before the address spaces.
          */
-        Resolver(AddressSpaces& spaces);
+        DyninstResolver(AddressSpaces& spaces);
+
+        /** Destructor. */
+        virtual ~DyninstResolver();
+        
+    protected:
 
         /**
          * Resolve specific addresses in the given linked object.
@@ -92,13 +68,10 @@ namespace ArgoNavis { namespace Base {
                              const LinkedObject& linked_object) = 0;
         
     private:
-        
-        /** Address spaces for which to resolve addresses. */
-        AddressSpaces& dm_spaces;
 
-        /** Indexed set of addresses already resolved. */
-        std::map<FileName, AddressSet> dm_resolved;
+        // ...
         
-    }; // class Resolver
+    }; // class DyninstResolver
        
 } } // namespace ArgoNavis::Base
+
