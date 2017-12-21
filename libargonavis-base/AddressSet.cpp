@@ -19,10 +19,17 @@
 
 /** @file Definition of the AddressSet class. */
 
-#include <algorithm>
-#include <deque>
+#include <boost/assert.hpp>
+#include <boost/bind.hpp>
+#include <boost/dynamic_bitset.hpp>
+#include <boost/function.hpp>
+#include <boost/optional.hpp>
+#include <boost/ref.hpp>
+#include <sstream>
+#include <utility>
 
 #include <ArgoNavis/Base/AddressSet.hpp>
+#include <ArgoNavis/Base/Raise.hpp>
 
 using namespace ArgoNavis::Base;
 
@@ -32,148 +39,372 @@ using namespace ArgoNavis::Base;
 namespace {
 
     /**
-     * Extract all contiguous address ranges within the given address bitmaps.
+     * Virtual machine used to construct and/or execute a bytecode program that
+     * represents an address set. In the interest of storing large, fragmented,
+     * address sets compactly, they are represented as bytecode programs. These
+     * bytecode programs contain one or more variable-length instructions which,
+     * when executed, generate the contiguous address ranges in the address set.
      *
-     * @param bitmaps    Address bitmaps to be extracted.
-     * @return           Contiguous address ranges in those address bitmaps.
+     * ...
+     *
+     * @sa http://en.wikipedia.org/wiki/Virtual_machine
+     * @sa http://en.wikipedia.org/wiki/Bytecode
      */
-    std::set<AddressRange> extract(const std::vector<AddressBitmap>& bitmaps)
+    class VirtualMachine
     {
-        std::set<AddressRange> ranges;
         
-        for (std::vector<AddressBitmap>::const_iterator
-                 i = bitmaps.begin(); i != bitmaps.end(); ++i)
+    public:
+
+        /** Type of container used to store a bytecode program. */
+        typedef std::vector<boost::uint8_t> Program;
+        
+        /**
+         * Construct a virtual machine for executing the specified bytecode
+         * program beginning at that program's first instruction.
+         *
+         * @param program    Bytecode program to be executed.
+         *
+         * @note    This class stores a reference to, rather than a copy of,
+         *          the bytecode program; improving performance by avoiding
+         *          unnecessary copies. Thus it is critical that the caller
+         *          insures the program's scope exceeds that of the virtual
+         *          machine's.
+         */
+        VirtualMachine(Program& program) :
+            dm_program(program),
+            dm_pc(0),
+            dm_range()
         {
-            std::set<AddressRange> i_ranges = i->ranges(true);
-            ranges.insert(i_ranges.begin(), i_ranges.end());
         }
         
-        return ranges;
-    }
-    
-    /**
-     * Partition address ranges into address bitmaps. Addresses for functions
-     * and statements are stored as pairings of an address range and a bitmap,
-     * one bit per address in the range, that describe which addresses within
-     * the range are associated with the function or statement. In the common
-     * case where the addresses exhibit a high degree of spatial locality, a
-     * single address range and bitmap is very effective. But there are cases,
-     * such as inlined functions, where the degree of spatial locality can be
-     * minimal. Under such circumstances, a single bitmap can grow very large
-     * and it is more space efficient to use multiple bitmaps that individually
-     * exhibit spatial locality. This function iteratively subdivides all the
-     * addresses until each bitmap exhibits sufficient spatial locality.
-     *
-     * @param ranges    Address ranges to be partitioned.
-     * @return          Address bitmaps representing these address ranges.
-     *
-     * @note    The criteria for subdividing an address set is as follows. The
-     *          widest gap (spacing) between two adjacent addresses within the
-     *          set is found. If the number of bits required to encode the gap
-     *          within a bitmap is greater than the number of bits required to
-     *          create a new address bitmap, the set is partitioned at the gap.
-     */
-    std::vector<AddressBitmap> partition(const std::set<AddressRange>& ranges)
-    {
-        std::vector<AddressBitmap> bitmaps;
-
-        //
-        // Set the partitioning criteria as the minimum number of bits required
-        // for the binary representation of a CBTF_Protocol_AddressBitmap that
-        // contains a single address. The size of this structure, rather than
-        // that of the AddressBitmap class, is used because the main reason for
-        // the partitioning is to minimize the eventual binary representation
-        // of CBTF_Protocol_SymbolTable objects.
-        // 
-        
-        const boost::int64_t kPartitioningCriteria = 8 /* Bits/Byte */ *
-            (2 * sizeof(boost::uint64_t) /* Address Range */ +
-             sizeof(boost::uint8_t) /* Single-Byte Bitmap */);
-        
-        // Convert the provided set of address ranges into a set of addresses
-        std::set<Address> addresses;
-        for (std::set<AddressRange>::const_iterator
-                 i = ranges.begin(); i != ranges.end(); ++i)
+        /**
+         * Append a new address range at the end of the address set represented
+         * by the bytecode program. This is accomplished by adding one or more
+         * new instructions at the end of the program.
+         *
+         * @param range    Address range to be appended to the bytecode program.
+         *
+         * @throw std::runtime_error    This virtual machine's PC isn't at
+         *                              the end of the bytecode program.
+         */
+        void append(const AddressRange& range)
         {
-            for (Address j = i->begin(); j <= i->end(); ++j)
+            if (!end())
             {
-                addresses.insert(j);
+                raise<std::runtime_error>("This virtual machine's PC isn't at"
+                                          "the end of the bytecode program.");
             }
-        }
-        
-        //
-        // Initialize a queue with this set of address and iterate over that
-        // queue until it has been emptied.
-        //
-        
-        std::deque<std::set<Address> > queue(1, addresses);        
-        while (!queue.empty())
-        {
-            std::set<Address> i = queue.front();
-            queue.pop_front();
-
-            // Handle the special case of an empty address set by ignoring it
-            if (i.empty())
-            {
-                continue;
-            }
-
-            //
-            // Handle the special case of a single-element address set by
-            // creating an address bitmap for it and adding that bitmap to
-            // the results.
-            //
-
-            if (i.size() == 1)
-            {
-                bitmaps.push_back(AddressBitmap(i));
-                continue;
-            }
-
-            //
-            // Otherwise find the widest gap between any two adjacent addresses
-            // within this address set. Also remember WHERE that widest gap was
-            // located.
-            //
-
-            boost::int64_t widest_gap = 0;
-            std::set<Address>::const_iterator widest_gap_at = i.begin();
             
-            for (std::set<Address>::const_iterator
-                     prev = i.begin(), current = ++i.begin();
-                 current != i.end();
-                 ++prev, ++current)
+            // ...
+        }
+        
+        /** Has execution reached the end of the bytecode program? */
+        bool end() const
+        {
+            return dm_pc == dm_program.size();
+        }
+        
+        /**
+         * Get the next address range generated by the bytecode program. This
+         * is accomplished by continuing execution of the program until a new
+         * contiguous address range is generated.
+         *
+         * @return    Next address range generated by the bytecode program.
+         *
+         * @throw std::runtime_error    This virtual machine's PC is at
+         *                              the end of the bytecode program.
+         */
+        const AddressRange& next()
+        {
+            if (end())
             {
-                boost::int64_t gap = AddressRange(*prev, *current).width() - 1;
-                
-                if (gap > widest_gap)
+                raise<std::runtime_error>("This virtual machine's PC is at"
+                                          "the end of the bytecode program.");
+            }
+            
+            // ...
+            
+            return *dm_range;
+        }
+        
+        /** Redirection to an output stream. Intended for debugging use only. */
+        friend std::ostream& operator<<(std::ostream& stream,
+                                        const VirtualMachine& vm)
+        {
+            // ...
+            
+            return stream;
+        }
+        
+    private:
+
+        /** Bytecode program being executed by this virtual machine. */
+        Program& dm_program;
+
+        /**
+         * Index within that byte program of the next instruction to execute.
+         * I.e. the program counter.
+         *
+         * @sa http://en.wikipedia.org/wiki/Program_counter
+         */
+        Program::size_type dm_pc;
+        
+        /** Previous address range generated by the bytecode program. */
+        boost::optional<AddressRange> dm_range;
+        
+    }; // class VirtualMachine
+
+    /**
+     * Visit contiguous address ranges covering all possible addresses from
+     * Address::TheLowest() to Address::TheHighest() such that each visited
+     * address range is entirely inside or outside each of the two specified
+     * address sets.
+     *
+     * @param program_x    Bytecode program defining the first address set.
+     * @param program_y    Bytecode program defining the second address set.
+     *     
+     * @param visitor      Visitor called for each address range. The visitor
+     *                     is passed a reference to the address range and two
+     *                     booleans indicating whether it is inside (true) or
+     *                     outside (false) each of the two address sets.
+     *
+     * @note    This function is used with the buildXYZ() visitors below to
+     *          implement the various overloaded operators for AddressSet.
+     */
+    void visit(const VirtualMachine::Program& program_x,
+               const VirtualMachine::Program& program_y,
+               boost::function<void (const AddressRange&, bool, bool)> visitor)
+    {
+        VirtualMachine vm_x(const_cast<VirtualMachine::Program&>(program_x));
+        VirtualMachine vm_y(const_cast<VirtualMachine::Program&>(program_y));
+        
+        bool found_a_range = false;
+        Address i = Address::TheLowest();
+        AddressRange range_x, range_y;
+        
+        while (!vm_x.end() || !vm_y.end())
+        {
+            //
+            // Obtain the next address range in each of the two address sets,
+            // as necessary, bearing in mind that the end of one or the other
+            // address set may have been reached.
+            //
+            
+            if (range_x.empty() && !vm_x.end())
+            {
+                range_x = vm_x.next();
+                found_a_range = true;
+            }
+            
+            if (range_y.empty() && !vm_y.end())
+            {
+                range_y = vm_y.next();
+                found_a_range = true;
+            }
+            
+            //
+            // If the next beginning of an address range inside either address
+            // set is greater than the current position (i), visit that range,
+            // which is outside both address sets.
+            //
+            
+            Address next = 
+                range_x.empty() ? range_y.begin() :
+                range_y.empty() ? range_x.begin() :
+                std::min(range_x.begin(), range_y.begin());
+            
+            if (next > i)
+            {
+                visitor(AddressRange(i, next - 1), false, false);
+            }
+            
+            //
+            // If the next address range inside either address set is disjoint
+            // from the other address set, visit that range, which is inside
+            // one or the other address set. I.e. handle the 6 cases:
+            //
+            // x: *****           x: *****           x: *****
+            // y:                 y:      *****      y:       *****
+            //
+            // x:                 x:      *****      x:       *****
+            // y: *****           y: *****           y: *****
+            //
+            
+            if (range_y.empty() || (range_x.end() < range_y.begin()))
+            {
+                visitor(range_x, true, false);
+                i = range_x.end() + 1;
+                range_x = AddressRange();
+            }
+            
+            else if (range_x.empty() || (range_y.end() < range_x.begin()))
+            {
+                visitor(range_y, false, true);
+                i = range_y.end() + 1;
+                range_y = AddressRange();
+            }
+
+            //
+            // If the next address range inside each address set intersect, and
+            // the beginning of each address range is identical, visit the range
+            // that is shared in common, which is inside both address sets. I.e.
+            // handle the 3 cases:
+            //
+            // x: *****           x: ***             x: *****
+            // y: *****           y: *****           y: ***
+            //
+            
+            else if (range_x.begin() == range_y.begin())
+            {
+                if (range_x.end() == range_y.end())
                 {
-                    widest_gap = gap;
-                    widest_gap_at = current;
+                    visitor(range_x, true, true);
+                    i = range_x.end() + 1;
+                    range_x = AddressRange();
+                    range_y = AddressRange();
+                }
+                else if (range_x.end() < range_y.end())
+                {
+                    visitor(range_x, true, true);
+                    i = range_x.end() + 1;
+                    range_x = AddressRange();
+                    range_y = AddressRange(i, range_y.end());
+                }
+                else
+                {
+                    visitor(range_y, true, true);
+                    i = range_y.end() + 1;
+                    range_x = AddressRange(i, range_x.end());
+                    range_y = AddressRange();
                 }
             }
             
             //
-            // If the widest gap exceeds the partitioning criteria, partition
-            // this address set at the gap and push both partitions onto the
-            // queue. Otherwise create an address bitmap for this address set
-            // and add that bitmap to the results.
+            // If the next address range inside each address set intersect, and
+            // the beginning of each address range is different, visit the part
+            // of the next address range which is not shared in common, which
+            // is inside one or the other address set. I.e. handle the 2 cases:
+            //
+            // x: *****           x:   *****
+            // y:   *****         y: *****
             //
             
-            if (widest_gap > kPartitioningCriteria)
+            else if (range_x.begin() < range_y.begin())
             {
-                queue.push_back(std::set<Address>(i.begin(), widest_gap_at));
-                queue.push_back(std::set<Address>(widest_gap_at, i.end()));
-            }
-            else
-            {
-                bitmaps.push_back(AddressBitmap(i));
+                visitor(AddressRange(range_x.begin(), range_y.begin() - 1),
+                        true, false);
+                i = range_y.begin();
+                range_x = AddressRange(i, range_x.end());
             }
             
+            else if (range_y.begin() < range_x.begin())
+            {
+                visitor(AddressRange(range_y.begin(), range_x.begin() - 1),
+                        false, true);
+                i = range_x.begin();
+                range_y = AddressRange(i, range_y.end());
+            }
+            
+            //
+            // All possible cases should be handled by the above. The following
+            // is simply a sanity check that this is, in fact, the case.
+            //
+            
+            else
+            {
+                BOOST_ASSERT(false);
+            }
         }
+        
+        //
+        // If the current position (i) didn't wrap around to the first possible
+        // address, visit the remaining range, which is outside both address
+        // sets. Also handle the special case where both address sets are empty,
+        // in which case all possible addresses are outside both address sets.
+        //
+        
+        if (!found_a_range || (i > Address::TheLowest()))
+        {
+            visitor(AddressRange(i, Address::TheHighest()), false, false);
+        }
+    }
+    
+    /** Visitor used to build the difference of two address sets. */
+    void buildDifference(VirtualMachine& result,
+                         const AddressRange& range,
+                         bool inside_x, bool inside_y)
+    {
+        if (inside_x & !inside_y)
+        {
+            result.append(range);
+        }
+    }
 
-        // Return the final results to the caller        
-        return bitmaps;
+    /** Visitor used to build the intersection of two address sets. */
+    void buildIntersection(VirtualMachine& result,
+                           const AddressRange& range,
+                           bool inside_x, bool inside_y)
+    {
+        if (inside_x & inside_y)
+        {
+            result.append(range);
+        }
+    }
+    
+    /** Visitor used to build the negation of an address set. */
+    void buildNegation(VirtualMachine& result,
+                       const AddressRange& range,
+                       bool inside, bool /* Unused */)
+    {
+        if (!inside)
+        {
+            result.append(range);
+        }
+    }
+    
+    /** Visitor used to build the sum of two address sets. */
+    void buildSum(VirtualMachine& result,
+                  const AddressRange& range,
+                  bool inside_x, bool inside_y)
+    {
+        if (inside_x | inside_y)
+        {
+            result.append(range);
+        }
+    }
+    
+    /** Visitor used to build the symmetric difference of two address sets. */
+    void buildSymmetricDifference(VirtualMachine& result,
+                                  const AddressRange& range,
+                                  bool inside_x, bool inside_y)
+    {
+        if (inside_x != inside_y)
+        {
+            result.append(range);
+        }
+    }
+
+    /** Visitor used to build the union of two address sets. */
+    void buildUnion(VirtualMachine& result,
+                    const AddressRange& range,
+                    bool inside_x, bool inside_y)
+    {
+        if (inside_x | inside_y)
+        {
+            result.append(range);
+        }
+    }
+
+    /** Visitor used to redirect an address set to an output stream. */
+    bool redirect(std::ostream& stream, bool& first, const AddressRange& range)
+    {
+        if (!first)
+        {
+            stream << ", ";
+        }
+        stream << range;
+        first = false;
+        return true;
     }
 
 } // namespace <anonymous>
@@ -183,8 +414,32 @@ namespace {
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 AddressSet::AddressSet() :
-    dm_bitmaps()
+    dm_data()
 {
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet::AddressSet(const Address& address) :
+    dm_data()
+{
+    VirtualMachine vm(dm_data);
+
+    vm.append(address);
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet::AddressSet(const AddressRange& range) :
+    dm_data()
+{
+    VirtualMachine vm(dm_data);
+
+    vm.append(range);
 }
 
 
@@ -192,11 +447,56 @@ AddressSet::AddressSet() :
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 AddressSet::AddressSet(CBTF_Protocol_AddressBitmap* messages, u_int len) :
-    dm_bitmaps()
+    dm_data()
 {
-    for (u_int i = 0; i < len; ++i)
+    VirtualMachine vm(dm_data);
+
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet::AddressSet(const CBTF_Protocol_AddressBitmap& message) :
+    dm_data()
+{
+    VirtualMachine vm(dm_data);
+
+    // Convert the message's raw address bitmap into a more usable form
+    boost::dynamic_bitset<boost::uint8_t> bitmap;
+    for (u_int i = 0; i < message.bitmap.data.data_len; ++i)
     {
-        dm_bitmaps.push_back(AddressBitmap(messages[i]));
+        bitmap.append(message.bitmap.data.data_val[i]);
+    }
+    
+    // Iterate over each address in this address bitmap
+    bool inside = false;
+    Address begin;
+    for (boost::dynamic_bitset<boost::uint8_t>::size_type i = 0;
+         (i < bitmap.size()) &&
+             ((message.range.begin + i) <= message.range.end);
+         ++i)
+    {
+        // Is this address the beginning of an address range?
+        if (!inside && bitmap[i])
+        {
+            inside = true;
+            begin = message.range.begin + i;
+        }
+
+        // Is this address the end of an address range?
+        else if (inside && !bitmap[i])
+        {
+            inside = false;
+            vm.append(AddressRange(begin, message.range.begin + i - 1));
+        }
+    }
+    
+    // Does a range end at the end of the address bitmap?
+    if (inside)
+    {
+        vm.append(AddressRange(begin, message.range.end - 1));
     }
 }
 
@@ -204,25 +504,133 @@ AddressSet::AddressSet(CBTF_Protocol_AddressBitmap* messages, u_int len) :
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-AddressSet::operator std::set<AddressRange>() const
+AddressSet::operator std::string() const
 {
-    return ::extract(dm_bitmaps);
+    std::ostringstream stream;
+    stream << *this;
+    return stream.str();
 }
 
 
-        
+
 //------------------------------------------------------------------------------
-// Construct a set of address ranges that contains all current address ranges
-// for this set as well as the given new address ranges. Partition this new
-// set of address ranges into address bitmaps. The new list of address bitmaps
-// completely replaces any previous list.
 //------------------------------------------------------------------------------
-AddressSet& AddressSet::operator+=(const std::set<AddressRange>& ranges)
+bool AddressSet::operator==(const AddressSet& other) const
 {
-    std::set<AddressRange> all_ranges = ::extract(dm_bitmaps);
-    all_ranges.insert(ranges.begin(), ranges.end());
-    dm_bitmaps = ::partition(all_ranges);
+    return (*this ^ other).empty();
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void AddressSet::operator~()
+{
+    VirtualMachine::Program data, empty;
+    VirtualMachine vm(data);
+
+    ::visit(dm_data, empty,
+            boost::bind(buildNegation, boost::ref(vm), _1, _2, _3));
+    
+    dm_data.swap(data);
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator|=(const AddressSet& other)
+{
+    VirtualMachine::Program data;
+    VirtualMachine vm(data);
+
+    ::visit(dm_data, other.dm_data,
+            boost::bind(buildUnion, boost::ref(vm), _1, _2, _3));
+
+    dm_data.swap(data);
     return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator&=(const AddressSet& other)
+{
+    VirtualMachine::Program data;
+    VirtualMachine vm(data);
+
+    ::visit(dm_data, other.dm_data,
+            boost::bind(buildIntersection, boost::ref(vm), _1, _2, _3));
+
+    dm_data.swap(data);    
+    return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator^=(const AddressSet& other)
+{
+    VirtualMachine::Program data;
+    VirtualMachine vm(data);
+
+    ::visit(dm_data, other.dm_data,
+            boost::bind(buildSymmetricDifference, boost::ref(vm), _1, _2, _3));
+
+    dm_data.swap(data);
+    return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator+=(const AddressSet& other)
+{
+    VirtualMachine::Program data;
+    VirtualMachine vm(data);
+
+    ::visit(dm_data, other.dm_data,
+            boost::bind(buildSum, boost::ref(vm), _1, _2, _3));
+
+    dm_data.swap(data);
+    return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator-=(const AddressSet& other)
+{
+    VirtualMachine::Program data;
+    VirtualMachine vm(data);
+
+    ::visit(dm_data, other.dm_data,
+            boost::bind(buildDifference, boost::ref(vm), _1, _2, _3));
+
+    dm_data.swap(data);
+    return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool AddressSet::contains(const AddressSet& other) const
+{
+    return (*this | other) == *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool AddressSet::empty() const
+{
+    return dm_data.empty();
 }
 
 
@@ -232,14 +640,44 @@ AddressSet& AddressSet::operator+=(const std::set<AddressRange>& ranges)
 void AddressSet::extract(CBTF_Protocol_AddressBitmap*& messages,
                          u_int& len) const
 {
-    len = dm_bitmaps.size();
+    // ...
+}
+
+
+        
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool AddressSet::intersects(const AddressSet& other) const
+{
+    return !(*this & other).empty();
+}
+
+
+        
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void AddressSet::visit(const AddressRangeVisitor& visitor) const
+{
+    VirtualMachine vm(const_cast<VirtualMachine::Program&>(dm_data));
     
-    messages = reinterpret_cast<CBTF_Protocol_AddressBitmap*>(
-        malloc(std::max(1U, len) * sizeof(CBTF_Protocol_AddressBitmap))
-        );
-    
-    for (u_int i = 0; i < len; ++i)
+    for (bool terminate = false; !terminate && !vm.end();)
     {
-        messages[i] = dm_bitmaps[i];
+        terminate |= !visitor(vm.next());
     }
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+std::ostream& ArgoNavis::Base::operator<<(std::ostream& stream,
+                                          const AddressSet& set)
+{
+    bool first = true;
+
+    stream << "{ ";
+    set.visit(boost::bind(redirect, boost::ref(stream), boost::ref(first), _1));
+    stream << (first ? "" : " ") << "}";
+
+    return stream;
 }
