@@ -150,8 +150,8 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
         /** Structure containing per-host data. */
         struct PerHostData
         {
-            /** Device ID for all known devices. */
-            std::set<boost::uint32_t> dm_known_devices;
+            /** Index within dm_devices for each known device ID. */
+            std::map<boost::uint32_t, std::size_t> dm_devices;
         };
         
         /** Structure containing per-process data. */

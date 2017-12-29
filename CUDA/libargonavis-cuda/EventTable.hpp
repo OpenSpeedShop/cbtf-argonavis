@@ -256,7 +256,7 @@ namespace ArgoNavis { namespace CUDA { namespace Impl {
             > Classes;
 
         /** Type of container used to store the known event instances. */
-        typedef std::map<Base::TimeInterval, EventInstance> Instances;
+        typedef std::multimap<Base::TimeInterval, EventInstance> Instances;
 
         /** All known context addresses. */
         std::set<Base::Address> dm_contexts;

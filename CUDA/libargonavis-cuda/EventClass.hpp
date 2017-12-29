@@ -26,17 +26,17 @@
 #include <ArgoNavis/CUDA/KernelExecution.hpp>
 
 /** Convenience macro for compactly generating EventClass tests. */
-#define COMPARE_NEXT_FIELD(x)      \
-    do                          \
-    {                           \
-        if (lhs.x < rhs.x)      \
-        {                       \
-            return true;        \
-        }                       \
-        else if (lhs.x > rhs.x) \
-        {                       \
-            return false;       \
-        }                       \
+#define COMPARE_NEXT_FIELD(x) \
+    do                        \
+    {                         \
+        if (lhs.x < rhs.x)    \
+        {                     \
+            return true;      \
+        }                     \
+        if (lhs.x > rhs.x)    \
+        {                     \
+            return false;     \
+        }                     \
     } while (false)
 
 /** Convenience macro for compactly generating EventClass tests. */

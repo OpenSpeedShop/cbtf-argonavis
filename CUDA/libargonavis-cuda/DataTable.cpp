@@ -1230,22 +1230,24 @@ void DataTable::process(const struct CUDA_DeviceInfo& message,
                         PerHostData& per_host,
                         PerProcessData& per_process)
 {
-    if (per_host.dm_known_devices.find(message.device) != 
-        per_host.dm_known_devices.end())
+    std::map<boost::uint32_t, std::size_t>::const_iterator i =
+        per_host.dm_devices.find(message.device);
+
+    if (i == per_host.dm_devices.end())
     {
-        return;
+        CUDA::Device device = convert(message);
+        dm_devices.push_back(device);
+
+        i = per_host.dm_devices.insert(std::make_pair(
+                message.device, dm_devices.size() - 1
+                )).first;
     }
 
-    per_host.dm_known_devices.insert(message.device);
-    
-    CUDA::Device device = convert(message);
-    dm_devices.push_back(device);
-    
     process(per_process.dm_partial_data_transfers.addDevice(
-                message.device, dm_devices.size() - 1
+                i->first, i->second
                 ));
     process(per_process.dm_partial_kernel_executions.addDevice(
-                message.device, dm_devices.size() - 1
+                i->first, i->second
                 ));
 }
 
