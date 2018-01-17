@@ -30,6 +30,7 @@
 
 #include <KrellInstitute/Services/Assert.h>
 #include <KrellInstitute/Services/Collector.h>
+#include <KrellInstitute/Services/Timer.h>
 
 #include "CUPTI_activities.h"
 #include "CUPTI_callbacks.h"
