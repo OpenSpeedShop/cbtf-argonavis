@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2013 Krell Institute. All Rights Reserved.
+# Copyright (c) 2013,2018 Krell Institute. All Rights Reserved.
 # Copyright (c) 2015,2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -22,6 +22,7 @@ set(SOURCES
     ArgoNavis/Base/AddressVisitor.hpp
     ArgoNavis/Base/AddressBitmap.hpp AddressBitmap.cpp
     ArgoNavis/Base/AddressRange.hpp
+    ArgoNavis/Base/AddressRangeVisitor.hpp
     ArgoNavis/Base/AddressSet.hpp AddressSet.cpp
     ArgoNavis/Base/AddressSpaces.hpp AddressSpaces.cpp
     ArgoNavis/Base/BlobVisitor.hpp

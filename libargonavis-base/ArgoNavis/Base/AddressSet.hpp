@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2013 Krell Institute. All Rights Reserved.
+// Copyright (c) 2013,2018 Krell Institute. All Rights Reserved.
 // Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
@@ -22,35 +22,49 @@
 #pragma once
 
 #include <boost/operators.hpp>
+#include <iostream>
 #include <set>
+#include <string>
 #include <vector>
 
 #include <KrellInstitute/Messages/Symbol.h>
 
+#include <ArgoNavis/Base/Address.hpp>
 #include <ArgoNavis/Base/AddressBitmap.hpp>
 #include <ArgoNavis/Base/AddressRange.hpp>
+#include <ArgoNavis/Base/AddressRangeVisitor.hpp>
 
 namespace ArgoNavis { namespace Base {
 
     /**
-     * A set of memory addresses. Used to represent a non-contiguous, possibly
-     * large and/or fragmented, portion of an address space.
+     * A set of memory addresses. Used to represent a non-contiguous,
+     * possibly large and/or fragmented, portion of an address space.
      *
      * @sa http://en.wikipedia.org/wiki/Set_data_structure
-     *
-     * @todo    The interface and implementation of this class is currently
-     *          as minimal as possible while still getting the job done. In
-     *          the future a more extensive interface and higher performance
-     *          implementation should be investigated.
      */
     class AddressSet :
-        public boost::addable<AddressSet, std::set<AddressRange> >
+        public boost::additive<AddressSet>,
+        public boost::addable<AddressSet, std::set<AddressRange> >,
+        public boost::bitwise<AddressSet>,
+        public boost::equality_comparable<AddressSet>    
     {
         
     public:
 
         /** Default constructor. */
         AddressSet();
+
+        /** Construct an address set from an address. */
+        AddressSet(const Address& address);
+        
+        /** Construct an address set from an address range. */
+        AddressSet(const AddressRange& range);
+
+        /** Construct an address set from an address bitmap. */
+        AddressSet(const AddressBitmap& bitmap);
+
+        /** Construct an address set from a CBTF_Protocol_AddressBitmap. */
+        AddressSet(const CBTF_Protocol_AddressBitmap& message);
 
         /**
          * Construct an address set from a CBTF_Protocol_AddressBitmap array.
@@ -59,12 +73,48 @@ namespace ArgoNavis { namespace Base {
         
         /** Type conversion to a set of address ranges. */
         operator std::set<AddressRange>() const;
+
+        /** Type conversion to a string. */
+        operator std::string() const;
+
+        /** Is this address set equal to another one? */
+        bool operator==(const AddressSet& other) const;
+
+        /** Negate this address set. */
+        void operator~();
+
+        /** Unite another address set with this one. */
+        AddressSet& operator|=(const AddressSet& other);
+
+        /** Intersect another address set with this one. */
+        AddressSet& operator&=(const AddressSet& other);
+
+        /** Symmetrically differentiate another address set with this one. */
+        AddressSet& operator^=(const AddressSet& other);
+
+        /** Add another address set to this one. */
+        AddressSet& operator+=(const AddressSet& other);
         
         /** Add a set of address ranges to this address set. */
         AddressSet& operator+=(const std::set<AddressRange>& ranges);
 
+        /** Remove another address set from this one. */
+        AddressSet& operator-=(const AddressSet& other);
+
+        /** Does this address set contain another one? */
+        bool contains(const AddressSet& other) const;
+
+        /** Is this address set empty? */
+        bool empty() const;
+
         /** Extract an address set into a CBTF_Protocol_AddressBitmap array. */
         void extract(CBTF_Protocol_AddressBitmap*& messages, u_int& len) const;
+
+        /** Does this address set intersect another one? */
+        bool intersects(const AddressSet& other) const;
+        
+        /** Visit the contiguous address ranges in this address set. */
+        void visit(const AddressRangeVisitor& visitor) const;
         
     private:
 
@@ -72,5 +122,8 @@ namespace ArgoNavis { namespace Base {
         std::vector<AddressBitmap> dm_bitmaps;
         
     }; // class AddressSet
+
+    /** Redirect an address set to an output stream. */
+    std::ostream& operator<<(std::ostream& stream, const AddressSet& set);
 
 } } // namespace ArgoNavis::Base

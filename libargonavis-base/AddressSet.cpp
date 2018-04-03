@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2013 Krell Institute. All Rights Reserved.
+// Copyright (c) 2013,2018 Krell Institute. All Rights Reserved.
 // Copyright (c) 2015 Argo Navis Technologies. All Rights Reserved.
 //
 // This library is free software; you can redistribute it and/or modify it under
@@ -191,6 +191,42 @@ AddressSet::AddressSet() :
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+AddressSet::AddressSet(const Address& address)
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet::AddressSet(const AddressRange& range)
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet::AddressSet(const AddressBitmap& bitmap)
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet::AddressSet(const CBTF_Protocol_AddressBitmap& message)
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 AddressSet::AddressSet(CBTF_Protocol_AddressBitmap* messages, u_int len) :
     dm_bitmaps()
 {
@@ -210,7 +246,78 @@ AddressSet::operator std::set<AddressRange>() const
 }
 
 
-        
+
+AddressSet::operator std::string() const
+{
+    // ...
+
+    return std::string();
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool AddressSet::operator==(const AddressSet& other) const
+{
+    return (*this ^ other).empty();
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void AddressSet::operator~()
+{
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator|=(const AddressSet& other)
+{
+    // ...
+
+    return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator&=(const AddressSet& other)
+{
+    // ...
+
+    return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator^=(const AddressSet& other)
+{
+    // ...
+
+    return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator+=(const AddressSet& other)
+{
+    // ...
+
+    return *this;
+}
+
+
+
 //------------------------------------------------------------------------------
 // Construct a set of address ranges that contains all current address ranges
 // for this set as well as the given new address ranges. Partition this new
@@ -223,6 +330,37 @@ AddressSet& AddressSet::operator+=(const std::set<AddressRange>& ranges)
     all_ranges.insert(ranges.begin(), ranges.end());
     dm_bitmaps = ::partition(all_ranges);
     return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+AddressSet& AddressSet::operator-=(const AddressSet& other)
+{
+    // ...
+
+    return *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool AddressSet::contains(const AddressSet& other) const
+{
+    return (*this | other) == *this;
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool AddressSet::empty() const
+{
+    // ...
+
+    return false;
 }
 
 
@@ -242,4 +380,34 @@ void AddressSet::extract(CBTF_Protocol_AddressBitmap*& messages,
     {
         messages[i] = dm_bitmaps[i];
     }
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+bool AddressSet::intersects(const AddressSet& other) const
+{
+    return !(*this & other).empty();
+}
+
+
+        
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void AddressSet::visit(const AddressRangeVisitor& visitor) const
+{    
+    // ...
+}
+
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+std::ostream& ArgoNavis::Base::operator<<(std::ostream& stream,
+                                          const AddressSet& set)
+{
+    // ...
+
+    return stream;
 }
