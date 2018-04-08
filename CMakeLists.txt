@@ -1,5 +1,6 @@
 ################################################################################
 # Copyright (c) 2012-2017 Argo Navis Technologies. All Rights Reserved.
+# Copyright (c) 2018 Krell Institute.  All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -56,14 +57,6 @@ find_package(PAPI 5.4.0)
 find_package(LibMonitor)
 
 find_package(Threads REQUIRED)
-
-if(DEFINED CUDA_TOOLKIT_ROOT_DIR)
-    set(CUPTI_INCLUDE_DIR ${CUDA_TOOLKIT_ROOT_DIR}/extras/CUPTI/include)
-    set(CUPTI_LIBRARY_DIR ${CUDA_cupti_LIBRARY})
-    set(CUPTI_LIBRARIES ${CUPTI_LIBRARY_DIR})
-    set(CUPTI_INCLUDE_DIRS ${CUDA_INCLUDE_DIRS} ${CUPTI_INCLUDE_DIR})
-endif()
-
 
 set(TLS_MODEL "implicit" CACHE STRING "cbtf-krell tls model: [implicit,explicit]")
 #
