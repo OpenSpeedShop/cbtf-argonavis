@@ -55,6 +55,7 @@ add_library(argonavis-base SHARED
     )
 
 target_include_directories(argonavis-base PUBLIC
+    ${Libtirpc_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     )

@@ -31,6 +31,7 @@ add_custom_command(
     )
 
 target_include_directories(cbtf-messages-cuda PUBLIC
+    ${Libtirpc_INCLUDE_DIRS}
     ${CBTF_INCLUDE_DIRS}
     ${CBTF_KRELL_MESSAGES_INCLUDE_DIRS}
     )

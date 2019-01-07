@@ -55,6 +55,7 @@ find_package(CUPTI 2)
 find_package(MRNet)
 find_package(PAPI 5.4.0)
 find_package(LibMonitor)
+find_package(Libtirpc)
 
 find_package(Threads REQUIRED)
 
