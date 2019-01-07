@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2013 Krell Institute. All Rights Reserved.
+# Copyright (c) 2013-2019 Krell Institute. All Rights Reserved.
 # Copyright (c) 2015,2017 Argo Navis Technologies. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
